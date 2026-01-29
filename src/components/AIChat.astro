@@ -1,0 +1,922 @@
+---
+/**
+ * AIChat Component - Side panel for AI assistant
+ * Slides in from the right side of the content container
+ * Fetches chat settings from CMS and connects to AI backend
+ */
+const CMS_URL = import.meta.env.CMS_URL || 'http://localhost:3000';
+const CMS_API_KEY = import.meta.env.CMS_API_KEY || '';
+---
+
+<aside
+  id="ai-chat-panel"
+  class="ai-chat-panel"
+  aria-label="AI Assistant"
+  aria-hidden="true"
+  data-cms-url={CMS_URL}
+  data-cms-api-key={CMS_API_KEY}
+>
+  <div class="ai-chat-container">
+    <!-- Header -->
+    <div class="ai-chat-header">
+      <div class="ai-chat-title">
+        <svg class="ai-title-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+        </svg>
+        <span>AI Assistant</span>
+      </div>
+      <button id="ai-chat-close" class="ai-chat-close" aria-label="Close AI Assistant">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+
+    <!-- Messages area -->
+    <div class="ai-chat-messages" id="ai-chat-messages">
+      <div class="ai-welcome">
+        <div class="ai-welcome-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+          </svg>
+        </div>
+        <h3>How can I help you?</h3>
+        <p>Ask me anything about this documentation. I can help you find information, explain concepts, or guide you through tasks.</p>
+      </div>
+
+      <!-- Suggested questions (will be replaced dynamically) -->
+      <div class="ai-suggestions" id="ai-suggestions"></div>
+    </div>
+
+    <!-- Input area -->
+    <div class="ai-chat-input-area">
+      <div class="ai-chat-input-container">
+        <textarea
+          id="ai-chat-input"
+          class="ai-chat-input"
+          placeholder="Ask a question..."
+          rows="1"
+          aria-label="Type your question"
+        ></textarea>
+        <button id="ai-chat-send" class="ai-chat-send" aria-label="Send message">
+          <svg class="send-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M12 19V5m0 0l-7 7m7-7l7 7" />
+          </svg>
+        </button>
+      </div>
+      <p class="ai-disclaimer">AI can make mistakes. Verify important information.</p>
+    </div>
+  </div>
+</aside>
+
+<script>
+  function initAIChat() {
+    const toggleBtn = document.getElementById('ai-chat-toggle');
+    const closeBtn = document.getElementById('ai-chat-close');
+    const panel = document.getElementById('ai-chat-panel');
+    const input = document.getElementById('ai-chat-input') as HTMLTextAreaElement;
+    const sendBtn = document.getElementById('ai-chat-send');
+    const messagesContainer = document.getElementById('ai-chat-messages');
+    const suggestionsContainer = document.getElementById('ai-suggestions');
+
+    if (!toggleBtn || !panel) return;
+
+    // Read CMS config from data attributes
+    const CMS_URL = panel.dataset.cmsUrl || '';
+    const CMS_API_KEY = panel.dataset.cmsApiKey || '';
+
+    const docsLayout = document.querySelector('.docs-layout');
+    const chatPanel = panel;
+    const chatToggleBtn = toggleBtn;
+
+    // State
+    let chatSettings: any = null;
+    let settingsLoaded = false;
+    let isLoading = false;
+
+    // --- Panel open/close ---
+
+    function openChat() {
+      chatPanel.classList.add('open');
+      chatPanel.setAttribute('aria-hidden', 'false');
+      chatToggleBtn.setAttribute('aria-expanded', 'true');
+      docsLayout?.classList.add('ai-chat-open');
+      input?.focus();
+
+      // Load settings on first open
+      if (!settingsLoaded) {
+        loadChatSettings();
+      }
+    }
+
+    function closeChat() {
+      chatPanel.classList.remove('open');
+      chatPanel.setAttribute('aria-hidden', 'true');
+      chatToggleBtn.setAttribute('aria-expanded', 'false');
+      docsLayout?.classList.remove('ai-chat-open');
+    }
+
+    chatToggleBtn.addEventListener('click', () => {
+      const isOpen = chatPanel.classList.contains('open');
+      if (isOpen) {
+        closeChat();
+      } else {
+        openChat();
+      }
+    });
+
+    closeBtn?.addEventListener('click', closeChat);
+
+    // --- Settings ---
+
+    async function loadChatSettings() {
+      settingsLoaded = true;
+      try {
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (CMS_API_KEY) {
+          headers['x-api-key'] = CMS_API_KEY;
+        }
+
+        const response = await fetch(`${CMS_URL}/api/settings?category=ai`, { headers });
+        if (!response.ok) {
+          console.error('Failed to load AI settings:', response.status);
+          renderFallbackQuickActions();
+          return;
+        }
+
+        const data = await response.json();
+        chatSettings = data.chat || {};
+        renderQuickActions();
+      } catch (err) {
+        console.error('Failed to load chat settings:', err);
+        renderFallbackQuickActions();
+      }
+    }
+
+    function renderQuickActions() {
+      if (!suggestionsContainer) return;
+      const actions = chatSettings?.quickActions || [];
+
+      if (actions.length === 0) {
+        renderFallbackQuickActions();
+        return;
+      }
+
+      suggestionsContainer.innerHTML = '';
+      for (const action of actions) {
+        const btn = document.createElement('button');
+        btn.className = 'ai-suggestion';
+        btn.textContent = action.message;
+        btn.addEventListener('click', () => handleQuickAction(action));
+        suggestionsContainer.appendChild(btn);
+      }
+    }
+
+    function renderFallbackQuickActions() {
+      if (!suggestionsContainer) return;
+      const fallbacks = [
+        { id: 'summarize', message: 'Summarize the content', prompt: 'Summarize the following documentation content in 3-5 concise bullet points:\n\n{content}' },
+        { id: 'explain', message: 'Explain the main concepts', prompt: 'Explain the main concepts covered in this documentation in simple terms:\n\n{content}' },
+        { id: 'steps', message: 'Generate steps', prompt: 'Extract and list the key steps or procedures described in this documentation as a numbered list:\n\n{content}' }
+      ];
+
+      suggestionsContainer.innerHTML = '';
+      for (const action of fallbacks) {
+        const btn = document.createElement('button');
+        btn.className = 'ai-suggestion';
+        btn.textContent = action.message;
+        btn.addEventListener('click', () => handleQuickAction(action));
+        suggestionsContainer.appendChild(btn);
+      }
+    }
+
+    // --- Content extraction ---
+
+    function extractPageContent(selectorOverride?: string): string {
+      const selector = selectorOverride || chatSettings?.contentSelector || '.article-content';
+      const element = document.querySelector(selector);
+      if (!element) return '';
+      let text = element.textContent || '';
+      const maxLen = chatSettings?.maxContentLength || 30000;
+      if (text.length > maxLen) {
+        text = text.substring(0, maxLen);
+      }
+      return text.trim();
+    }
+
+    // --- Message handling ---
+
+    function hideWelcome() {
+      const welcome = messagesContainer?.querySelector('.ai-welcome');
+      const suggestionsEl = messagesContainer?.querySelector('.ai-suggestions');
+      if (welcome) welcome.remove();
+      if (suggestionsEl) suggestionsEl.remove();
+    }
+
+    async function handleQuickAction(action: any) {
+      addMessage(action.message, 'user');
+      hideWelcome();
+
+      const content = extractPageContent(action.selector);
+      if (!content) {
+        addMessage('Could not extract page content. Please make sure you are on a documentation page.', 'assistant');
+        return;
+      }
+
+      // Send the prompt template directly so it works even without saved settings
+      await sendToAI({ prompt: action.prompt, content });
+    }
+
+    async function sendMessage() {
+      const message = input?.value.trim();
+      if (!message || isLoading) return;
+
+      addMessage(message, 'user');
+      input.value = '';
+      input.style.height = 'auto';
+      hideWelcome();
+
+      const content = extractPageContent();
+      if (!content) {
+        addMessage('Could not extract page content. Please make sure you are on a documentation page.', 'assistant');
+        return;
+      }
+
+      await sendToAI({ message, content });
+    }
+
+    async function sendToAI(payload: { message?: string; content: string; prompt?: string }) {
+      isLoading = true;
+      setInputEnabled(false);
+      showTypingIndicator();
+
+      try {
+        const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+        if (CMS_API_KEY) {
+          headers['x-api-key'] = CMS_API_KEY;
+        }
+
+        const response = await fetch(`${CMS_URL}/api/ai/chat`, {
+          method: 'POST',
+          headers,
+          body: JSON.stringify(payload)
+        });
+
+        removeTypingIndicator();
+
+        if (!response.ok) {
+          const err = await response.json().catch(() => ({}));
+          addMessage(err.message || 'Something went wrong. Please try again.', 'assistant');
+          return;
+        }
+
+        const data = await response.json();
+        addMessage(data.response, 'assistant', true);
+      } catch (err) {
+        removeTypingIndicator();
+        addMessage('Failed to connect to AI service. Please try again.', 'assistant');
+      } finally {
+        isLoading = false;
+        setInputEnabled(true);
+        input?.focus();
+      }
+    }
+
+    // --- UI helpers ---
+
+    function addMessage(content: string, role: 'user' | 'assistant', renderMarkdown = false) {
+      const messageEl = document.createElement('div');
+      messageEl.className = `ai-message ai-message-${role}`;
+
+      // Avatar
+      const avatarEl = document.createElement('div');
+      avatarEl.className = 'ai-message-avatar';
+      if (role === 'assistant') {
+        avatarEl.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+        </svg>`;
+      } else {
+        avatarEl.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
+        </svg>`;
+      }
+
+      // Bubble wrapper
+      const bubbleEl = document.createElement('div');
+      bubbleEl.className = 'ai-message-bubble';
+
+      const contentEl = document.createElement('div');
+      contentEl.className = 'ai-message-content';
+
+      if (renderMarkdown && role === 'assistant') {
+        contentEl.innerHTML = simpleMarkdown(content);
+      } else {
+        contentEl.textContent = content;
+      }
+
+      bubbleEl.appendChild(contentEl);
+      messageEl.appendChild(avatarEl);
+      messageEl.appendChild(bubbleEl);
+      messagesContainer?.appendChild(messageEl);
+      messagesContainer?.scrollTo({ top: messagesContainer.scrollHeight, behavior: 'smooth' });
+    }
+
+    function simpleMarkdown(text: string): string {
+      // Process markdown on raw text, then sanitize text segments only
+
+      // Extract code blocks first to protect them
+      const codeBlocks: string[] = [];
+      let processed = text.replace(/```(\w*)\n([\s\S]*?)```/g, (_match, _lang, code) => {
+        codeBlocks.push(code);
+        return `\x00CODEBLOCK${codeBlocks.length - 1}\x00`;
+      });
+
+      // Extract inline code
+      const inlineCode: string[] = [];
+      processed = processed.replace(/`([^`]+)`/g, (_match, code) => {
+        inlineCode.push(code);
+        return `\x00INLINE${inlineCode.length - 1}\x00`;
+      });
+
+      // Escape HTML in remaining text
+      processed = escapeHtml(processed);
+
+      // Restore code blocks with escaped content
+      processed = processed.replace(/\x00CODEBLOCK(\d+)\x00/g, (_match, i) => {
+        return `<pre><code>${escapeHtml(codeBlocks[parseInt(i)])}</code></pre>`;
+      });
+
+      // Restore inline code with escaped content
+      processed = processed.replace(/\x00INLINE(\d+)\x00/g, (_match, i) => {
+        return `<code>${escapeHtml(inlineCode[parseInt(i)])}</code>`;
+      });
+
+      // Headers
+      processed = processed.replace(/^### (.+)$/gm, '<h4>$1</h4>');
+      processed = processed.replace(/^## (.+)$/gm, '<h3>$1</h3>');
+      processed = processed.replace(/^# (.+)$/gm, '<h3>$1</h3>');
+
+      // Bold and italic
+      processed = processed.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
+      processed = processed.replace(/\*(.+?)\*/g, '<em>$1</em>');
+
+      // Unordered list items
+      processed = processed.replace(/^[-*] (.+)$/gm, '<li>$1</li>');
+      // Ordered list items
+      processed = processed.replace(/^\d+\.\s(.+)$/gm, '<li>$1</li>');
+      // Wrap consecutive <li> in <ul>
+      processed = processed.replace(/((?:<li>[\s\S]*?<\/li>\s*)+)/g, '<ul>$1</ul>');
+
+      // Line breaks — but not after block elements
+      processed = processed.replace(/\n/g, '<br>');
+
+      // Clean up <br> around block elements
+      processed = processed.replace(/<br>\s*<(ul|\/ul|pre|\/pre|h[34]|\/h[34]|li)/g, '<$1');
+      processed = processed.replace(/<\/(ul|pre|h[34]|li)>\s*<br>/g, '</$1>');
+      // Remove leading <br>
+      processed = processed.replace(/^(<br>)+/, '');
+
+      return processed;
+    }
+
+    function escapeHtml(text: string): string {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function showTypingIndicator() {
+      const indicator = document.createElement('div');
+      indicator.className = 'ai-message ai-message-assistant';
+      indicator.id = 'ai-typing-indicator';
+      indicator.innerHTML = `
+        <div class="ai-message-avatar">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+          </svg>
+        </div>
+        <div class="ai-message-bubble">
+          <div class="ai-message-content ai-thinking">
+            <div class="ai-thinking-icon">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+              </svg>
+            </div>
+            <div class="ai-thinking-text">
+              <span class="ai-shimmer-text">Thinking</span>
+              <span class="ai-thinking-dots"><span>.</span><span>.</span><span>.</span></span>
+            </div>
+          </div>
+        </div>
+      `;
+      messagesContainer?.appendChild(indicator);
+      messagesContainer?.scrollTo({ top: messagesContainer.scrollHeight, behavior: 'smooth' });
+    }
+
+    function removeTypingIndicator() {
+      const indicator = document.getElementById('ai-typing-indicator');
+      if (indicator) indicator.remove();
+    }
+
+    function setInputEnabled(enabled: boolean) {
+      if (input) input.disabled = !enabled;
+      if (sendBtn) (sendBtn as HTMLButtonElement).disabled = !enabled;
+    }
+
+    // --- Input handling ---
+
+    input?.addEventListener('input', () => {
+      input.style.height = 'auto';
+      input.style.height = Math.min(input.scrollHeight, 120) + 'px';
+    });
+
+    input?.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    sendBtn?.addEventListener('click', sendMessage);
+
+    // Close on Escape
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && panel.classList.contains('open')) {
+        closeChat();
+      }
+    });
+
+    // Load fallback quick actions immediately (will be replaced when settings load)
+    renderFallbackQuickActions();
+  }
+
+  initAIChat();
+  document.addEventListener('astro:after-swap', initAIChat);
+</script>
+
+<style>
+  .ai-chat-panel {
+    width: 0;
+    min-width: 0;
+    background: var(--color-bg-primary);
+    border: 1px solid var(--color-border);
+    display: flex;
+    flex-direction: column;
+    border-radius: 1rem;
+    overflow: hidden;
+    transition: width 0.3s ease, min-width 0.3s ease, opacity 0.3s ease;
+    opacity: 0;
+    height: 100%;
+  }
+
+  :global(.dark) .ai-chat-panel {
+    background: var(--color-background-secondary);
+    border-color: var(--color-border);
+  }
+
+  .ai-chat-panel.open {
+    width: 24rem;
+    min-width: 24rem;
+    opacity: 1;
+  }
+
+  .ai-chat-container {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  .ai-chat-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 1rem 1.25rem;
+    border-bottom: 1px solid var(--color-border);
+    flex-shrink: 0;
+  }
+
+  .ai-chat-title {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    font-weight: 600;
+    font-size: 0.9375rem;
+    color: var(--color-text-primary);
+  }
+
+  .ai-title-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+    color: var(--color-primary);
+  }
+
+  .ai-chat-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    color: var(--color-text-muted);
+    background: none;
+    border: none;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .ai-chat-close:hover {
+    color: var(--color-text-primary);
+    background: var(--color-background-secondary);
+  }
+
+  .ai-chat-messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 1.25rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+  }
+
+  .ai-welcome {
+    text-align: center;
+    padding: 1.5rem 1rem;
+  }
+
+  .ai-welcome-icon {
+    width: 3rem;
+    height: 3rem;
+    margin: 0 auto 1rem;
+    padding: 0.75rem;
+    background: var(--color-background-secondary);
+    border-radius: 0.75rem;
+    color: var(--color-primary);
+  }
+
+  .ai-welcome-icon svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .ai-welcome h3 {
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0 0 0.5rem;
+  }
+
+  .ai-welcome p {
+    font-size: 0.8125rem;
+    color: var(--color-text-secondary);
+    line-height: 1.5;
+    margin: 0;
+  }
+
+  .ai-suggestions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+
+  .ai-suggestion {
+    padding: 0.625rem 0.875rem;
+    font-size: 0.8125rem;
+    color: var(--color-text-secondary);
+    background: var(--color-background-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: 0.5rem;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.15s ease;
+  }
+
+  .ai-suggestion:hover {
+    color: var(--color-primary);
+    border-color: var(--color-primary);
+    background: var(--color-background-tertiary);
+  }
+
+  /* Message row layout */
+  .ai-message {
+    display: flex;
+    gap: 0.625rem;
+    align-items: flex-start;
+  }
+
+  .ai-message-user {
+    flex-direction: row-reverse;
+  }
+
+  /* Avatars */
+  .ai-message-avatar {
+    width: 1.75rem;
+    height: 1.75rem;
+    min-width: 1.75rem;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 0.125rem;
+  }
+
+  .ai-message-avatar svg {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .ai-message-user .ai-message-avatar {
+    background: var(--color-primary);
+    color: white;
+  }
+
+  .ai-message-assistant .ai-message-avatar {
+    background: var(--color-background-tertiary);
+    color: var(--color-primary);
+  }
+
+  :global(.dark) .ai-message-assistant .ai-message-avatar {
+    background: var(--color-background-tertiary);
+    color: var(--color-primary-light);
+  }
+
+  /* Bubble */
+  .ai-message-bubble {
+    max-width: 80%;
+  }
+
+  /* User bubble */
+  .ai-message-user .ai-message-content {
+    background: var(--color-primary);
+    color: white;
+    border-radius: 1.125rem 1.125rem 0.25rem 1.125rem;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
+  }
+
+  :global(.dark) .ai-message-user .ai-message-content {
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  }
+
+  /* Assistant bubble */
+  .ai-message-assistant .ai-message-content {
+    background: var(--color-background-secondary);
+    color: var(--color-text-primary);
+    border-radius: 1.125rem 1.125rem 1.125rem 0.25rem;
+    border: 1px solid var(--color-border);
+  }
+
+  :global(.dark) .ai-message-assistant .ai-message-content {
+    border-color: var(--color-border);
+  }
+
+  .ai-message-content {
+    padding: 0.625rem 0.875rem;
+    font-size: 0.8125rem;
+    line-height: 1.6;
+  }
+
+  /* Markdown rendering in assistant messages */
+  .ai-message-assistant .ai-message-content :global(strong) {
+    font-weight: 600;
+  }
+
+  .ai-message-assistant .ai-message-content :global(code) {
+    background: var(--color-background-tertiary, rgba(0,0,0,0.05));
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+    font-size: 0.8125rem;
+    font-family: var(--font-mono, monospace);
+  }
+
+  .ai-message-assistant .ai-message-content :global(pre) {
+    background: var(--color-background-tertiary, rgba(0,0,0,0.05));
+    padding: 0.75rem;
+    border-radius: 0.5rem;
+    overflow-x: auto;
+    margin: 0.5rem 0;
+  }
+
+  .ai-message-assistant .ai-message-content :global(pre code) {
+    background: none;
+    padding: 0;
+  }
+
+  .ai-message-assistant .ai-message-content :global(h3),
+  .ai-message-assistant .ai-message-content :global(h4) {
+    font-weight: 600;
+    margin: 0.5rem 0 0.25rem;
+  }
+
+  .ai-message-assistant .ai-message-content :global(h3) {
+    font-size: 0.9375rem;
+  }
+
+  .ai-message-assistant .ai-message-content :global(h4) {
+    font-size: 0.875rem;
+  }
+
+  .ai-message-assistant .ai-message-content :global(ul) {
+    list-style: disc;
+    padding-left: 1.25rem;
+    margin: 0.25rem 0;
+  }
+
+  .ai-message-assistant .ai-message-content :global(li) {
+    margin: 0.125rem 0;
+  }
+
+  /* Shimmer thinking indicator */
+  .ai-thinking {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.625rem 0.875rem;
+  }
+
+  .ai-thinking-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-primary);
+    animation: ai-sparkle-pulse 2s ease-in-out infinite;
+  }
+
+  .ai-thinking-icon svg {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .ai-thinking-text {
+    display: flex;
+    align-items: baseline;
+    font-size: 0.8125rem;
+    font-weight: 500;
+  }
+
+  .ai-shimmer-text {
+    background: linear-gradient(
+      90deg,
+      var(--color-text-muted) 0%,
+      var(--color-primary) 40%,
+      var(--color-primary-light, var(--color-primary)) 60%,
+      var(--color-text-muted) 100%
+    );
+    background-size: 200% 100%;
+    -webkit-background-clip: text;
+    background-clip: text;
+    -webkit-text-fill-color: transparent;
+    animation: ai-shimmer 2s ease-in-out infinite;
+  }
+
+  .ai-thinking-dots {
+    display: inline-flex;
+    margin-left: 1px;
+  }
+
+  .ai-thinking-dots span {
+    color: var(--color-text-muted);
+    animation: ai-dot-fade 1.5s ease-in-out infinite;
+    -webkit-text-fill-color: initial;
+  }
+
+  .ai-thinking-dots span:nth-child(2) {
+    animation-delay: 0.3s;
+  }
+
+  .ai-thinking-dots span:nth-child(3) {
+    animation-delay: 0.6s;
+  }
+
+  @keyframes ai-shimmer {
+    0% { background-position: 100% 50%; }
+    100% { background-position: -100% 50%; }
+  }
+
+  @keyframes ai-sparkle-pulse {
+    0%, 100% {
+      opacity: 0.6;
+      transform: scale(1);
+    }
+    50% {
+      opacity: 1;
+      transform: scale(1.15);
+    }
+  }
+
+  @keyframes ai-dot-fade {
+    0%, 100% { opacity: 0.2; }
+    50% { opacity: 1; }
+  }
+
+  .ai-chat-input-area {
+    padding: 1rem 1.25rem;
+    border-top: 1px solid var(--color-border);
+    flex-shrink: 0;
+  }
+
+  .ai-chat-input-container {
+    display: flex;
+    align-items: flex-end;
+    gap: 0.5rem;
+    padding: 0.5rem;
+    background: var(--color-background-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: 0.75rem;
+    transition: border-color 0.15s ease;
+  }
+
+  .ai-chat-input-container:focus-within {
+    border-color: var(--color-primary);
+  }
+
+  .ai-chat-input {
+    flex: 1;
+    padding: 0.375rem 0.5rem;
+    font-size: 0.875rem;
+    color: var(--color-text-primary);
+    background: transparent;
+    border: none;
+    outline: none;
+    resize: none;
+    line-height: 1.5;
+    max-height: 120px;
+  }
+
+  .ai-chat-input::placeholder {
+    color: var(--color-text-muted);
+  }
+
+  .ai-chat-input:disabled {
+    opacity: 0.5;
+  }
+
+  .ai-chat-send {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2rem;
+    height: 2rem;
+    color: white;
+    background: var(--color-primary);
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    flex-shrink: 0;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .ai-chat-send .send-icon {
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .ai-chat-send:hover:not(:disabled) {
+    background: var(--color-primary-dark, #0035b8);
+    transform: scale(1.08);
+    box-shadow: 0 2px 8px var(--color-primary-20, rgba(16, 185, 129, 0.3));
+  }
+
+  .ai-chat-send:hover:not(:disabled) .send-icon {
+    transform: translateY(-1px);
+  }
+
+  .ai-chat-send:active:not(:disabled) {
+    transform: scale(0.95);
+    box-shadow: none;
+  }
+
+  .ai-chat-send:disabled {
+    opacity: 0.35;
+    cursor: not-allowed;
+    background: var(--color-text-muted);
+  }
+
+  .ai-disclaimer {
+    font-size: 0.6875rem;
+    color: var(--color-text-muted);
+    text-align: center;
+    margin: 0.5rem 0 0;
+  }
+
+  @media (max-width: 1024px) {
+    .ai-chat-panel {
+      height: auto;
+      max-height: 0;
+      flex-shrink: 0;
+    }
+
+    .ai-chat-panel.open {
+      width: 100%;
+      min-width: 100%;
+      max-height: 50vh;
+      height: auto;
+      border-radius: 0.75rem;
+    }
+
+    .ai-chat-container {
+      max-height: 50vh;
+    }
+  }
+</style>

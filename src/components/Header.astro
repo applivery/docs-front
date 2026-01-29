@@ -1,0 +1,647 @@
+---
+/**
+ * Header Component - Top navigation bar
+ * Supports both new TopMenuConfig and legacy NavigationItem format
+ * Also renders tabs from sideMenu config
+ */
+
+import type { NavigationItem, TopMenuConfig, SideMenuConfig, SideMenuItem } from '../lib/cms';
+import SearchButton from './SearchButton.astro';
+
+interface Props {
+  navigation?: NavigationItem[];
+  topMenu?: TopMenuConfig;
+  sideMenu?: SideMenuConfig;
+}
+
+const { navigation = [], topMenu, sideMenu } = Astro.props;
+
+// Extract tabs from sideMenu for header rendering
+interface TabItem {
+  id: string;
+  label: string;
+  icon?: string;
+  folder?: string;
+  collection?: string;
+  defaultActive?: boolean;
+}
+
+const tabs: TabItem[] = [];
+if (sideMenu?.mode === 'manual' && sideMenu.items) {
+  for (const item of sideMenu.items) {
+    if (item.type === 'tab' && !item.hidden) {
+      tabs.push({
+        id: item.id,
+        label: item.label,
+        icon: item.icon,
+        folder: item.folder,
+        collection: item.collection || 'docs',
+        defaultActive: item.defaultActive,
+      });
+    }
+  }
+}
+
+// Determine default active tab
+const defaultActiveTab = tabs.find(t => t.defaultActive) || tabs[0];
+const hasTabs = tabs.length > 0;
+const tabsJson = JSON.stringify(tabs);
+
+// No default navigation - only show CMS-configured items
+
+// Convert TopMenuConfig to NavigationItem[] for rendering
+function convertTopMenuToNav(config: TopMenuConfig): NavigationItem[] {
+  return config.items.map(item => {
+    if (item.type === 'folder') {
+      return {
+        label: item.label,
+        href: item.folder ? `/${item.folder}` : '#',
+        icon: undefined,
+        external: false,
+      };
+    }
+    // multiple_menus - has children
+    return {
+      label: item.label,
+      href: '#',
+      children: item.children?.map(child => ({
+        label: child.label,
+        href: child.folder ? `/${child.folder}` : '#',
+      })),
+    };
+  });
+}
+
+// Determine which navigation to use - no defaults, only CMS data
+let navItems: NavigationItem[] = [];
+// Read alignment from topMenu regardless of whether there are nav items
+let alignment: 'left' | 'center' | 'right' = topMenu?.alignment || 'center';
+
+if (topMenu && topMenu.items && topMenu.items.length > 0) {
+  navItems = convertTopMenuToNav(topMenu);
+} else if (navigation && navigation.length > 0) {
+  navItems = navigation;
+}
+// If no CMS data, navItems stays empty - no mock data
+
+---
+
+<header class="header">
+  <!-- Mobile menu button -->
+  <button
+    id="mobile-menu-btn"
+    class="lg:hidden p-2 -ml-2 text-[var(--color-text-secondary)] hover:text-[var(--color-text-primary)]"
+    aria-label="Toggle menu"
+  >
+    <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
+    </svg>
+  </button>
+
+  <!-- Header center content - nav and/or tabs with alignment -->
+  <div class={`header-center ${alignment === 'left' ? 'justify-start' : alignment === 'right' ? 'justify-end' : 'justify-center'}`}>
+    <!-- Navigation - only render if there are nav items -->
+    {navItems.length > 0 && (
+      <nav class="header-nav hidden md:flex">
+        {navItems.map((item) => (
+          item.children && item.children.length > 0 ? (
+            <!-- Dropdown menu -->
+            <div class="header-nav-dropdown" data-dropdown>
+              <button
+                class="header-nav-item dropdown-trigger"
+                aria-expanded="false"
+                aria-haspopup="true"
+              >
+                {item.label}
+                <svg class="dropdown-chevron" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                </svg>
+              </button>
+              <div class="dropdown-menu" data-dropdown-menu>
+                {item.children.map((child) => (
+                  <a
+                    href={child.href}
+                    class="dropdown-item"
+                    target={child.external ? '_blank' : undefined}
+                    rel={child.external ? 'noopener noreferrer' : undefined}
+                  >
+                    {child.label}
+                    {child.external && (
+                      <svg class="w-3 h-3 ml-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                      </svg>
+                    )}
+                  </a>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <!-- Regular link -->
+            <a
+              href={item.href}
+              class="header-nav-item"
+              target={item.external ? '_blank' : undefined}
+              rel={item.external ? 'noopener noreferrer' : undefined}
+            >
+              {item.label}
+              {item.external && (
+                <svg class="w-3 h-3 ml-1 inline" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+                </svg>
+              )}
+            </a>
+          )
+        ))}
+      </nav>
+    )}
+
+    <!-- Tabs (from sideMenu config) -->
+    {hasTabs && (
+      <div class="header-tabs" data-tabs={tabsJson}>
+        {tabs.map((tab, index) => (
+          <button
+            type="button"
+            class:list={[
+              'header-tab',
+              { 'active': tab.defaultActive || (!tabs.some(t => t.defaultActive) && index === 0) }
+            ]}
+            data-tab-id={tab.id}
+            data-tab-folder={tab.folder}
+            data-tab-collection={tab.collection}
+          >
+            {tab.icon && (
+              <span class="tab-icon" data-icon={tab.icon}></span>
+            )}
+            {tab.label}
+          </button>
+        ))}
+      </div>
+    )}
+  </div>
+
+  <!-- Right side actions -->
+  <div class="flex items-center gap-3">
+    <!-- Search Button -->
+    <SearchButton />
+
+    <!-- AI Chat Toggle Button -->
+    <button
+      id="ai-chat-toggle"
+      class="ai-chat-btn"
+      aria-label="Toggle AI Assistant"
+      aria-expanded="false"
+    >
+      <svg class="ai-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z" />
+      </svg>
+      <span class="ai-btn-text">Ask AI</span>
+    </button>
+
+    <!-- CTA Button -->
+    <a href="/get-started" class="btn btn-primary hidden sm:flex">
+      Get started
+    </a>
+  </div>
+</header>
+
+<script>
+  function initDropdowns() {
+    const dropdowns = document.querySelectorAll('[data-dropdown]');
+
+    dropdowns.forEach(dropdown => {
+      const trigger = dropdown.querySelector('.dropdown-trigger');
+      const menu = dropdown.querySelector('[data-dropdown-menu]') as HTMLElement;
+
+      if (!trigger || !menu) return;
+
+      trigger.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const isOpen = trigger.getAttribute('aria-expanded') === 'true';
+
+        // Close all other dropdowns
+        dropdowns.forEach(d => {
+          const t = d.querySelector('.dropdown-trigger');
+          const m = d.querySelector('[data-dropdown-menu]') as HTMLElement;
+          if (t && m && d !== dropdown) {
+            t.setAttribute('aria-expanded', 'false');
+            m.classList.remove('open');
+          }
+        });
+
+        trigger.setAttribute('aria-expanded', (!isOpen).toString());
+        menu.classList.toggle('open', !isOpen);
+      });
+    });
+
+    // Close dropdowns when clicking outside
+    document.addEventListener('click', () => {
+      dropdowns.forEach(dropdown => {
+        const trigger = dropdown.querySelector('.dropdown-trigger');
+        const menu = dropdown.querySelector('[data-dropdown-menu]') as HTMLElement;
+        if (trigger && menu) {
+          trigger.setAttribute('aria-expanded', 'false');
+          menu.classList.remove('open');
+        }
+      });
+    });
+  }
+
+  /**
+   * Tab Navigation - Progressive Enhancement
+   * - Works without JS for SEO (tabs render with server-side active state)
+   * - Uses data attributes for state (no localStorage polling)
+   * - Single event delegation for performance
+   * - Immediate visual feedback, async content loading
+   */
+  function initTabs() {
+    const container = document.querySelector('.header-tabs') as HTMLElement;
+    if (!container || container.hasAttribute('data-init')) return;
+    container.setAttribute('data-init', '');
+
+    const STORAGE_KEY = 'docs_active_tab';
+
+    // Get active tab from: 1) URL hash, 2) stored preference, 3) default
+    const getActiveTab = (): HTMLElement | null => {
+      const hash = location.hash.slice(1);
+      if (hash) {
+        const fromHash = container.querySelector(`[data-tab-folder="${hash}"]`) as HTMLElement;
+        if (fromHash) return fromHash;
+      }
+
+      try {
+        const stored = localStorage.getItem(STORAGE_KEY);
+        if (stored) {
+          const { folder } = JSON.parse(stored);
+          const fromStorage = container.querySelector(`[data-tab-folder="${folder}"]`) as HTMLElement;
+          if (fromStorage) return fromStorage;
+        }
+      } catch { /* localStorage may be blocked or invalid JSON */ }
+
+      return container.querySelector('.header-tab.active') as HTMLElement;
+    };
+
+    // Set active tab - CSS handles visual state via [aria-selected]
+    const setActive = (tab: HTMLElement) => {
+      const folder = tab.dataset.tabFolder;
+      const collection = tab.dataset.tabCollection || 'docs';
+      const id = tab.dataset.tabId;
+
+      // Update ARIA state (CSS uses this for styling)
+      container.querySelectorAll('.header-tab').forEach(t => {
+        t.setAttribute('aria-selected', 'false');
+        t.classList.remove('active');
+      });
+      tab.setAttribute('aria-selected', 'true');
+      tab.classList.add('active');
+
+      // Store preference (localStorage = permanent)
+      try {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify({ folder, collection, id }));
+      } catch {}
+
+      // Notify sidebar
+      window.dispatchEvent(new CustomEvent('tabChange', {
+        detail: { folder, collection }
+      }));
+    };
+
+    // Single delegated click handler
+    container.addEventListener('click', (e) => {
+      const tab = (e.target as HTMLElement).closest('.header-tab') as HTMLElement;
+      if (tab) {
+        e.preventDefault();
+        setActive(tab);
+      }
+    });
+
+    // Set initial active tab and notify sidebar
+    const initial = getActiveTab();
+    if (initial) {
+      setActive(initial);
+    }
+  }
+
+  // Icon SVG paths for common Lucide icons
+  const iconPaths: Record<string, string> = {
+    'book': 'M4 19.5v-15A2.5 2.5 0 0 1 6.5 2H20v20H6.5a2.5 2.5 0 0 1 0-5H20',
+    'book-open': 'M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z',
+    'home': 'M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z M9 22V12h6v10',
+    'monitor': 'M2 3h20v14H2z M8 21h8 M12 17v4',
+    'laptop': 'M20 16V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9m16 0H4m16 0l1.28 2.55a1 1 0 0 1-.9 1.45H3.62a1 1 0 0 1-.9-1.45L4 16',
+    'smartphone': 'M5 2h14a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z M12 18h.01',
+    'tablet': 'M4 2h16a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z M12 18h.01',
+    'hard-drive': 'M22 12H2 M5.45 5.11L2 12v6a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2v-6l-3.45-6.89A2 2 0 0 0 16.76 4H7.24a2 2 0 0 0-1.79 1.11z M6 16h.01',
+    'wifi': 'M5 12.55a11 11 0 0 1 14.08 0 M1.42 9a16 16 0 0 1 21.16 0 M8.53 16.11a6 6 0 0 1 6.95 0 M12 20h.01',
+    'bluetooth': 'M6.5 6.5l11 11L12 23V1l5.5 5.5-11 11',
+    'airplay': 'M5 17H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2h-1 M12 15l5 6H7l5-6z',
+    'cast': 'M2 16.1A5 5 0 0 1 5.9 20M2 12.05A9 9 0 0 1 9.95 20M2 8V6a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v12a2 2 0 0 1-2 2h-6M2 20h.01',
+    'tv': 'M2 7h20v15H2z M17 2l-5 5-5-5',
+    'speaker': 'M4 2h16a2 2 0 0 1 2 2v16a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2z M12 6a2 2 0 1 0 0 4 2 2 0 0 0 0-4z M12 14a4 4 0 1 0 0 8 4 4 0 0 0 0-8z',
+    'device': 'M2 3h20v14H2z M8 21h8 M12 17v4',
+    'settings': 'M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z M12 8a4 4 0 1 0 0 8 4 4 0 0 0 0-8z',
+    'file': 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6',
+    'file-text': 'M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8 M10 9H8',
+    'folder': 'M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z',
+    'users': 'M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2 M12 7a4 4 0 1 0-8 0 4 4 0 0 0 8 0z M22 21v-2a4 4 0 0 0-3-3.87 M16 3.13a4 4 0 0 1 0 7.75',
+    'code': 'M16 18l6-6-6-6 M8 6l-6 6 6 6',
+    'terminal': 'M4 17l6-6-6-6 M12 19h8',
+    'box': 'M21 8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16Z M3.3 7l8.7 5 8.7-5 M12 22V12',
+    'package': 'M16.5 9.4l-9-5.19 M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z M3.27 6.96L12 12.01l8.73-5.05 M12 22.08V12',
+    'layers': 'M12 2L2 7l10 5 10-5-10-5z M2 17l10 5 10-5 M2 12l10 5 10-5',
+    'rocket': 'M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z M12 15l-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0 M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5',
+    'zap': 'M13 2L3 14h9l-1 8 10-12h-9l1-8z',
+    'star': 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z',
+    'heart': 'M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z',
+    'shield': 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z',
+    'lock': 'M19 11H5a2 2 0 0 0-2 2v7a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7a2 2 0 0 0-2-2z M7 11V7a5 5 0 0 1 10 0v4',
+    'key': 'M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4',
+    'globe': 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z M2 12h20 M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z',
+    'database': 'M12 2C6.48 2 2 4.02 2 6.5v11C2 19.98 6.48 22 12 22s10-2.02 10-4.5v-11C22 4.02 17.52 2 12 2z M2 6.5C2 8.98 6.48 11 12 11s10-2.02 10-4.5 M2 12c0 2.48 4.48 4.5 10 4.5s10-2.02 10-4.5',
+    'server': 'M2 5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5z M2 15a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2v-4z M6 7h.01 M6 17h.01',
+    'cpu': 'M9 2v2 M15 2v2 M9 20v2 M15 20v2 M2 9h2 M2 15h2 M20 9h2 M20 15h2 M6 6h12v12H6z M9 9h6v6H9z',
+    'activity': 'M22 12h-4l-3 9L9 3l-3 9H2',
+    'bar-chart': 'M12 20V10 M18 20V4 M6 20v-4',
+    'pie-chart': 'M21.21 15.89A10 10 0 1 1 8 2.83 M22 12A10 10 0 0 0 12 2v10z',
+    'message-circle': 'M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z',
+    'mail': 'M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z M22 6l-10 7L2 6',
+    'bell': 'M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9 M13.73 21a2 2 0 0 1-3.46 0',
+    'calendar': 'M3 4h18v18H3z M16 2v4 M8 2v4 M3 10h18',
+    'clock': 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z M12 6v6l4 2',
+    'search': 'M21 21l-6-6m2-5a7 7 0 1 1-14 0 7 7 0 0 1 14 0z',
+    'filter': 'M22 3H2l8 9.46V19l4 2v-8.54L22 3z',
+    'edit': 'M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7 M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z',
+    'trash': 'M3 6h18 M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2',
+    'plus': 'M12 5v14 M5 12h14',
+    'minus': 'M5 12h14',
+    'x': 'M18 6L6 18 M6 6l12 12',
+    'check': 'M20 6L9 17l-5-5',
+    'chevron-down': 'M6 9l6 6 6-6',
+    'chevron-up': 'M18 15l-6-6-6 6',
+    'chevron-left': 'M15 18l-6-6 6-6',
+    'chevron-right': 'M9 18l6-6-6-6',
+    'arrow-right': 'M5 12h14 M12 5l7 7-7 7',
+    'arrow-left': 'M19 12H5 M12 19l-7-7 7-7',
+    'external-link': 'M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6 M15 3h6v6 M10 14L21 3',
+    'link': 'M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71 M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71',
+    'download': 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M7 10l5 5 5-5 M12 15V3',
+    'upload': 'M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4 M17 8l-5-5-5 5 M12 3v12',
+    'image': 'M19 3H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V5a2 2 0 0 0-2-2z M8.5 10a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3z M21 15l-5-5L5 21',
+    'video': 'M23 7l-7 5 7 5V7z M14 5H3a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h11a2 2 0 0 0 2-2V7a2 2 0 0 0-2-2z',
+    'music': 'M9 18V5l12-2v13 M9 18a3 3 0 1 1-6 0 3 3 0 0 1 6 0z M21 16a3 3 0 1 1-6 0 3 3 0 0 1 6 0z',
+    'play': 'M5 3l14 9-14 9V3z',
+    'pause': 'M6 4h4v16H6z M14 4h4v16h-4z',
+    'info': 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z M12 16v-4 M12 8h.01',
+    'alert-circle': 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z M12 8v4 M12 16h.01',
+    'alert-triangle': 'M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z M12 9v4 M12 17h.01',
+    'help-circle': 'M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20z M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3 M12 17h.01',
+  };
+
+  // Render icons
+  function renderIcons() {
+    document.querySelectorAll('.tab-icon[data-icon]').forEach(el => {
+      const iconName = (el as HTMLElement).dataset.icon?.toLowerCase().replace(/_/g, '-');
+      if (iconName && iconPaths[iconName]) {
+        el.innerHTML = `<svg class="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="${iconPaths[iconName]}"/></svg>`;
+      }
+    });
+  }
+
+  // Initialize when DOM is ready
+  function init() {
+    initDropdowns();
+    initTabs();
+    renderIcons();
+  }
+
+  // Run on DOM ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+  // Re-initialize after Astro page transitions
+  document.addEventListener('astro:after-swap', init);
+</script>
+
+<style>
+  .ai-chat-btn {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.5rem 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    background: var(--color-bg-primary);
+    border: 1px solid var(--color-border);
+    border-radius: 0.5rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .ai-chat-btn:hover {
+    color: var(--color-primary);
+    border-color: var(--color-primary);
+    background: var(--color-background-tertiary);
+  }
+
+  .ai-chat-btn[aria-expanded="true"] {
+    color: var(--color-primary);
+    border-color: var(--color-primary);
+    background: var(--color-background-secondary);
+  }
+
+  /* Dark mode: default state looks like hover */
+  :global(.dark) .ai-chat-btn {
+    color: var(--color-primary);
+    background: var(--color-background-tertiary);
+    border-color: var(--color-primary);
+  }
+
+  :global(.dark) .ai-chat-btn:hover {
+    background: var(--color-primary-10);
+  }
+
+  .ai-icon {
+    width: 1.125rem;
+    height: 1.125rem;
+  }
+
+  .ai-btn-text {
+    display: none;
+  }
+
+  @media (min-width: 640px) {
+    .ai-btn-text {
+      display: inline;
+    }
+  }
+
+  /* Header center content - fills space between menu btn and right actions */
+  .header-center {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    min-width: 0;
+  }
+
+  .header-center.justify-start {
+    justify-content: flex-start;
+  }
+
+  .header-center.justify-center {
+    justify-content: center;
+  }
+
+  .header-center.justify-end {
+    justify-content: flex-end;
+  }
+
+  /* Top menu nav button styles */
+  .header-nav-item {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.5rem 1rem;
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    background: var(--color-bg-primary);
+    border: 1px solid var(--color-border);
+    border-radius: 0.5rem;
+    opacity: 0.9;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    text-decoration: none;
+  }
+
+  .header-nav-item:hover {
+    opacity: 1;
+    color: var(--color-text-primary);
+    border-color: var(--color-primary);
+    background: var(--color-bg-secondary);
+  }
+
+  /* Dropdown styles */
+  .header-nav-dropdown {
+    position: relative;
+  }
+
+  .dropdown-trigger {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+  }
+
+  .dropdown-chevron {
+    width: 0.875rem;
+    height: 0.875rem;
+    opacity: 0.5;
+    transition: transform 0.2s ease;
+  }
+
+  .dropdown-trigger[aria-expanded="true"] .dropdown-chevron {
+    transform: rotate(180deg);
+  }
+
+  .dropdown-trigger[aria-expanded="true"] {
+    opacity: 1;
+    color: var(--color-primary);
+    border-color: var(--color-primary);
+  }
+
+  .dropdown-menu {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    margin-top: 0.5rem;
+    min-width: 200px;
+    padding: 0.5rem;
+    background: var(--color-bg-primary);
+    border: 1px solid var(--color-border);
+    border-radius: 0.5rem;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+    opacity: 0;
+    visibility: hidden;
+    transition: all 0.15s ease;
+    z-index: 50;
+  }
+
+  .dropdown-menu.open {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .dropdown-item {
+    display: block;
+    padding: 0.625rem 0.875rem;
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+    border-radius: 0.375rem;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+    text-decoration: none;
+  }
+
+  .dropdown-item:hover {
+    color: var(--color-text-primary);
+    background-color: var(--color-background-secondary);
+  }
+
+  /* Header Tabs */
+  .header-tabs {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.25rem;
+    background: var(--color-bg-secondary);
+    border-radius: 0.5rem;
+  }
+
+  .header-tab {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.875rem;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    background: transparent;
+    border: none;
+    border-radius: 0.375rem;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+  }
+
+  .tab-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .tab-icon svg {
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .header-tab:hover {
+    color: var(--color-text-primary);
+    background: var(--color-bg-tertiary);
+  }
+
+  .header-tab.active {
+    color: var(--color-primary);
+    background: var(--color-bg-primary);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+  }
+
+  @media (max-width: 768px) {
+    .header-tabs {
+      display: none;
+    }
+  }
+</style>

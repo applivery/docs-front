@@ -1,0 +1,656 @@
+---
+/**
+ * DocLayout - Documentation page layout with Mintlify-style design
+ * Features: Sidebar navigation, header, table of contents, dark mode, i18n
+ */
+
+import BaseLayout from "./BaseLayout.astro";
+import Header from "../components/Header.astro";
+import Sidebar from "../components/Sidebar.astro";
+import TableOfContents from "../components/TableOfContents.astro";
+import Breadcrumbs from "../components/Breadcrumbs.astro";
+import Footer from "../components/Footer.astro";
+import AIChat from "../components/AIChat.astro";
+import { getDocuments, getAllSettings, type Document } from "../lib/cms";
+import {
+  locales,
+  localeHrefLang,
+  defaultLocale,
+  isValidLocale,
+  localizedPath,
+  type Locale,
+} from "../lib/i18n";
+
+interface Props {
+  // Page metadata
+  title: string;
+  description?: string;
+
+  // SEO
+  ogTitle?: string;
+  ogDescription?: string;
+  ogImage?: string;
+  canonical?: string;
+  noindex?: boolean;
+
+  // Content
+  collection?: string;
+  section?: string;
+  category?: string;
+  readingTime?: number;
+  tldr?: string;
+  keyTakeaways?: string[];
+
+  // Article schema metadata
+  author?: string;
+  authorUrl?: string;
+  datePublished?: string;
+  dateModified?: string;
+  heroImage?: string;
+  imageAlt?: string;
+
+  // Table of Contents
+  headings?: Array<{ depth: number; slug: string; text: string }>;
+
+  // Navigation
+  currentPath?: string;
+
+  // i18n
+  locale?: Locale;
+  availableTranslations?: Locale[];
+  translationSlugs?: Partial<Record<Locale, string>>;
+}
+
+const {
+  title,
+  description,
+  ogTitle,
+  ogDescription,
+  ogImage,
+  canonical,
+  noindex,
+  collection = "docs",
+  section,
+  category,
+  readingTime,
+  tldr,
+  keyTakeaways,
+  author,
+  authorUrl,
+  datePublished,
+  dateModified,
+  heroImage,
+  imageAlt,
+  headings = [],
+  currentPath,
+  locale: propLocale,
+  availableTranslations = [],
+  translationSlugs = {},
+} = Astro.props;
+
+// Determine current locale
+const urlSegments = (currentPath || Astro.url.pathname)
+  .split("/")
+  .filter(Boolean);
+const urlLocale = urlSegments[0];
+const currentLocale: Locale =
+  propLocale || (isValidLocale(urlLocale) ? urlLocale : defaultLocale);
+
+// Determine available translations (default to current locale if not provided)
+const effectiveTranslations: Locale[] =
+  availableTranslations.length > 0 ? availableTranslations : [currentLocale];
+
+// Fetch navigation documents and settings
+let documents: Document[] = [];
+let settings = null;
+
+try {
+  const [docsResponse, settingsResponse] = await Promise.all([
+    getDocuments({ collection, visible: true, limit: 100 }),
+    getAllSettings(),
+  ]);
+  documents = docsResponse.documents;
+  settings = settingsResponse;
+} catch (error) {
+  console.warn("Failed to fetch CMS data for navigation");
+}
+
+// Filter TOC to only h2 and h3
+const tocHeadings = headings.filter((h) => h.depth === 2 || h.depth === 3);
+
+// Build Article Schema for SEO/LLM optimization
+const siteUrl = settings?.seo?.siteUrl || Astro.url.origin;
+const siteName = settings?.seo?.siteName || "Documentation";
+const pageUrl = new URL(currentPath || Astro.url.pathname, siteUrl).href;
+
+// Heuristic: Detect content type based on URL patterns and content
+const isHowTo =
+  (currentPath || "").includes("/guide") ||
+  (currentPath || "").includes("/tutorial") ||
+  (currentPath || "").includes("/how-to") ||
+  headings.some((h) => h.text.toLowerCase().includes("step"));
+
+const isFaq = headings.filter((h) => h.text.includes("?")).length >= 2;
+
+// Build Article schema
+const articleSchema: Record<string, any> = {
+  "@context": "https://schema.org",
+  "@type": isHowTo ? "HowTo" : "Article",
+  headline: title,
+  description: description || "",
+  url: pageUrl,
+  inLanguage: localeHrefLang[currentLocale] || currentLocale,
+  isPartOf: {
+    "@type": "WebSite",
+    name: siteName,
+    url: siteUrl,
+  },
+  publisher: {
+    "@type": "Organization",
+    name: siteName,
+    url: siteUrl,
+    ...(settings?.appearance?.branding?.logo && {
+      logo: {
+        "@type": "ImageObject",
+        url: new URL(settings.appearance.branding.logo, siteUrl).href,
+      },
+    }),
+  },
+};
+
+// Add dates if available
+if (datePublished) {
+  articleSchema.datePublished = datePublished;
+}
+if (dateModified) {
+  articleSchema.dateModified = dateModified;
+}
+
+// Add author if available
+if (author) {
+  articleSchema.author = {
+    "@type": "Person",
+    name: author,
+    ...(authorUrl && { url: authorUrl }),
+  };
+}
+
+// Add image if available
+if (heroImage || ogImage) {
+  articleSchema.image = {
+    "@type": "ImageObject",
+    url: new URL(heroImage || ogImage || "", siteUrl).href,
+    ...(imageAlt && { description: imageAlt }),
+  };
+}
+
+// Add HowTo specific fields
+if (isHowTo && headings.length > 0) {
+  articleSchema.step = headings
+    .filter((h) => h.depth === 2)
+    .map((h, index) => ({
+      "@type": "HowToStep",
+      position: index + 1,
+      name: h.text,
+      url: `${pageUrl}#${h.slug}`,
+    }));
+}
+
+// Add reading time as timeRequired for HowTo
+if (isHowTo && readingTime) {
+  articleSchema.totalTime = `PT${readingTime}M`;
+}
+
+// Build FAQ schema if detected
+const faqSchema = isFaq
+  ? {
+      "@context": "https://schema.org",
+      "@type": "FAQPage",
+      mainEntity: headings
+        .filter((h) => h.text.includes("?"))
+        .slice(0, 10) // Limit to 10 FAQs
+        .map((h) => ({
+          "@type": "Question",
+          name: h.text,
+          acceptedAnswer: {
+            "@type": "Answer",
+            text: `See section: ${h.text}`, // Placeholder - actual content is in the page
+          },
+        })),
+    }
+  : null;
+---
+
+<BaseLayout
+  title={title}
+  description={description}
+  ogTitle={ogTitle}
+  ogDescription={ogDescription}
+  ogImage={ogImage}
+  canonical={canonical}
+  noindex={noindex}
+  locale={currentLocale}
+  availableTranslations={effectiveTranslations}
+>
+  <!-- Article Schema for SEO/LLM optimization -->
+  <Fragment slot="head">
+    <script
+      type="application/ld+json"
+      set:html={JSON.stringify(articleSchema)}
+    />
+    {
+      faqSchema && (
+        <script
+          type="application/ld+json"
+          set:html={JSON.stringify(faqSchema)}
+        />
+      )
+    }
+    <!-- LLMs.txt reference -->
+    <link rel="author" href="/llms.txt" type="text/plain" />
+  </Fragment>
+  <div class="docs-layout">
+    <!-- Sidebar -->
+    <Sidebar
+      documents={documents}
+      currentPath={currentPath || Astro.url.pathname}
+      logoUrl={settings?.appearance?.branding?.logo ||
+        settings?.appearance?.logoUrl}
+      logoDarkUrl={settings?.appearance?.branding?.logoDark}
+      logoIconUrl={settings?.appearance?.branding?.logoIcon}
+      logoIconDarkUrl={settings?.appearance?.branding?.logoIconDark}
+      logoWidth={settings?.appearance?.branding?.logoWidth}
+      logoHeight={settings?.appearance?.branding?.logoHeight}
+      siteName={settings?.seo?.siteName}
+      supportedLocales={settings?.content?.supportedLocales}
+      defaultLocale={settings?.content?.defaultLocale}
+      sideMenu={settings?.navigation?.sideMenu}
+      locale={currentLocale}
+      availableTranslations={effectiveTranslations}
+      translationSlugs={translationSlugs}
+    />
+
+    <!-- Main Content Area -->
+    <div class="main-content">
+      <!-- Header -->
+      <Header
+        navigation={settings?.navigation?.header}
+        topMenu={settings?.navigation?.topMenu}
+        sideMenu={settings?.navigation?.sideMenu}
+      />
+
+      <!-- Content area with container and AI chat side by side -->
+      <div class="content-area">
+        <!-- Content Container with border - wraps content + TOC -->
+        <div class="content-container">
+          <!-- Article Content -->
+          <main class="article-main scrollbar-hide">
+            <!-- Breadcrumbs - SEO optimized -->
+            <Breadcrumbs
+              currentPath={currentPath || Astro.url.pathname}
+              currentTitle={title}
+              collection={collection}
+              section={section}
+              category={category}
+              siteName={settings?.seo?.siteName}
+            />
+
+            <!-- Article Header -->
+            <header class="article-header">
+              <h1 class="article-title">{title}</h1>
+              {description && <p class="article-description">{description}</p>}
+              {
+                readingTime && (
+                  <p class="reading-time">{readingTime} min read</p>
+                )
+              }
+            </header>
+
+            <!-- TL;DR Box -->
+            {
+              tldr && (
+                <div class="tldr-box">
+                  <p class="tldr-title">TL;DR</p>
+                  <p class="tldr-content">{tldr}</p>
+                </div>
+              )
+            }
+
+            <!-- Article Content -->
+            <article class="article-content">
+              <slot />
+            </article>
+
+            <!-- Key Takeaways -->
+            {
+              keyTakeaways && keyTakeaways.length > 0 && (
+                <div class="takeaways">
+                  <h2 class="takeaways-title">Key Takeaways</h2>
+                  <ul class="takeaways-list">
+                    {keyTakeaways.map((item) => (
+                      <li class="takeaways-item">
+                        <svg
+                          class="takeaways-icon"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            stroke-linecap="round"
+                            stroke-linejoin="round"
+                            stroke-width="2"
+                            d="M5 13l4 4L19 7"
+                          />
+                        </svg>
+                        <span>{item}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )
+            }
+
+            <!-- Footer Navigation -->
+            <Footer />
+          </main>
+
+          <!-- Table of Contents (Right Sidebar) -->
+          <div class="toc-wrapper">
+            {
+              tocHeadings.length > 0 && (
+                <TableOfContents headings={tocHeadings} />
+              )
+            }
+          </div>
+        </div>
+
+        <!-- AI Chat Panel - Part of layout, resizes container -->
+        <AIChat />
+      </div>
+    </div>
+  </div>
+
+  <!-- Mobile menu overlay -->
+  <div
+    id="sidebar-overlay"
+    class="fixed inset-0 bg-black/50 z-30 hidden lg:hidden"
+  >
+  </div>
+
+  <!-- Mobile menu toggle script -->
+  <script>
+    function initMobileMenu() {
+      const menuBtn = document.getElementById("mobile-menu-btn");
+      const sidebar = document.querySelector(".sidebar");
+      const overlay = document.getElementById("sidebar-overlay");
+
+      if (menuBtn && sidebar && overlay) {
+        menuBtn.addEventListener("click", () => {
+          sidebar.classList.toggle("open");
+          overlay.classList.toggle("hidden");
+          document.body.classList.toggle("overflow-hidden");
+        });
+
+        overlay.addEventListener("click", () => {
+          sidebar.classList.remove("open");
+          overlay.classList.add("hidden");
+          document.body.classList.remove("overflow-hidden");
+        });
+      }
+    }
+
+    initMobileMenu();
+    document.addEventListener("astro:after-swap", initMobileMenu);
+  </script>
+</BaseLayout>
+
+<style>
+  /* Content area - flex container for main container + AI chat */
+  .content-area {
+    display: flex;
+    gap: 1rem;
+    margin: 0 0 1.5rem 1.5rem;
+    height: calc(100vh - var(--header-height) - 1.5rem);
+  }
+
+  /* Add right margin only when AI chat is open */
+  :global(.ai-chat-open) .content-area {
+    margin-right: 1.5rem;
+  }
+
+  /* Content container - wraps content + TOC with border */
+  .content-container {
+    display: flex;
+    align-items: flex-start;
+    gap: 2rem;
+    flex: 1;
+    min-width: 0;
+    padding: 2rem 2rem 0 2rem;
+    background: var(--color-bg-primary);
+    border: 1px solid var(--color-border);
+    border-radius: 1rem;
+    height: 100%;
+    overflow: hidden;
+    transition: flex 0.3s ease;
+    position: relative;
+    justify-content: center;
+  }
+
+  /* Bottom gradient fade */
+  .content-container::after {
+    content: "";
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 3rem;
+    background: linear-gradient(
+      to bottom,
+      transparent,
+      var(--color-bg-primary)
+    );
+    pointer-events: none;
+    border-radius: 0 0 1rem 1rem;
+  }
+
+  :global(.dark) .content-container {
+    background: var(--color-background-secondary);
+    border-color: var(--color-border);
+  }
+
+  :global(.dark) .content-container::after {
+    background: linear-gradient(
+      to bottom,
+      transparent,
+      var(--color-background-secondary)
+    );
+  }
+
+  /* TOC wrapper - only hides when AI chat is open AND not enough space */
+  .toc-wrapper {
+    display: contents;
+  }
+
+  /* Hide TOC when AI chat is open only on screens below 1600px */
+  @media (max-width: 1600px) {
+    :global(.ai-chat-open) .toc-wrapper {
+      display: none;
+    }
+  }
+
+  /* Article main section */
+  .article-main {
+    flex: 1;
+    min-width: 0;
+    max-width: 48rem;
+    height: 100%;
+    overflow-y: auto;
+    padding-right: 1rem;
+  }
+
+  /* Footer inside article-main */
+  .article-main :global(footer) {
+    margin-bottom: 48px;
+  }
+
+  /* Article header - introduction section with distinct styling */
+  .article-header {
+    margin-bottom: 2.5rem;
+    padding-bottom: 2rem;
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .article-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    line-height: 1.2;
+    margin: 0;
+    letter-spacing: -0.02em;
+  }
+
+  @media (min-width: 768px) {
+    .article-title {
+      font-size: 1.875rem;
+    }
+  }
+
+  .article-description {
+    font-size: 1.0625rem;
+    color: var(--color-text-secondary);
+    margin-top: 0.75rem;
+    line-height: 1.65;
+    max-width: 40rem;
+  }
+
+  .reading-time {
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+    margin-top: 0.75rem;
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+  }
+
+  .reading-time::before {
+    content: "";
+    width: 4px;
+    height: 4px;
+    background: var(--color-text-muted);
+    border-radius: 50%;
+  }
+
+  /* TL;DR box styling */
+  .tldr-box {
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: 0.75rem;
+    padding: 1.25rem;
+    margin-bottom: 2rem;
+  }
+
+  .tldr-title {
+    font-weight: 600;
+    color: var(--color-primary);
+    margin-bottom: 0.5rem;
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+
+  .tldr-content {
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+    margin: 0;
+  }
+
+  /* Key takeaways section */
+  .takeaways {
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: 0.75rem;
+    padding: 1.5rem;
+    margin-top: 2rem;
+  }
+
+  .takeaways-title {
+    font-size: 1.125rem;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin: 0 0 1rem 0;
+  }
+
+  .takeaways-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  .takeaways-item {
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    padding: 0.5rem 0;
+    color: var(--color-text-secondary);
+  }
+
+  .takeaways-icon {
+    width: 1.25rem;
+    height: 1.25rem;
+    color: var(--color-primary);
+    flex-shrink: 0;
+    margin-top: 0.125rem;
+  }
+
+  /* Responsive adjustments */
+  @media (max-width: 1024px) {
+    .content-area {
+      flex-direction: column-reverse;
+      margin: 0 1rem 1rem 1rem;
+      height: calc(100vh - var(--header-height) - 1rem);
+    }
+
+    .content-container {
+      flex-direction: column;
+      padding: 1.5rem 1.5rem 0 1.5rem;
+      border-radius: 1rem;
+      flex: 1;
+      min-height: 0;
+      overflow: hidden;
+    }
+
+    .article-main {
+      max-width: 100%;
+      padding-right: 0;
+      flex: 1;
+      min-height: 0;
+      overflow-y: auto;
+    }
+
+    .article-header {
+      margin-bottom: 2rem;
+      padding-bottom: 1.5rem;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .content-area {
+      margin: 0 0.75rem 0.75rem 0.75rem;
+      height: calc(100vh - var(--header-height) - 0.75rem);
+    }
+
+    .content-container {
+      padding: 1rem 1rem 0 1rem;
+      border-radius: 1rem;
+    }
+
+    .article-header {
+      margin-bottom: 1.5rem;
+      padding-bottom: 1.25rem;
+    }
+
+    .article-description {
+      font-size: 1rem;
+    }
+  }
+</style>

@@ -1,0 +1,1250 @@
+---
+/**
+ * ArchiveGrid Component - SEO & LLM Optimized Archive/Index Grid
+ *
+ * A beautiful, filterable card grid for archive/index pages.
+ *
+ * SEO Features:
+ * - Schema.org CollectionPage + ItemList JSON-LD
+ * - SpeakableSpecification for voice search
+ * - Microdata attributes on cards
+ * - Semantic HTML5 with proper ARIA
+ *
+ * LLM Features:
+ * - Hidden semantic content summary for AI crawlers
+ * - Structured article listing with metadata
+ *
+ * Performance:
+ * - No external dependencies (vanilla JS)
+ * - CSS-based filtering via hidden attribute toggle
+ * - Lazy loading images
+ * - Event delegation
+ * - Progressive enhancement (works without JS)
+ */
+
+interface ArchiveItem {
+  id: string;
+  title: string;
+  description?: string;
+  href: string;
+  category?: string | string[];
+  difficulty?: string;
+  audience?: string;
+  platform?: string;
+  hero_image?: string;
+  image_alt?: string;
+  reading_time?: number;
+  featured?: boolean;
+  pub_date?: string;
+}
+
+interface FilterConfig {
+  id: string;
+  label: string;
+  field: 'category' | 'difficulty' | 'audience' | 'platform';
+  values: string[];
+}
+
+interface Props {
+  items: ArchiveItem[];
+  pageTitle: string;
+  pageDescription?: string;
+  pageUrl: string;
+  filters?: FilterConfig[];
+  enableFilters?: boolean;
+  columns?: 2 | 3 | 4;
+  showImages?: boolean;
+}
+
+const {
+  items,
+  pageTitle,
+  pageDescription = '',
+  pageUrl,
+  filters = [],
+  enableFilters = true,
+  columns = 3,
+  showImages = false,
+} = Astro.props;
+
+// Normalize category to always be an array
+function normalizeToArray(val: string | string[] | undefined): string[] {
+  if (!val) return [];
+  if (Array.isArray(val)) return val;
+  return [val];
+}
+
+// Extract unique filter values from items if not provided
+function extractFilterValues(field: FilterConfig['field']): string[] {
+  const values = new Set<string>();
+  items.forEach(item => {
+    const val = item[field];
+    const arr = normalizeToArray(val);
+    arr.forEach(v => v && values.add(v));
+  });
+  return Array.from(values).sort();
+}
+
+// Build filters with extracted values
+const activeFilters: FilterConfig[] = enableFilters
+  ? filters.length > 0
+    ? filters
+    : [
+        { id: 'category', label: 'Category', field: 'category', values: extractFilterValues('category') } as FilterConfig,
+        { id: 'difficulty', label: 'Level', field: 'difficulty', values: extractFilterValues('difficulty') } as FilterConfig,
+      ].filter(f => f.values.length > 1)
+  : [];
+
+// Separate featured items
+const featuredItems = items.filter(item => item.featured);
+const regularItems = items.filter(item => !item.featured);
+
+// Format date for display
+function formatDate(dateStr: string): string {
+  try {
+    const date = new Date(dateStr);
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+  } catch {
+    return dateStr;
+  }
+}
+
+// JSON-LD: CollectionPage schema
+const collectionPageSchema = {
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  "name": pageTitle,
+  "description": pageDescription,
+  "url": pageUrl,
+  "numberOfItems": items.length,
+  "mainEntity": {
+    "@type": "ItemList",
+    "numberOfItems": items.length,
+    "itemListElement": items.map((item, index) => ({
+      "@type": "ListItem",
+      "position": index + 1,
+      "name": item.title,
+      "description": item.description,
+      "url": item.href
+    }))
+  }
+};
+
+// JSON-LD: ItemList schema for rich results
+const itemListSchema = {
+  "@context": "https://schema.org",
+  "@type": "ItemList",
+  "name": `Articles in ${pageTitle}`,
+  "description": `Collection of ${items.length} articles`,
+  "numberOfItems": items.length,
+  "itemListOrder": "https://schema.org/ItemListOrderDescending",
+  "itemListElement": items.map((item, index) => ({
+    "@type": "Article",
+    "position": index + 1,
+    "name": item.title,
+    "headline": item.title,
+    "description": item.description,
+    "url": item.href,
+    ...(item.hero_image && { "image": item.hero_image }),
+    ...(item.pub_date && { "datePublished": item.pub_date }),
+    ...(item.reading_time && { "timeRequired": `PT${item.reading_time}M` })
+  }))
+};
+
+// JSON-LD: SpeakableSpecification for voice search
+const speakableSchema = {
+  "@context": "https://schema.org",
+  "@type": "WebPage",
+  "speakable": {
+    "@type": "SpeakableSpecification",
+    "cssSelector": [".archive-card .card-title", ".archive-card .card-description"]
+  }
+};
+
+// Extract unique categories for LLM summary
+const allCategories = [...new Set(items.flatMap(item => normalizeToArray(item.category)))];
+const keyTopics = items.map(i => i.title).slice(0, 10).join(', ');
+---
+
+<!-- JSON-LD Structured Data -->
+<script type="application/ld+json" set:html={JSON.stringify(collectionPageSchema)} />
+<script type="application/ld+json" set:html={JSON.stringify(itemListSchema)} />
+<script type="application/ld+json" set:html={JSON.stringify(speakableSchema)} />
+
+<!-- Hidden semantic content for LLMs and screen readers -->
+<div class="sr-only" aria-hidden="false" role="navigation" aria-label="Content collection overview">
+  <h2>Archive Contents: {pageTitle}</h2>
+  <p>This collection contains {items.length} articles{allCategories.length > 0 && ` across ${allCategories.length} categories: ${allCategories.join(', ')}`}.</p>
+  <p>Topics covered: {keyTopics}</p>
+  <h3>Article listing:</h3>
+  <ol>
+    {items.map(item => (
+      <li>
+        <strong>{item.title}</strong>
+        {item.description && ` - ${item.description}`}
+        {normalizeToArray(item.category).length > 0 && ` [${normalizeToArray(item.category).join(', ')}]`}
+      </li>
+    ))}
+  </ol>
+</div>
+
+<!-- Filter Bar -->
+{activeFilters.length > 0 && (
+  <nav
+    class="archive-filters"
+    role="navigation"
+    aria-label="Content filters"
+    itemscope
+    itemtype="https://schema.org/SiteNavigationElement"
+  >
+    <div class="filter-bar">
+      {activeFilters.map(filter => (
+        <div class="filter-dropdown" data-filter-dropdown={filter.field}>
+          <button
+            type="button"
+            class="filter-trigger"
+            data-filter={filter.field}
+            aria-haspopup="listbox"
+            aria-expanded="false"
+            aria-label={`Filter by ${filter.label}`}
+          >
+            <div class="filter-trigger-content">
+              <svg class="filter-plus-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M12 5v14M5 12h14"/>
+              </svg>
+              <span class="filter-trigger-label">{filter.label}</span>
+            </div>
+            <div class="filter-trigger-value" data-filter-value-display={filter.field} hidden>
+              <div class="filter-divider"></div>
+              <span class="filter-value-badge"></span>
+            </div>
+          </button>
+          <div class="filter-menu" role="listbox" aria-label={`${filter.label} options`} hidden>
+            <button
+              type="button"
+              role="option"
+              class="filter-option active"
+              data-filter={filter.field}
+              data-value="all"
+              aria-selected="true"
+            >
+              <span class="filter-option-check">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                  <path d="M20 6L9 17l-5-5"/>
+                </svg>
+              </span>
+              All
+            </button>
+            {filter.values.map(value => (
+              <button
+                type="button"
+                role="option"
+                class="filter-option"
+                data-filter={filter.field}
+                data-value={value.toLowerCase()}
+                data-label={value.charAt(0).toUpperCase() + value.slice(1)}
+                aria-selected="false"
+              >
+                <span class="filter-option-check">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M20 6L9 17l-5-5"/>
+                  </svg>
+                </span>
+                {value.charAt(0).toUpperCase() + value.slice(1)}
+              </button>
+            ))}
+          </div>
+        </div>
+      ))}
+
+      <!-- Clear Filters Button -->
+      <button
+        type="button"
+        class="filter-clear"
+        id="clear-filters-btn"
+        hidden
+        aria-label="Clear all filters"
+      >
+        Reset
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M18 6L6 18M6 6l12 12"/>
+        </svg>
+      </button>
+    </div>
+
+    <!-- Active filters summary for screen readers -->
+    <div class="sr-only" aria-live="polite" id="filter-status">
+      Showing all {items.length} items
+    </div>
+  </nav>
+)}
+
+<!-- Grid Container -->
+<section
+  class="archive-grid"
+  aria-label="Article collection"
+  itemscope
+  itemtype="https://schema.org/ItemList"
+>
+  <meta itemprop="numberOfItems" content={String(items.length)} />
+
+  <!-- Featured Items -->
+  {featuredItems.length > 0 && (
+    <div class="archive-featured" role="region" aria-label="Featured articles">
+      {featuredItems.map((item, index) => (
+        <article
+          class={`archive-card archive-card-featured cols-${columns}`}
+          role="listitem"
+          itemprop="itemListElement"
+          itemscope
+          itemtype="https://schema.org/Article"
+          data-category={normalizeToArray(item.category).join(',').toLowerCase()}
+          data-difficulty={item.difficulty?.toLowerCase()}
+          data-audience={item.audience?.toLowerCase()}
+          data-platform={item.platform?.toLowerCase()}
+          data-featured="true"
+        >
+          <meta itemprop="position" content={String(index + 1)} />
+
+          {showImages && item.hero_image && (
+            <div class="card-image">
+              <img
+                src={item.hero_image}
+                alt={item.image_alt || item.title}
+                loading="lazy"
+                decoding="async"
+                itemprop="image"
+              />
+            </div>
+          )}
+
+          <div class="card-content">
+            <div class="card-badges">
+              <span class="badge badge-featured">Featured</span>
+              {normalizeToArray(item.category).slice(0, 1).map(cat => (
+                <span class="badge badge-category">{cat}</span>
+              ))}
+              {item.difficulty && (
+                <span class={`badge badge-difficulty badge-difficulty-${item.difficulty.toLowerCase()}`}>
+                  {item.difficulty}
+                </span>
+              )}
+            </div>
+
+            <h3 class="card-title" itemprop="headline">
+              <a href={item.href} itemprop="url">{item.title}</a>
+            </h3>
+
+            {item.description && (
+              <p class="card-description" itemprop="description">{item.description}</p>
+            )}
+
+            <div class="card-meta">
+              {item.reading_time && (
+                <span class="meta-item">
+                  <svg class="meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <circle cx="12" cy="12" r="10"/>
+                    <path d="M12 6v6l4 2"/>
+                  </svg>
+                  <span>{item.reading_time} min read</span>
+                </span>
+              )}
+              {item.pub_date && (
+                <time datetime={item.pub_date} itemprop="datePublished" class="meta-item">
+                  {formatDate(item.pub_date)}
+                </time>
+              )}
+            </div>
+          </div>
+
+          <svg class="card-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <path d="M9 5l7 7-7 7"/>
+          </svg>
+        </article>
+      ))}
+    </div>
+  )}
+
+  <!-- Grid Items -->
+  <div class={`archive-items cols-${columns}`} role="list" id="archive-items-container">
+    {regularItems.map((item, index) => (
+      <article
+        class="archive-card"
+        role="listitem"
+        itemprop="itemListElement"
+        itemscope
+        itemtype="https://schema.org/Article"
+        data-category={normalizeToArray(item.category).join(',').toLowerCase()}
+        data-difficulty={item.difficulty?.toLowerCase()}
+        data-audience={item.audience?.toLowerCase()}
+        data-platform={item.platform?.toLowerCase()}
+        data-featured="false"
+      >
+        <meta itemprop="position" content={String(featuredItems.length + index + 1)} />
+
+        {showImages && item.hero_image && (
+          <div class="card-image">
+            <img
+              src={item.hero_image}
+              alt={item.image_alt || item.title}
+              loading="lazy"
+              decoding="async"
+              itemprop="image"
+            />
+          </div>
+        )}
+
+        <div class="card-content">
+          {(normalizeToArray(item.category).length > 0 || item.difficulty) && (
+            <div class="card-badges">
+              {normalizeToArray(item.category).slice(0, 2).map(cat => (
+                <span class="badge badge-category">{cat}</span>
+              ))}
+              {item.difficulty && (
+                <span class={`badge badge-difficulty badge-difficulty-${item.difficulty.toLowerCase()}`}>
+                  {item.difficulty}
+                </span>
+              )}
+            </div>
+          )}
+
+          <h3 class="card-title" itemprop="headline">
+            <a href={item.href} itemprop="url">{item.title}</a>
+          </h3>
+
+          {item.description && (
+            <p class="card-description" itemprop="description">{item.description}</p>
+          )}
+
+          <div class="card-meta">
+            {item.reading_time && (
+              <span class="meta-item">
+                <svg class="meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                  <circle cx="12" cy="12" r="10"/>
+                  <path d="M12 6v6l4 2"/>
+                </svg>
+                <span>{item.reading_time} min read</span>
+              </span>
+            )}
+            {item.pub_date && (
+              <time datetime={item.pub_date} itemprop="datePublished" class="meta-item">
+                {formatDate(item.pub_date)}
+              </time>
+            )}
+          </div>
+        </div>
+
+        <svg class="card-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+          <path d="M9 5l7 7-7 7"/>
+        </svg>
+      </article>
+    ))}
+  </div>
+
+  <!-- Empty State -->
+  <div class="archive-empty" id="archive-empty" hidden>
+    <div class="archive-empty-icon">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true">
+        <path d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+      </svg>
+    </div>
+    <p class="archive-empty-text">No articles match your current filters.</p>
+    <button type="button" class="btn btn-secondary" id="clear-filters-empty">
+      Clear all filters
+    </button>
+  </div>
+</section>
+
+<script>
+  function initArchiveGrid() {
+    const filterNav = document.querySelector<HTMLElement>('.archive-filters');
+    const container = document.getElementById('archive-items-container');
+    const featuredContainer = document.querySelector('.archive-featured');
+    const emptyState = document.getElementById('archive-empty');
+    const filterStatus = document.getElementById('filter-status');
+    const clearBtn = document.getElementById('clear-filters-btn');
+
+    if (!container) return;
+
+    const dropdowns = filterNav?.querySelectorAll<HTMLElement>('.filter-dropdown') || [];
+    const allCards = [
+      ...Array.from(featuredContainer?.querySelectorAll<HTMLElement>('.archive-card') || []),
+      ...Array.from(container.querySelectorAll<HTMLElement>('.archive-card') || [])
+    ];
+
+    if (allCards.length === 0) return;
+
+    // Track active filters per type
+    const activeFilters: Record<string, string> = {};
+
+    // Initialize filter state
+    dropdowns.forEach(dropdown => {
+      const filterType = dropdown.dataset.filterDropdown;
+      if (filterType) {
+        activeFilters[filterType] = 'all';
+      }
+    });
+
+    function updateCards() {
+      let visibleCount = 0;
+      let hasActiveFilter = false;
+
+      // Check if any filter is active
+      for (const value of Object.values(activeFilters)) {
+        if (value !== 'all') {
+          hasActiveFilter = true;
+          break;
+        }
+      }
+
+      allCards.forEach(card => {
+        let visible = true;
+
+        // Check each filter type
+        for (const [filterType, filterValue] of Object.entries(activeFilters)) {
+          if (filterValue === 'all') continue;
+
+          const cardValue = card.dataset[filterType] || '';
+          const cardValues = cardValue.split(',').map(v => v.trim().toLowerCase()).filter(Boolean);
+
+          // Card must match the selected value
+          if (!cardValues.includes(filterValue.toLowerCase())) {
+            visible = false;
+            break;
+          }
+        }
+
+        card.hidden = !visible;
+        if (visible) visibleCount++;
+      });
+
+      // Update empty state
+      if (emptyState) {
+        emptyState.hidden = visibleCount > 0;
+      }
+
+      // Update clear button visibility
+      if (clearBtn) {
+        clearBtn.hidden = !hasActiveFilter;
+      }
+
+      // Update aria-live status
+      if (filterStatus) {
+        const totalCount = allCards.length;
+        if (visibleCount === totalCount) {
+          filterStatus.textContent = `Showing all ${totalCount} items`;
+        } else {
+          filterStatus.textContent = `Showing ${visibleCount} of ${totalCount} items`;
+        }
+      }
+    }
+
+    function updateTriggerDisplay(dropdown: HTMLElement, filterType: string, value: string, label: string) {
+      const trigger = dropdown.querySelector<HTMLButtonElement>('.filter-trigger');
+      const valueDisplay = dropdown.querySelector<HTMLElement>(`[data-filter-value-display="${filterType}"]`);
+      const valueBadge = valueDisplay?.querySelector('.filter-value-badge');
+
+      if (value === 'all') {
+        trigger?.classList.remove('has-value');
+        if (valueDisplay) valueDisplay.hidden = true;
+      } else {
+        trigger?.classList.add('has-value');
+        if (valueDisplay) {
+          valueDisplay.hidden = false;
+          if (valueBadge) valueBadge.textContent = label;
+        }
+      }
+    }
+
+    function closeAllDropdowns(except?: HTMLElement) {
+      dropdowns.forEach(dropdown => {
+        if (dropdown === except) return;
+        const menu = dropdown.querySelector('.filter-menu') as HTMLElement;
+        const trigger = dropdown.querySelector('.filter-trigger');
+        if (menu) menu.hidden = true;
+        trigger?.setAttribute('aria-expanded', 'false');
+      });
+    }
+
+    function handleTriggerClick(e: Event) {
+      const trigger = (e.target as HTMLElement).closest<HTMLButtonElement>('.filter-trigger');
+      if (!trigger) return;
+
+      const dropdown = trigger.closest<HTMLElement>('.filter-dropdown');
+      const menu = dropdown?.querySelector<HTMLElement>('.filter-menu');
+      if (!dropdown || !menu) return;
+
+      e.stopPropagation();
+
+      const isOpen = menu.hidden === false;
+      closeAllDropdowns(dropdown);
+
+      if (isOpen) {
+        menu.hidden = true;
+        trigger.setAttribute('aria-expanded', 'false');
+      } else {
+        menu.hidden = false;
+        trigger.setAttribute('aria-expanded', 'true');
+      }
+    }
+
+    function handleOptionClick(e: Event) {
+      const option = (e.target as HTMLElement).closest<HTMLButtonElement>('.filter-option');
+      if (!option) return;
+
+      const filterType = option.dataset.filter;
+      const value = option.dataset.value;
+      const label = option.dataset.label || option.textContent?.trim() || value;
+
+      if (!filterType || !value) return;
+
+      const dropdown = option.closest<HTMLElement>('.filter-dropdown');
+      const menu = dropdown?.querySelector<HTMLElement>('.filter-menu');
+      const options = menu?.querySelectorAll<HTMLButtonElement>('.filter-option') || [];
+
+      // Update active state
+      activeFilters[filterType] = value;
+
+      // Update option styles
+      options.forEach(opt => {
+        const isActive = opt.dataset.value === value;
+        opt.classList.toggle('active', isActive);
+        opt.setAttribute('aria-selected', isActive ? 'true' : 'false');
+      });
+
+      // Update trigger display
+      if (dropdown) {
+        updateTriggerDisplay(dropdown, filterType, value, label || 'All');
+      }
+
+      // Close menu
+      if (menu) menu.hidden = true;
+      dropdown?.querySelector('.filter-trigger')?.setAttribute('aria-expanded', 'false');
+
+      // Update cards
+      updateCards();
+    }
+
+    function clearAllFilters() {
+      for (const filterType of Object.keys(activeFilters)) {
+        activeFilters[filterType] = 'all';
+      }
+
+      dropdowns.forEach(dropdown => {
+        const filterType = dropdown.dataset.filterDropdown;
+        const options = dropdown.querySelectorAll<HTMLButtonElement>('.filter-option');
+
+        options.forEach(opt => {
+          const isAll = opt.dataset.value === 'all';
+          opt.classList.toggle('active', isAll);
+          opt.setAttribute('aria-selected', isAll ? 'true' : 'false');
+        });
+
+        if (filterType) {
+          updateTriggerDisplay(dropdown, filterType, 'all', 'All');
+        }
+      });
+
+      updateCards();
+    }
+
+    // Close dropdowns when clicking outside
+    function handleClickOutside(e: Event) {
+      const target = e.target as HTMLElement;
+      if (!target.closest('.filter-dropdown')) {
+        closeAllDropdowns();
+      }
+    }
+
+    // Event listeners
+    filterNav?.addEventListener('click', (e: Event) => {
+      if ((e.target as HTMLElement).closest('.filter-trigger')) {
+        handleTriggerClick(e);
+      } else if ((e.target as HTMLElement).closest('.filter-option')) {
+        handleOptionClick(e);
+      }
+    });
+
+    clearBtn?.addEventListener('click', clearAllFilters);
+    document.getElementById('clear-filters-empty')?.addEventListener('click', clearAllFilters);
+    document.addEventListener('click', handleClickOutside);
+
+    // Keyboard navigation
+    filterNav?.addEventListener('keydown', (e: Event) => {
+      const keyEvent = e as KeyboardEvent;
+      const option = (e.target as HTMLElement).closest<HTMLButtonElement>('.filter-option');
+      if (!option) return;
+
+      const menu = option.closest('.filter-menu');
+      const options = Array.from(menu?.querySelectorAll('.filter-option') || []);
+      const index = options.indexOf(option);
+
+      if (keyEvent.key === 'ArrowDown') {
+        keyEvent.preventDefault();
+        const next = options[(index + 1) % options.length] as HTMLElement;
+        next?.focus();
+      } else if (keyEvent.key === 'ArrowUp') {
+        keyEvent.preventDefault();
+        const prev = options[(index - 1 + options.length) % options.length] as HTMLElement;
+        prev?.focus();
+      } else if (keyEvent.key === 'Escape') {
+        closeAllDropdowns();
+        option.closest('.filter-dropdown')?.querySelector<HTMLElement>('.filter-trigger')?.focus();
+      }
+    });
+
+    // Initial state
+    updateCards();
+
+    // Cleanup on navigation
+    return () => {
+      document.removeEventListener('click', handleClickOutside);
+    };
+  }
+
+  // Run on load and Astro navigation
+  initArchiveGrid();
+  document.addEventListener('astro:after-swap', initArchiveGrid);
+</script>
+
+<style>
+  /* Filter Bar */
+  .archive-filters {
+    margin-bottom: 1.5rem;
+  }
+
+  .filter-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    align-items: center;
+  }
+
+  /* Filter Dropdown */
+  .filter-dropdown {
+    position: relative;
+  }
+
+  .filter-trigger {
+    display: flex;
+    align-items: center;
+    gap: 0;
+    padding: 0.375rem 0.75rem;
+    border-radius: 9999px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--color-text-muted);
+    background: transparent;
+    border: 1px dashed var(--color-border);
+    cursor: pointer;
+    transition: all 0.15s ease;
+  }
+
+  .filter-trigger:hover {
+    color: var(--color-text-primary);
+    background: var(--color-background-secondary);
+  }
+
+  .filter-trigger:focus {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--color-primary-50);
+  }
+
+  .filter-trigger.has-value {
+    color: var(--color-text-primary);
+    background: var(--color-surface);
+    border-style: solid;
+    border-color: var(--color-border);
+  }
+
+  .filter-trigger-content {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+  }
+
+  .filter-plus-icon {
+    width: 0.875rem;
+    height: 0.875rem;
+  }
+
+  .filter-trigger-label {
+    white-space: nowrap;
+  }
+
+  .filter-trigger-value {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .filter-trigger-value[hidden] {
+    display: none;
+  }
+
+  .filter-divider {
+    width: 1px;
+    height: 1rem;
+    background: var(--color-border);
+    margin-left: 0.5rem;
+  }
+
+  .filter-value-badge {
+    padding: 0.125rem 0.5rem;
+    background: var(--color-background-secondary);
+    border-radius: 0.25rem;
+    font-size: 0.75rem;
+    color: var(--color-text-primary);
+  }
+
+  /* Filter Menu */
+  .filter-menu {
+    position: absolute;
+    top: calc(100% + 0.5rem);
+    left: 0;
+    min-width: 12rem;
+    max-height: 16rem;
+    overflow-y: auto;
+    padding: 0.375rem;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 0.5rem;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+    z-index: 50;
+  }
+
+  .filter-menu[hidden] {
+    display: none;
+  }
+
+  .filter-option {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    width: 100%;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.375rem;
+    font-size: 0.8125rem;
+    color: var(--color-text-secondary);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    text-align: left;
+    transition: all 0.1s ease;
+  }
+
+  .filter-option:hover {
+    color: var(--color-text-primary);
+    background: var(--color-background-secondary);
+  }
+
+  .filter-option.active {
+    color: var(--color-text-primary);
+    background: var(--color-primary-10);
+  }
+
+  :global(.dark) .filter-option.active {
+    background: var(--color-accent-10);
+  }
+
+  .filter-option-check {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 1rem;
+    height: 1rem;
+    opacity: 0;
+  }
+
+  .filter-option-check svg {
+    width: 0.875rem;
+    height: 0.875rem;
+    color: var(--color-primary);
+  }
+
+  :global(.dark) .filter-option-check svg {
+    color: var(--color-accent-light);
+  }
+
+  .filter-option.active .filter-option-check {
+    opacity: 1;
+  }
+
+  /* Clear Filters */
+  .filter-clear {
+    display: flex;
+    align-items: center;
+    gap: 0.25rem;
+    padding: 0.375rem 0.5rem;
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: color 0.15s ease;
+    white-space: nowrap;
+  }
+
+  .filter-clear:hover {
+    color: var(--color-text-primary);
+  }
+
+  .filter-clear[hidden] {
+    display: none;
+  }
+
+  .filter-clear svg {
+    width: 0.875rem;
+    height: 0.875rem;
+  }
+
+  /* Grid Layout */
+  .archive-grid {
+    margin-top: 1rem;
+  }
+
+  .archive-featured {
+    display: grid;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+
+  .archive-featured.cols-2 { grid-template-columns: 1fr; }
+  .archive-featured.cols-3 { grid-template-columns: 1fr; }
+  .archive-featured.cols-4 { grid-template-columns: repeat(2, 1fr); }
+
+  .archive-items {
+    display: grid;
+    gap: 1rem;
+    grid-template-columns: 1fr;
+  }
+
+  .archive-items.cols-2 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .archive-items.cols-3 {
+    grid-template-columns: repeat(3, 1fr);
+  }
+
+  .archive-items.cols-4 {
+    grid-template-columns: repeat(4, 1fr);
+  }
+
+  @media (max-width: 1024px) {
+    .archive-items.cols-3,
+    .archive-items.cols-4 {
+      grid-template-columns: repeat(2, 1fr);
+    }
+    .archive-featured.cols-4 {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .archive-items.cols-2,
+    .archive-items.cols-3,
+    .archive-items.cols-4 {
+      grid-template-columns: 1fr;
+    }
+    .filter-bar {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+  }
+
+  /* Card Styles */
+  .archive-card {
+    display: flex;
+    flex-direction: column;
+    padding: 1.25rem;
+    border-radius: 0.75rem;
+    border: 1px solid var(--color-border);
+    background: var(--color-surface);
+    text-decoration: none;
+    transition: all 0.2s ease;
+    position: relative;
+  }
+
+  .archive-card:hover {
+    border-color: var(--color-primary-50);
+    box-shadow: 0 10px 15px -3px var(--color-primary-5),
+                0 4px 6px -4px var(--color-primary-5);
+    transform: translateY(-2px);
+  }
+
+  :global(.dark) .archive-card:hover {
+    border-color: var(--color-accent-10);
+    box-shadow: 0 10px 15px -3px var(--color-accent-10),
+                0 4px 6px -4px var(--color-accent-10);
+  }
+
+  .archive-card[hidden] {
+    display: none;
+  }
+
+  /* Featured card highlight */
+  .archive-card-featured {
+    border-color: var(--color-primary-20);
+    background: linear-gradient(
+      135deg,
+      var(--color-surface) 0%,
+      var(--color-primary-5) 100%
+    );
+  }
+
+  :global(.dark) .archive-card-featured {
+    border-color: var(--color-accent-10);
+    background: linear-gradient(
+      135deg,
+      var(--color-surface) 0%,
+      var(--color-accent-10) 100%
+    );
+  }
+
+  /* Card Image */
+  .card-image {
+    width: 100%;
+    height: 160px;
+    margin-bottom: 1rem;
+    border-radius: 0.5rem;
+    overflow: hidden;
+    background: var(--color-background-secondary);
+  }
+
+  .card-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.3s ease;
+  }
+
+  .archive-card:hover .card-image img {
+    transform: scale(1.05);
+  }
+
+  /* Card Content */
+  .card-content {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+  }
+
+  /* Badges */
+  .card-badges {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+    margin-bottom: 0.75rem;
+  }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.125rem 0.5rem;
+    border-radius: 9999px;
+    font-size: 0.6875rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.025em;
+  }
+
+  .badge-category {
+    background: var(--color-primary-10);
+    color: var(--color-primary);
+  }
+
+  :global(.dark) .badge-category {
+    background: var(--color-accent-10);
+    color: var(--color-accent-light);
+  }
+
+  .badge-featured {
+    background: linear-gradient(135deg, #fbbf24, #f59e0b);
+    color: #78350f;
+  }
+
+  .badge-difficulty {
+    background: var(--color-background-tertiary);
+    color: var(--color-text-secondary);
+  }
+
+  .badge-difficulty-beginner,
+  .badge-difficulty-easy {
+    background: rgb(220 252 231);
+    color: rgb(22 101 52);
+  }
+
+  .badge-difficulty-intermediate,
+  .badge-difficulty-medium {
+    background: rgb(254 249 195);
+    color: rgb(133 77 14);
+  }
+
+  .badge-difficulty-advanced,
+  .badge-difficulty-hard {
+    background: rgb(254 226 226);
+    color: rgb(153 27 27);
+  }
+
+  :global(.dark) .badge-difficulty-beginner,
+  :global(.dark) .badge-difficulty-easy {
+    background: rgb(22 101 52 / 0.3);
+    color: rgb(134 239 172);
+  }
+
+  :global(.dark) .badge-difficulty-intermediate,
+  :global(.dark) .badge-difficulty-medium {
+    background: rgb(133 77 14 / 0.3);
+    color: rgb(253 224 71);
+  }
+
+  :global(.dark) .badge-difficulty-advanced,
+  :global(.dark) .badge-difficulty-hard {
+    background: rgb(127 29 29 / 0.3);
+    color: rgb(252 165 165);
+  }
+
+  /* Card Title */
+  .card-title {
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.4;
+    color: var(--color-text-primary);
+    margin: 0 0 0.5rem;
+  }
+
+  .card-title a {
+    color: inherit;
+    text-decoration: none;
+  }
+
+  .card-title a::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+  }
+
+  .archive-card:hover .card-title {
+    color: var(--color-primary);
+  }
+
+  :global(.dark) .archive-card:hover .card-title {
+    color: var(--color-accent-light);
+  }
+
+  /* Card Description */
+  .card-description {
+    font-size: 0.875rem;
+    line-height: 1.6;
+    color: var(--color-text-secondary);
+    margin: 0;
+    flex: 1;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  /* Card Meta */
+  .card-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.75rem;
+    margin-top: auto;
+    padding-top: 0.75rem;
+  }
+
+  .meta-item {
+    display: flex;
+    align-items: center;
+    gap: 0.375rem;
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+  }
+
+  .meta-icon {
+    width: 0.875rem;
+    height: 0.875rem;
+  }
+
+  /* Card Arrow */
+  .card-arrow {
+    position: absolute;
+    top: 1.25rem;
+    right: 1.25rem;
+    width: 1rem;
+    height: 1rem;
+    color: var(--color-text-muted);
+    transition: transform 0.2s ease, color 0.2s ease;
+  }
+
+  .archive-card:hover .card-arrow {
+    transform: translateX(4px);
+    color: var(--color-primary);
+  }
+
+  :global(.dark) .archive-card:hover .card-arrow {
+    color: var(--color-accent-light);
+  }
+
+  /* Empty State */
+  .archive-empty {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 3rem 2rem;
+  }
+
+  .archive-empty[hidden] {
+    display: none;
+  }
+
+  .archive-empty-icon {
+    width: 3rem;
+    height: 3rem;
+    margin: 0 auto 1rem;
+    color: var(--color-text-muted);
+  }
+
+  .archive-empty-icon svg {
+    width: 100%;
+    height: 100%;
+  }
+
+  .archive-empty-text {
+    color: var(--color-text-muted);
+    margin-bottom: 1rem;
+  }
+
+  /* Screen reader only */
+  .sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  /* Reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    .archive-card,
+    .card-image img,
+    .card-arrow,
+    .filter-pill {
+      transition: none;
+    }
+
+    .archive-card:hover {
+      transform: none;
+    }
+
+    .archive-card:hover .card-image img {
+      transform: none;
+    }
+  }
+</style>

@@ -1,0 +1,50 @@
+---
+/**
+ * Legacy catch-all route - Redirects to locale-prefixed URLs
+ *
+ * This handles any direct access to paths like /platform/user-management
+ * and redirects to /en/platform/user-management
+ *
+ * Note: We don't include /docs in URLs since the subdomain is already docs.applivery.com
+ */
+import { defaultLocale } from '../lib/i18n';
+import { getDocuments } from '../lib/cms';
+
+export async function getStaticPaths() {
+  // Get all documents to generate redirect paths
+  try {
+    const { documents } = await getDocuments({ limit: 1000 });
+
+    const paths = documents
+      .filter(doc => doc.path || doc.slug)
+      .map(doc => {
+        // Always derive from path to preserve folder hierarchy
+        if (doc.path) {
+          return doc.path
+            .replace(/\.mdx?$/, '')           // Remove file extension
+            .replace(/^content\//, '')        // Remove content/ prefix
+            .replace(/^[a-z]{2}\//, '')       // Remove locale prefix
+            .replace(/^docs\//, '')           // Remove docs/ prefix (subdomain handles this)
+            .replace(/^\/+/, '')              // Remove leading slashes
+            .toLowerCase();                   // Lowercase for URL consistency
+        }
+        return doc.slug;
+      })
+      .filter(Boolean)
+      .filter(slug => slug && slug.includes('/'));
+
+    return paths.map(slug => ({
+      params: { slug },
+    }));
+  } catch (error) {
+    console.error('Failed to generate legacy redirect paths:', error);
+    return [];
+  }
+}
+
+// Get the slug from the URL
+const slug = Astro.params.slug;
+
+// Redirect to the locale-prefixed version
+return Astro.redirect(`/${defaultLocale}/${slug}`, 301);
+---

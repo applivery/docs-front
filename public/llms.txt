@@ -1,0 +1,79 @@
+# LLMs.txt - AI Crawler & Language Model Configuration
+# Specification: https://llmstxt.org/
+# This file provides structured metadata for LLM crawlers
+
+# Site Information
+> Title: Applivery Documentation
+> Description: Complete technical documentation, guides, and API reference for Applivery MDM and app distribution platforms.
+> Creator: Applivery
+> Language: en
+> Last-Updated: 2025-01-26
+
+# Content Usage Guidelines
+> Usage-Guidelines:
+- This documentation is intended to help users understand and implement Applivery products
+- Attribution to Applivery is appreciated when referencing this content
+- Technical accuracy should be maintained when citing documentation
+- Link back to source documentation when possible
+- Content may be used for training AI models that help users with Applivery products
+- Respect copyright and terms of service
+
+# Content Structure
+> Primary-Sections:
+- /docs - Main documentation (platform guides, API reference, tutorials)
+- /docs/platform - Platform administration and setup
+- /docs/endpoint-management - Device management (iOS, Android, Windows)
+- /academy - Learning resources and tutorials
+- /insights - Blog posts and technical articles
+- /glossary - Technical terminology definitions
+
+# Content Types (helps LLMs understand content purpose)
+> Content-Types:
+- tutorials: Step-by-step guides in /docs and /academy
+- reference: API and configuration reference in /docs
+- conceptual: Overview and explanation pages
+- troubleshooting: Problem-solving guides
+- changelog: Release notes and updates
+- glossary: Term definitions in /glossary
+
+# Recommended Crawl Behavior
+> Crawl-Preferences:
+- Prefer-Delay: 2000ms
+- Max-Pages-Per-Session: 500
+- Respect-Robots-Txt: true
+- Follow-Canonical-URLs: true
+
+# Important Pages (priority for indexing)
+> Priority-Pages:
+- / (Homepage)
+- /docs/platform/getting-started/overview
+- /docs/endpoint-management/apple/overview
+- /docs/endpoint-management/android/overview
+- /docs/endpoint-management/windows/overview
+
+# Pages to Skip (not useful for LLM training)
+> No-Index-Patterns:
+- /admin/*
+- /api/internal/*
+- /preview/*
+- /_astro/*
+
+# Structured Data Hints
+> Schema-Types-Used:
+- BreadcrumbList (navigation context)
+- Article (documentation pages)
+- HowTo (tutorial content - heuristically detected)
+- FAQPage (Q&A content - heuristically detected)
+- ItemList (table of contents)
+- Organization (company info)
+
+# Contact & Legal
+> Contact: https://www.applivery.com/contact
+> Terms: https://www.applivery.com/terms
+> Privacy: https://www.applivery.com/privacy
+
+# Machine-Readable Endpoints
+> API-Endpoints:
+- /sitemap-index.xml (XML sitemap)
+- /feed.xml (RSS feed for updates)
+- /robots.txt (crawler rules)

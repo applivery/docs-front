@@ -1,0 +1,24 @@
+---
+/**
+ * Legacy collection index route - Redirects to locale-prefixed URLs
+ *
+ * This handles direct access to paths like /docs or /academy
+ * and redirects to /en/docs or /en/academy
+ */
+import { defaultLocale } from '../../lib/i18n';
+
+export function getStaticPaths() {
+  // Define the allowed collections
+  const collections = ['docs', 'academy', 'insights', 'roadmap', 'glossary', 'answers', 'product-updates', 'about'];
+
+  return collections.map(collection => ({
+    params: { collection },
+  }));
+}
+
+// Get the collection from the URL
+const { collection } = Astro.params;
+
+// Redirect to the locale-prefixed version
+return Astro.redirect(`/${defaultLocale}/${collection}/`, 301);
+---

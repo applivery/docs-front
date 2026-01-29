@@ -1,0 +1,106 @@
+---
+/**
+ * Footer Component - Page footer with prev/next navigation
+ * Includes edit on GitHub link and last updated info
+ */
+
+interface Props {
+  prevPage?: { title: string; href: string };
+  nextPage?: { title: string; href: string };
+  editUrl?: string;
+  lastUpdated?: string;
+}
+
+const { prevPage, nextPage, editUrl, lastUpdated } = Astro.props;
+---
+
+<footer class="footer">
+  <!-- Prev/Next Navigation -->
+  <nav class="footer-nav">
+    {prevPage ? (
+      <a href={prevPage.href} class="footer-nav-link group">
+        <svg class="w-5 h-5 transform group-hover:-translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+        </svg>
+        <span class="flex flex-col items-start">
+          <span class="text-xs text-[var(--color-text-muted)]">Previous</span>
+          <span class="font-medium">{prevPage.title}</span>
+        </span>
+      </a>
+    ) : (
+      <div></div>
+    )}
+
+    {nextPage ? (
+      <a href={nextPage.href} class="footer-nav-link group text-right">
+        <span class="flex flex-col items-end">
+          <span class="text-xs text-[var(--color-text-muted)]">Next</span>
+          <span class="font-medium">{nextPage.title}</span>
+        </span>
+        <svg class="w-5 h-5 transform group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+        </svg>
+      </a>
+    ) : (
+      <div></div>
+    )}
+  </nav>
+
+  <!-- Meta info -->
+  <div class="mt-8 pt-6 border-t border-[var(--color-border)] flex flex-wrap items-center justify-between gap-4 text-sm text-[var(--color-text-muted)]">
+    {lastUpdated && (
+      <p>Last updated: {new Date(lastUpdated).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+    )}
+
+    <div class="flex items-center gap-4">
+      {editUrl && (
+        <a
+          href={editUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="flex items-center gap-1.5 hover:text-[var(--color-text-primary)] transition-colors"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+          </svg>
+          Edit this page
+        </a>
+      )}
+
+      <button
+        type="button"
+        class="flex items-center gap-1.5 hover:text-[var(--color-text-primary)] transition-colors cursor-pointer"
+        data-copy-link
+      >
+        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" />
+        </svg>
+        <span data-copy-text>Copy link</span>
+      </button>
+    </div>
+  </div>
+</footer>
+
+<script>
+  function initFooter() {
+    const copyBtn = document.querySelector('[data-copy-link]');
+    const copyText = document.querySelector('[data-copy-text]');
+
+    if (copyBtn && copyText) {
+      copyBtn.addEventListener('click', async () => {
+        try {
+          await navigator.clipboard.writeText(window.location.href);
+          copyText.textContent = 'Copied!';
+          setTimeout(() => {
+            copyText.textContent = 'Copy link';
+          }, 2000);
+        } catch (err) {
+          console.error('Failed to copy link:', err);
+        }
+      });
+    }
+  }
+
+  initFooter();
+  document.addEventListener('astro:after-swap', initFooter);
+</script>

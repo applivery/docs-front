@@ -1,0 +1,9 @@
+---
+/**
+ * Root page - Redirects to default locale
+ * docs.applivery.com/ -> docs.applivery.com/en/
+ */
+import { defaultLocale } from '../lib/i18n';
+
+return Astro.redirect(`/${defaultLocale}/`, 301);
+---

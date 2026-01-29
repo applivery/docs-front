@@ -1,0 +1,577 @@
+---
+/**
+ * BaseLayout - Core layout with theme support
+ * Loads settings from CMS for colors, logo, and appearance
+ */
+
+import { getAllSettings, type AppearanceSettings, type PrivacySettings } from '../lib/cms';
+import type { BrandingSettings, ColorSettings, SEOSettings } from '../lib/types-astro-ext';
+import CookieBanner from '../components/CookieBanner.astro';
+import '../styles/global.css';
+import {
+  locales,
+  localeHrefLang,
+  defaultLocale,
+  isValidLocale,
+  localizedPath,
+  removeLocaleFromPath,
+  type Locale
+} from '../lib/i18n';
+
+interface Props {
+  title: string;
+  description?: string;
+  ogTitle?: string;
+  ogDescription?: string;
+  ogImage?: string;
+  ogType?: string;
+  twitterCard?: string;
+  canonical?: string;
+  noindex?: boolean;
+  robots?: string;
+  // i18n props
+  locale?: Locale;
+  availableTranslations?: Locale[];
+}
+
+const {
+  title,
+  description = '',
+  ogTitle,
+  ogDescription,
+  ogImage,
+  ogType = 'website',
+  twitterCard = 'summary_large_image',
+  canonical,
+  noindex = false,
+  robots,
+  locale: propLocale,
+  availableTranslations = [],
+} = Astro.props;
+
+
+// Determine current locale from prop or URL
+const urlSegments = Astro.url.pathname.split('/').filter(Boolean);
+const urlLocale = urlSegments[0];
+const currentLocale: Locale = propLocale || (isValidLocale(urlLocale) ? urlLocale : defaultLocale);
+
+// Determine available translations (default to current locale if not provided)
+const effectiveTranslations: Locale[] = availableTranslations.length > 0
+  ? availableTranslations
+  : [currentLocale];
+
+let branding: BrandingSettings = {} as BrandingSettings;
+let colors: ColorSettings = {} as ColorSettings;
+let extendedSeo: SEOSettings = {} as SEOSettings;
+
+// Get path without locale for building hreflang URLs
+const pathWithoutLocale = removeLocaleFromPath(Astro.url.pathname);
+
+// Fetch settings from CMS with fallbacks
+let appearance: AppearanceSettings | null = null;
+let privacy: PrivacySettings | null = null;
+
+try {
+  const settings = await getAllSettings();
+  appearance = settings.appearance;
+  privacy = settings.privacy;
+  branding = (appearance?.branding ?? {}) as BrandingSettings;
+  colors = (appearance?.colors ?? {}) as ColorSettings;
+  extendedSeo = (settings.seo ?? {}) as SEOSettings;
+} catch (error) {
+  console.warn('Failed to fetch CMS settings, using defaults');
+}
+
+// Cookie consent settings
+const cookieConsentMode = privacy?.privacySettings?.cookieConsent || 'simple';
+const cookiePosition = privacy?.privacySettings?.cookiePosition || 'bottom-right';
+
+// Build page title
+const siteName = extendedSeo?.siteName || 'Documentation';
+const pageTitle = title ? `${title} | ${siteName}` : siteName;
+const siteUrl = extendedSeo?.siteUrl || Astro.url.origin;
+
+// SEO values with fallbacks
+const metaDescription = description || extendedSeo?.siteName || '';
+const metaOgTitle = ogTitle || title;
+const metaOgDescription = ogDescription || description;
+const metaOgImage = ogImage || extendedSeo?.defaultOgImage || '/og-image.png';
+const metaCanonical = canonical || Astro.url.href;
+
+// Organization Schema for SEO/LLM optimization
+const organizationSchema = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  "name": siteName,
+  "url": siteUrl,
+  ...(branding?.logo && {
+    "logo": {
+      "@type": "ImageObject",
+      "url": new URL(branding.logo, siteUrl).href
+    }
+  }),
+  ...(extendedSeo?.description && { "description": extendedSeo.description }),
+  ...(extendedSeo?.twitterHandle && {
+    "sameAs": [`https://twitter.com/${extendedSeo.twitterHandle.replace('@', '')}`]
+  })
+};
+
+// WebSite Schema with SearchAction for site search
+const websiteSchema = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  "name": siteName,
+  "url": siteUrl,
+  "description": metaDescription,
+  "inLanguage": localeHrefLang[currentLocale] || currentLocale,
+  "potentialAction": {
+    "@type": "SearchAction",
+    "target": {
+      "@type": "EntryPoint",
+      "urlTemplate": `${siteUrl}/search?q={search_term_string}`
+    },
+    "query-input": "required name=search_term_string"
+  }
+};
+
+const typography = appearance?.typography;
+
+// Debug: Log colors object to see actual field names from CMS
+if (colors) {
+  console.log('[CMS Colors]', JSON.stringify(colors, null, 2));
+}
+
+// Get logo dimensions - used in CSS variables
+const logoWidth = branding?.logoWidth || 120;
+const logoHeight = branding?.logoHeight || 32;
+
+// Get colors - support both camelCase and snake_case from CMS
+// Light mode - Core colors
+const primaryColor = colors?.primary || appearance?.primaryColor || '#10b981';
+const accentColor = colors?.accent || appearance?.accentColor || '#6366f1';
+const backgroundColor = colors?.background || '#e6ecfc63';
+const textColor = colors?.text || '#111827';
+
+// Light mode - Container & Surface
+const surfaceColor = colors?.surface || '#ffffff';
+
+// Light mode - Buttons
+const buttonBg = colors?.buttonBg || primaryColor;
+const buttonBgHover = colors?.buttonBgHover || null;
+const buttonText = colors?.buttonText || '#ffffff';
+
+// Light mode - Menu states
+const menuItemHoverBg = colors?.menuItemHoverBg || colors?.menu_item_hover_bg || '#f3f4f6';
+const menuItemHoverText = colors?.menuItemHoverText || colors?.menu_item_hover_text || '#111827';
+const menuItemActiveBg = colors?.menuItemActiveBg || null;
+const menuItemActiveText = colors?.menuItemActiveText || primaryColor;
+
+// Light mode - Secondary backgrounds
+const backgroundSecondary = colors?.backgroundSecondary || '#f9fafb';
+const backgroundTertiary = colors?.backgroundTertiary || '#f3f4f6';
+
+// Light mode - Borders & text variants
+const borderColor = colors?.border || '#e5e7eb';
+const textSecondary = colors?.textSecondary || '#4b5563';
+const textMuted = colors?.textMuted || '#9ca3af';
+
+// Dark mode - Core colors
+const darkPrimaryColor = colors?.darkPrimary || colors?.dark_primary || primaryColor;
+const darkAccentColor = colors?.darkAccent || colors?.dark_accent || accentColor;
+const darkBackgroundColor = colors?.darkBackground || colors?.dark_background || '#0f172a';
+const darkTextColor = colors?.darkText || colors?.dark_text || '#f8fafc';
+
+// Dark mode - Container & Surface
+const darkSurfaceColor = colors?.darkSurface || '#1e293b';
+
+// Dark mode - Buttons
+const darkButtonBg = colors?.darkButtonBg || darkPrimaryColor;
+const darkButtonBgHover = colors?.darkButtonBgHover || null;
+const darkButtonText = colors?.darkButtonText || '#ffffff';
+
+// Dark mode - Menu states
+const darkMenuItemHoverBg = colors?.darkMenuItemHoverBg || colors?.dark_menu_item_hover_bg || '#1e293b';
+const darkMenuItemHoverText = colors?.darkMenuItemHoverText || colors?.dark_menu_item_hover_text || '#f8fafc';
+const darkMenuItemActiveBg = colors?.darkMenuItemActiveBg || null;
+const darkMenuItemActiveText = colors?.darkMenuItemActiveText || '#818cf8';
+
+// Dark mode - Secondary backgrounds
+const darkBackgroundSecondary = colors?.darkBackgroundSecondary || '#1e293b';
+const darkBackgroundTertiary = colors?.darkBackgroundTertiary || '#334155';
+
+// Dark mode - Borders & text variants
+const darkBorderColor = colors?.darkBorder || '#334155';
+const darkTextSecondary = colors?.darkTextSecondary || '#cbd5e1';
+const darkTextMuted = colors?.darkTextMuted || '#64748b';
+
+const brandBackgroundColor = '#000717';
+
+// Get typography
+const headingFont = typography?.headingFont || 'inter';
+const bodyFont = typography?.bodyFont || 'inter';
+const codeFont = typography?.codeFont || 'jetbrains-mono';
+
+// Font family mappings
+const fontFamilyMap: Record<string, string> = {
+  'inter': "'Inter', sans-serif",
+  'outfit': "'Outfit', sans-serif",
+  'roboto': "'Roboto', sans-serif",
+  'open-sans': "'Open Sans', sans-serif",
+  'lato': "'Lato', sans-serif",
+  'poppins': "'Poppins', sans-serif",
+  'jetbrains-mono': "'JetBrains Mono', monospace",
+  'fira-code': "'Fira Code', monospace",
+  'source-code-pro': "'Source Code Pro', monospace",
+  'monaco': "'Monaco', monospace",
+};
+
+// Helper to parse hex color to RGB(A) components
+// Supports both 6-char (#RRGGBB) and 8-char (#RRGGBBAA) hex colors
+function hexToRgb(hex: string): { r: number; g: number; b: number; a?: number } | null {
+  // Try 8-char hex first (with alpha)
+  const result8 = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  if (result8) {
+    return {
+      r: parseInt(result8[1], 16),
+      g: parseInt(result8[2], 16),
+      b: parseInt(result8[3], 16),
+      a: parseInt(result8[4], 16) / 255,
+    };
+  }
+  // Try 6-char hex
+  const result6 = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result6
+    ? {
+        r: parseInt(result6[1], 16),
+        g: parseInt(result6[2], 16),
+        b: parseInt(result6[3], 16),
+      }
+    : null;
+}
+
+// Helper to adjust color brightness (preserves alpha)
+function adjustBrightness(hex: string, percent: number): string {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return hex;
+
+  const adjust = (value: number) => {
+    const adjusted = Math.round(value + (percent / 100) * 255);
+    return Math.max(0, Math.min(255, adjusted));
+  };
+
+  const r = adjust(rgb.r).toString(16).padStart(2, '0');
+  const g = adjust(rgb.g).toString(16).padStart(2, '0');
+  const b = adjust(rgb.b).toString(16).padStart(2, '0');
+
+  // Preserve alpha if present
+  if (rgb.a !== undefined) {
+    const a = Math.round(rgb.a * 255).toString(16).padStart(2, '0');
+    return `#${r}${g}${b}${a}`;
+  }
+
+  return `#${r}${g}${b}`;
+}
+
+// Helper to convert hex color (including 8-char) to CSS-compatible format
+// Returns rgba() for colors with alpha, hex for others
+function hexToCss(hex: string): string {
+  const rgb = hexToRgb(hex);
+  if (!rgb) return hex;
+
+  if (rgb.a !== undefined && rgb.a < 1) {
+    return `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, ${rgb.a.toFixed(2)})`;
+  }
+  return hex.substring(0, 7); // Return 6-char hex
+}
+
+// Generate light mode color variants
+const primaryRgb = hexToRgb(primaryColor);
+const primaryLight = adjustBrightness(primaryColor, 15);
+const primaryDark = adjustBrightness(primaryColor, -15);
+const accentRgb = hexToRgb(accentColor);
+const accentLight = adjustBrightness(accentColor, 15);
+const accentDark = adjustBrightness(accentColor, -15);
+
+// Generate dark mode color variants
+const darkPrimaryRgb = hexToRgb(darkPrimaryColor);
+const darkPrimaryLight = adjustBrightness(darkPrimaryColor, 15);
+const darkPrimaryDark = adjustBrightness(darkPrimaryColor, -15);
+const darkAccentRgb = hexToRgb(darkAccentColor);
+const darkAccentLight = adjustBrightness(darkAccentColor, 15);
+const darkAccentDark = adjustBrightness(darkAccentColor, -15);
+
+// Build CSS custom properties from CMS
+// Using :root:root for higher specificity to override global.css defaults
+const cssVars = `
+  :root:root {
+    /* Light mode - Primary colors */
+    --color-primary: ${hexToCss(primaryColor)};
+    --color-primary-light: ${hexToCss(primaryLight)};
+    --color-primary-dark: ${hexToCss(primaryDark)};
+    --color-primary-10: ${primaryRgb ? `rgba(${primaryRgb.r}, ${primaryRgb.g}, ${primaryRgb.b}, 0.1)` : 'rgba(16, 185, 129, 0.1)'};
+    --color-primary-20: ${primaryRgb ? `rgba(${primaryRgb.r}, ${primaryRgb.g}, ${primaryRgb.b}, 0.2)` : 'rgba(16, 185, 129, 0.2)'};
+    --color-primary-50: ${primaryRgb ? `rgba(${primaryRgb.r}, ${primaryRgb.g}, ${primaryRgb.b}, 0.5)` : 'rgba(16, 185, 129, 0.5)'};
+    --color-primary-5: ${primaryRgb ? `rgba(${primaryRgb.r}, ${primaryRgb.g}, ${primaryRgb.b}, 0.05)` : 'rgba(16, 185, 129, 0.05)'};
+
+    /* Light mode - Accent colors */
+    --color-accent: ${hexToCss(accentColor)};
+    --color-accent-light: ${hexToCss(accentLight)};
+    --color-accent-dark: ${hexToCss(accentDark)};
+    --color-accent-10: ${accentRgb ? `rgba(${accentRgb.r}, ${accentRgb.g}, ${accentRgb.b}, 0.1)` : 'rgba(99, 102, 241, 0.1)'};
+
+    /* Light mode - Background & Text */
+    --color-background: ${hexToCss(backgroundColor)};
+    --color-text-primary: ${hexToCss(textColor)};
+
+    /* Light mode - Container & Surface */
+    --color-surface: ${hexToCss(surfaceColor)};
+    --color-bg-primary: ${hexToCss(surfaceColor)};
+
+    /* Light mode - Buttons */
+    --color-button-bg: ${hexToCss(buttonBg)};
+    --color-button-bg-hover: ${buttonBgHover ? hexToCss(buttonBgHover) : hexToCss(primaryDark)};
+    --color-button-text: ${hexToCss(buttonText)};
+
+    /* Light mode - Menu states */
+    --color-menu-item-hover-bg: ${hexToCss(menuItemHoverBg)};
+    --color-menu-item-hover-text: ${hexToCss(menuItemHoverText)};
+    --color-menu-item-active-bg: ${menuItemActiveBg ? hexToCss(menuItemActiveBg) : (primaryRgb ? `rgba(${primaryRgb.r}, ${primaryRgb.g}, ${primaryRgb.b}, 0.1)` : 'rgba(16, 185, 129, 0.1)')};
+    --color-menu-item-active-text: ${hexToCss(menuItemActiveText)};
+
+    /* Light mode - Secondary backgrounds */
+    --color-background-secondary: ${hexToCss(backgroundSecondary)};
+    --color-background-tertiary: ${hexToCss(backgroundTertiary)};
+
+    /* Light mode - Borders & text variants */
+    --color-border: ${hexToCss(borderColor)};
+    --color-text-secondary: ${hexToCss(textSecondary)};
+    --color-text-tertiary: ${hexToCss(textMuted)};
+    --color-text-muted: ${hexToCss(textMuted)};
+
+    /* Brand background */
+    --color-background-brand: ${brandBackgroundColor};
+
+    /* Typography */
+    --font-heading: ${fontFamilyMap[headingFont] || fontFamilyMap['inter']};
+    --font-body: ${fontFamilyMap[bodyFont] || fontFamilyMap['inter']};
+    --font-code: ${fontFamilyMap[codeFont] || fontFamilyMap['jetbrains-mono']};
+
+    /* Logo */
+    --logo-width: ${logoWidth}px;
+    --logo-height: ${logoHeight}px;
+  }
+
+  /* Dark mode overrides from CMS - using html.dark:root for higher specificity than :root:root */
+  html.dark:root {
+    /* Dark mode - Primary colors */
+    --color-primary: ${hexToCss(darkPrimaryColor)};
+    --color-primary-light: ${hexToCss(darkPrimaryLight)};
+    --color-primary-dark: ${hexToCss(darkPrimaryDark)};
+    --color-primary-10: ${darkPrimaryRgb ? `rgba(${darkPrimaryRgb.r}, ${darkPrimaryRgb.g}, ${darkPrimaryRgb.b}, 0.1)` : 'rgba(16, 185, 129, 0.1)'};
+    --color-primary-20: ${darkPrimaryRgb ? `rgba(${darkPrimaryRgb.r}, ${darkPrimaryRgb.g}, ${darkPrimaryRgb.b}, 0.2)` : 'rgba(16, 185, 129, 0.2)'};
+    --color-primary-50: ${darkPrimaryRgb ? `rgba(${darkPrimaryRgb.r}, ${darkPrimaryRgb.g}, ${darkPrimaryRgb.b}, 0.5)` : 'rgba(16, 185, 129, 0.5)'};
+    --color-primary-5: ${darkPrimaryRgb ? `rgba(${darkPrimaryRgb.r}, ${darkPrimaryRgb.g}, ${darkPrimaryRgb.b}, 0.05)` : 'rgba(16, 185, 129, 0.05)'};
+
+    /* Dark mode - Accent colors */
+    --color-accent: ${hexToCss(darkAccentColor)};
+    --color-accent-light: ${hexToCss(darkAccentLight)};
+    --color-accent-dark: ${hexToCss(darkAccentDark)};
+    --color-accent-10: ${darkAccentRgb ? `rgba(${darkAccentRgb.r}, ${darkAccentRgb.g}, ${darkAccentRgb.b}, 0.1)` : 'rgba(99, 102, 241, 0.1)'};
+
+    /* Dark mode - Background & Text */
+    --color-background: ${hexToCss(darkBackgroundColor)};
+    --color-text-primary: ${hexToCss(darkTextColor)};
+
+    /* Dark mode - Container & Surface */
+    --color-surface: ${hexToCss(darkSurfaceColor)};
+    --color-bg-primary: ${hexToCss(darkSurfaceColor)};
+
+    /* Dark mode - Buttons */
+    --color-button-bg: ${hexToCss(darkButtonBg)};
+    --color-button-bg-hover: ${darkButtonBgHover ? hexToCss(darkButtonBgHover) : hexToCss(darkPrimaryDark)};
+    --color-button-text: ${hexToCss(darkButtonText)};
+
+    /* Dark mode - Menu states */
+    --color-menu-item-hover-bg: ${hexToCss(darkMenuItemHoverBg)};
+    --color-menu-item-hover-text: ${hexToCss(darkMenuItemHoverText)};
+    --color-menu-item-active-bg: ${darkMenuItemActiveBg ? hexToCss(darkMenuItemActiveBg) : (darkAccentRgb ? `rgba(${darkAccentRgb.r}, ${darkAccentRgb.g}, ${darkAccentRgb.b}, 0.1)` : 'rgba(99, 102, 241, 0.1)')};
+    --color-menu-item-active-text: ${hexToCss(darkMenuItemActiveText)};
+
+    /* Dark mode - Secondary backgrounds */
+    --color-background-secondary: ${hexToCss(darkBackgroundSecondary)};
+    --color-background-tertiary: ${hexToCss(darkBackgroundTertiary)};
+
+    /* Dark mode - Borders & text variants */
+    --color-border: ${hexToCss(darkBorderColor)};
+    --color-text-secondary: ${hexToCss(darkTextSecondary)};
+    --color-text-tertiary: ${hexToCss(darkTextMuted)};
+    --color-text-muted: ${hexToCss(darkTextMuted)};
+  }
+`;
+---
+
+<!doctype html>
+<html lang={currentLocale} class="scroll-smooth">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="generator" content={Astro.generator} />
+
+    <!-- Title & Description -->
+    <title>{pageTitle}</title>
+    {metaDescription && <meta name="description" content={metaDescription} />}
+
+    <!-- Canonical -->
+    <link rel="canonical" href={metaCanonical} />
+
+    <!-- Robots -->
+    {noindex && <meta name="robots" content="noindex, nofollow" />}
+    {robots && <meta name="robots" content={robots} />}
+
+    <!-- Hreflang tags for multilingual SEO -->
+    {effectiveTranslations.map(locale => (
+      <link
+        rel="alternate"
+        hreflang={localeHrefLang[locale] || locale}
+        href={new URL(localizedPath(pathWithoutLocale, locale), siteUrl).href}
+      />
+    ))}
+    <!-- x-default hreflang (points to default locale) -->
+    <link
+      rel="alternate"
+      hreflang="x-default"
+      href={new URL(localizedPath(pathWithoutLocale, defaultLocale), siteUrl).href}
+    />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content={ogType} />
+    <meta property="og:title" content={metaOgTitle} />
+    {metaOgDescription && <meta property="og:description" content={metaOgDescription} />}
+    <meta property="og:image" content={new URL(metaOgImage, siteUrl).href} />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content={metaOgDescription || metaOgTitle} />
+    <meta property="og:url" content={metaCanonical} />
+    <meta property="og:site_name" content={siteName} />
+    <meta property="og:locale" content={localeHrefLang[currentLocale] || 'en_US'} />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content={twitterCard} />
+    <meta name="twitter:title" content={metaOgTitle} />
+    {metaOgDescription && <meta name="twitter:description" content={metaOgDescription} />}
+    <meta name="twitter:image" content={new URL(metaOgImage, siteUrl).href} />
+    <meta name="twitter:image:alt" content={metaOgDescription || metaOgTitle} />
+    {extendedSeo?.twitterHandle && <meta name="twitter:site" content={extendedSeo.twitterHandle} />}
+
+    <!-- RSS Feed -->
+    <link rel="alternate" type="application/rss+xml" href="/feed.xml" title={`${siteName} Updates`} />
+
+    <!-- LLMs.txt reference for AI crawlers -->
+    <link rel="author" href="/llms.txt" type="text/plain" />
+
+    <!-- Organization & WebSite Schema -->
+    <script type="application/ld+json" set:html={JSON.stringify(organizationSchema)} />
+    <script type="application/ld+json" set:html={JSON.stringify(websiteSchema)} />
+
+    <!-- Favicon -->
+    <link rel="icon" type="image/svg+xml" href={branding?.favicon || appearance?.faviconUrl || '/favicon.svg'} />
+    <link rel="apple-touch-icon" href={branding?.favicon || appearance?.faviconUrl || '/apple-touch-icon.png'} />
+
+    <!-- Google Site Verification -->
+    {extendedSeo?.googleSiteVerification && (
+      <meta name="google-site-verification" content={extendedSeo.googleSiteVerification} />
+    )}
+
+    <!-- Preload fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    {/* Dynamic font loading based on CMS settings */}
+    <link
+      href={`https://fonts.googleapis.com/css2?family=${encodeURIComponent(headingFont === 'inter' ? 'Inter' : headingFont === 'outfit' ? 'Outfit' : headingFont === 'roboto' ? 'Roboto' : headingFont === 'open-sans' ? 'Open Sans' : headingFont === 'lato' ? 'Lato' : headingFont === 'poppins' ? 'Poppins' : 'Inter')}:wght@400;500;600;700&display=swap`}
+      rel="stylesheet"
+    />
+    {bodyFont !== headingFont && (
+      <link
+        href={`https://fonts.googleapis.com/css2?family=${encodeURIComponent(bodyFont === 'inter' ? 'Inter' : bodyFont === 'outfit' ? 'Outfit' : bodyFont === 'roboto' ? 'Roboto' : bodyFont === 'open-sans' ? 'Open Sans' : bodyFont === 'lato' ? 'Lato' : bodyFont === 'poppins' ? 'Poppins' : 'Inter')}:wght@400;500;600;700&display=swap`}
+        rel="stylesheet"
+      />
+    )}
+    {/* Code font */}
+    <link
+      href={`https://fonts.googleapis.com/css2?family=${encodeURIComponent(codeFont === 'jetbrains-mono' ? 'JetBrains Mono' : codeFont === 'fira-code' ? 'Fira Code' : codeFont === 'source-code-pro' ? 'Source Code Pro' : 'JetBrains Mono')}:wght@400;500;600&display=swap`}
+      rel="stylesheet"
+    />
+
+    <!-- Theme colors and typography from CMS -->
+    <style set:html={cssVars} />
+
+    <!-- Dark mode script (runs before render to prevent flash) -->
+    <script is:inline>
+      (function() {
+        const theme = localStorage.getItem('theme');
+        const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+
+        if (theme === 'dark' || (!theme && systemDark)) {
+          document.documentElement.classList.add('dark');
+        } else {
+          document.documentElement.classList.remove('dark');
+        }
+      })();
+    </script>
+
+    <!-- Slot for additional head content -->
+    <slot name="head" />
+  </head>
+
+  <body class="font-sans antialiased">
+    <slot />
+
+    {/* GDPR Cookie Banner - minimal DOM, loads from CMS */}
+    <CookieBanner
+      mode={cookieConsentMode}
+      position={cookiePosition}
+      privacyPolicyUrl="/privacy"
+      siteName={siteName}
+    />
+
+    <!-- Theme toggle script -->
+    <script>
+      function initTheme() {
+        const toggleBtn = document.getElementById('theme-toggle');
+        const html = document.documentElement;
+
+        function setTheme(theme: 'light' | 'dark' | 'system') {
+          localStorage.setItem('theme', theme);
+
+          if (theme === 'system') {
+            const systemDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            html.classList.toggle('dark', systemDark);
+          } else {
+            html.classList.toggle('dark', theme === 'dark');
+          }
+        }
+
+        if (toggleBtn) {
+          toggleBtn.addEventListener('click', () => {
+            const isDark = html.classList.contains('dark');
+            setTheme(isDark ? 'light' : 'dark');
+          });
+        }
+
+        // Listen for system theme changes
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', (e) => {
+          const theme = localStorage.getItem('theme');
+          if (!theme || theme === 'system') {
+            html.classList.toggle('dark', e.matches);
+          }
+        });
+      }
+
+      // Run on initial load
+      initTheme();
+
+      // Run on page navigation (for View Transitions)
+      document.addEventListener('astro:after-swap', initTheme);
+    </script>
+  </body>
+</html>

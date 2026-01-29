@@ -1,0 +1,422 @@
+---
+/**
+ * Dynamic documentation page route with locale support
+ * URL: docs.applivery.com/{locale}/{product}/{path}
+ *
+ * Example: docs.applivery.com/en/mdm/getting-started
+ */
+
+import DocLayout from '../../layouts/DocLayout.astro';
+import ArchiveGrid from '../../components/ArchiveGrid.astro';
+import { getDocuments, getDocument, type Document } from '../../lib/cms';
+import { processMarkdown } from '../../lib/markdown';
+import {
+  locales,
+  defaultLocale,
+  isValidLocale,
+  type Locale
+} from '../../lib/i18n';
+
+/**
+ * Get the folder path for an index file (used to find child documents)
+ * Defined at module level as it's used in page rendering
+ */
+function getIndexFolderPath(doc: Document): string {
+  if (!doc.path) return '';
+  return doc.path.replace(/\/index\.mdx?$/i, '');
+}
+
+/**
+ * Check if a document is an index file (archive page)
+ * Defined at module level as it's used in page rendering
+ */
+function isIndexFileCheck(doc: Document): boolean {
+  if (doc.type === 'archive') return true;
+  if (doc.path) {
+    const filename = doc.path.split('/').pop() || '';
+    return /^index\.mdx?$/i.test(filename);
+  }
+  return false;
+}
+
+// Generate static paths at build time for all locales
+export async function getStaticPaths() {
+  // Helper functions defined inside getStaticPaths to ensure they're available
+  function isIndexFile(doc: Document): boolean {
+    if (doc.type === 'archive') return true;
+    if (doc.path) {
+      const filename = doc.path.split('/').pop() || '';
+      return /^index\.mdx?$/i.test(filename);
+    }
+    return false;
+  }
+
+  function extractSlugFromPath(path: string, isIndexDoc: boolean): string {
+    let slug = path.replace(/\.mdx?$/, '');
+    // Remove "content/" prefix if present
+    slug = slug.replace(/^content\//, '');
+    // Remove locale prefix (e.g., "en/", "es/")
+    slug = slug.replace(/^[a-z]{2}\//, '');
+    // Remove "docs/" prefix since the subdomain already indicates docs
+    slug = slug.replace(/^docs\//, '');
+    // Remove leading slashes
+    slug = slug.replace(/^\/+/, '');
+    // Remove trailing /index for archive pages
+    if (isIndexDoc) {
+      slug = slug.replace(/\/index$/i, '');
+    }
+    // Lowercase for URL consistency
+    slug = slug.toLowerCase();
+    return slug;
+  }
+
+  function extractLocaleFromPath(path: string): Locale | null {
+    const match = path.match(/^(?:content\/)?([a-z]{2})\//);
+    if (match && locales.includes(match[1] as Locale)) {
+      return match[1] as Locale;
+    }
+    return null;
+  }
+
+  const isValidSlug = (val: any): val is string =>
+    typeof val === 'string' && val.trim() !== '' && val !== 'null';
+
+  const paths: Array<{
+    params: { locale: string; slug: string };
+    props: { documentId: string; document: Document; isIndex: boolean; locale: Locale };
+  }> = [];
+
+  try {
+    // Fetch ALL documents (don't filter by locale - the CMS may not support it)
+    const { documents } = await getDocuments({ limit: 1000 });
+
+    // Filter out documents with no valid slug or path
+    const validDocuments = documents.filter((doc) => {
+      return isValidSlug(doc.slug) || isValidSlug(doc.path);
+    });
+
+    for (const doc of validDocuments) {
+      const isIndex = isIndexFile(doc);
+
+      // Determine the document's locale - prioritize doc.locale, then extract from path
+      const docLocale: Locale = (doc.locale && locales.includes(doc.locale as Locale))
+        ? (doc.locale as Locale)
+        : extractLocaleFromPath(doc.path || '') || 'en';
+
+      let fullSlug: string;
+
+      // Always derive URL structure from path to preserve folder hierarchy
+      // The slug field is only for overriding the filename portion, not the full path
+      if (isValidSlug(doc.path)) {
+        // Extract slug from path (removes locale prefix and docs/ prefix)
+        fullSlug = extractSlugFromPath(doc.path, isIndex);
+      } else if (isValidSlug(doc.slug)) {
+        // Fallback to explicit slug if no path (shouldn't normally happen)
+        fullSlug = doc.slug;
+      } else {
+        // Last resort: use collection/id
+        const collection = doc.collection || 'docs';
+        fullSlug = `${collection}/${doc.id}`;
+      }
+
+      // Clean up slug - remove double slashes, leading/trailing slashes
+      fullSlug = fullSlug.replace(/\/+/g, '/').replace(/^\/|\/$/g, '');
+
+      // Skip if slug is empty or doesn't have at least one segment
+      // (single segments like "docs" are handled by [collection]/index.astro)
+      if (!fullSlug || !fullSlug.includes('/')) {
+        continue;
+      }
+
+      paths.push({
+        params: { locale: docLocale, slug: fullSlug },
+        props: { documentId: doc.id, document: doc, isIndex, locale: docLocale },
+      });
+    }
+  } catch (error) {
+    console.error(`Failed to fetch documents:`, error);
+  }
+
+  // Log sample paths for debugging in development
+  if (paths.length > 0 && import.meta.env.DEV) {
+    console.log(`[locale]/[...slug] Sample paths:`, paths.slice(0, 5).map(p => `/${p.params.locale}/${p.params.slug}`));
+  }
+
+  return paths;
+}
+
+interface Props {
+  documentId: string;
+  document: Document;
+  isIndex: boolean;
+  locale: Locale;
+}
+
+const { documentId, document, isIndex, locale } = Astro.props;
+
+// Validate locale
+if (!isValidLocale(locale)) {
+  return Astro.redirect(`/${defaultLocale}/`, 301);
+}
+
+// Fetch full document with content if needed
+let fullDocument = document;
+if (!document.content) {
+  try {
+    const response = await getDocument(documentId);
+    fullDocument = response.document;
+  } catch (error) {
+    console.error('Failed to fetch document:', error);
+  }
+}
+
+// For index/archive pages, fetch child documents
+let childDocuments: Document[] = [];
+if (isIndex) {
+  try {
+    const folderPath = getIndexFolderPath(fullDocument);
+    const { documents: allDocs } = await getDocuments({
+      collection: fullDocument.collection,
+      visible: true,
+      limit: 100,
+      locale,
+    });
+
+    childDocuments = allDocs.filter((doc) => {
+      if (!doc.path || doc.id === fullDocument.id) return false;
+      if (isIndexFileCheck(doc)) return false;
+      const docFolder = doc.path.replace(/\/[^/]+\.mdx?$/, '');
+      return docFolder === folderPath;
+    }).sort((a, b) => {
+      const orderA = a.sidebar_position ?? a.order ?? a.weight ?? 999;
+      const orderB = b.sidebar_position ?? b.order ?? b.weight ?? 999;
+      return orderA - orderB;
+    });
+  } catch (error) {
+    console.error('Failed to fetch child documents:', error);
+  }
+}
+
+// Find available translations for this document
+// Translations are identified by:
+// 1. Same translation_key
+// 2. Same slug (without locale prefix)
+// 3. Same path structure (content/{locale}/docs/{same-path})
+let availableTranslations: Locale[] = [locale];
+// Map of locale to translated slug (for documents with different paths)
+const translationSlugs: Partial<Record<Locale, string>> = {};
+
+// Extract the path pattern for this document (without locale)
+function getPathPattern(doc: Document): string | null {
+  if (doc.path) {
+    // Remove content/, locale prefix, and keep the rest
+    // e.g., "content/en/docs/endpoint-management/android/file.mdx" -> "docs/endpoint-management/android/file.mdx"
+    return doc.path
+      .replace(/^content\//, '')
+      .replace(/^[a-z]{2}\//, '');
+  }
+  return null;
+}
+
+// Extract slug from document for URL building
+// Always derive from path to preserve folder structure
+function getDocSlug(doc: Document): string {
+  if (doc.path) {
+    // Extract slug from path and lowercase for URL consistency
+    return doc.path
+      .replace(/\.mdx?$/, '')
+      .replace(/^content\//, '')
+      .replace(/^[a-z]{2}\//, '')
+      .replace(/^docs\//, '')
+      .toLowerCase();
+  }
+  // Fallback to slug only if no path
+  if (doc.slug) {
+    return doc.slug.replace(/^docs\//, '').toLowerCase();
+  }
+  return doc.id;
+}
+
+const currentPathPattern = getPathPattern(fullDocument);
+
+try {
+  // Fetch all documents to check for translations
+  const { documents: allDocs } = await getDocuments({ limit: 2000 });
+
+  for (const otherLocale of locales) {
+    if (otherLocale === locale) continue;
+
+    // Find the translation document in the other locale
+    const translationDoc = allDocs.find(doc => {
+      // Must be a document from the other locale
+      const docLocale = doc.locale || (doc.path?.match(/^(?:content\/)?([a-z]{2})\//)?.[1]);
+      if (docLocale !== otherLocale) return false;
+
+      // Check translation_key match (highest priority)
+      if (fullDocument.translation_key && doc.translation_key === fullDocument.translation_key) {
+        return true;
+      }
+
+      // Check slug match (normalized)
+      if (fullDocument.slug && doc.slug) {
+        const normalizedCurrent = fullDocument.slug.replace(/^docs\//, '').replace(/^[a-z]{2}\//, '');
+        const normalizedOther = doc.slug.replace(/^docs\//, '').replace(/^[a-z]{2}\//, '');
+        if (normalizedCurrent === normalizedOther) {
+          return true;
+        }
+      }
+
+      // Check path pattern match (same file in different locale folder)
+      if (currentPathPattern) {
+        const otherPathPattern = getPathPattern(doc);
+        if (otherPathPattern === currentPathPattern) {
+          return true;
+        }
+      }
+
+      return false;
+    });
+
+    if (translationDoc) {
+      availableTranslations.push(otherLocale);
+      // Store the translated document's slug for URL building
+      translationSlugs[otherLocale] = getDocSlug(translationDoc);
+    }
+  }
+} catch (error) {
+  console.warn('Failed to fetch translations:', error);
+}
+
+// Helper to get document URL
+// URLs don't include /docs since the subdomain is already docs.applivery.com
+// Always derive from path to preserve folder structure
+function getDocUrl(doc: Document): string {
+  if (doc.path) {
+    let url = doc.path
+      .replace(/\.mdx?$/, '')           // Remove file extension
+      .replace(/^content\//, '')        // Remove content/ prefix
+      .replace(/^[a-z]{2}\//, '')       // Remove locale prefix
+      .replace(/^docs\//, '')           // Remove docs/ prefix (subdomain handles this)
+      .replace(/\/index$/i, '')         // Remove /index suffix (case insensitive)
+      .toLowerCase();                   // Lowercase for URL consistency
+    if (!url.startsWith('/')) url = '/' + url;
+    return `/${locale}${url}`;
+  }
+  // Fallback to slug only if no path (shouldn't normally happen)
+  if (doc.slug) {
+    return `/${locale}/${doc.slug.toLowerCase()}`;
+  }
+  return `/${locale}/${doc.id}`;
+}
+
+// Extract headings from content for TOC
+function extractHeadings(content: string) {
+  const headingRegex = /^(#{2,3})\s+(.+)$/gm;
+  const headings: Array<{ depth: number; slug: string; text: string }> = [];
+  let match;
+
+  while ((match = headingRegex.exec(content)) !== null) {
+    const depth = match[1].length;
+    const text = match[2].trim();
+    const slug = text
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/(^-|-$)/g, '');
+
+    headings.push({ depth, slug, text });
+  }
+
+  return headings;
+}
+
+const headings = fullDocument.content ? extractHeadings(fullDocument.content) : [];
+
+// Extract section and category (they may be arrays from CMS)
+const section = Array.isArray(fullDocument.section) ? fullDocument.section[0] : fullDocument.section;
+const category = Array.isArray(fullDocument.category) ? fullDocument.category[0] : fullDocument.category;
+
+// Process markdown content with custom components
+const processedContent = fullDocument.content ? processMarkdown(fullDocument.content) : '';
+---
+
+<DocLayout
+  title={fullDocument.title}
+  description={fullDocument.description}
+  ogTitle={fullDocument.og_title || fullDocument.seo_title}
+  ogDescription={fullDocument.og_description || fullDocument.description}
+  ogImage={fullDocument.og_image || fullDocument.hero_image}
+  canonical={fullDocument.canonical}
+  noindex={fullDocument.noindex}
+  collection={fullDocument.collection}
+  section={section}
+  category={category}
+  readingTime={isIndex ? undefined : fullDocument.reading_time}
+  tldr={fullDocument.tldr}
+  keyTakeaways={fullDocument.key_takeaways}
+  author={fullDocument.author}
+  authorUrl={fullDocument.author_url}
+  datePublished={fullDocument.pub_date || fullDocument.date}
+  dateModified={fullDocument.updated_date}
+  heroImage={fullDocument.hero_image}
+  imageAlt={fullDocument.image_alt}
+  headings={headings}
+  currentPath={Astro.url.pathname}
+  locale={locale}
+  availableTranslations={availableTranslations}
+  translationSlugs={translationSlugs}
+>
+  {/* Render document content */}
+  {processedContent ? (
+    <Fragment set:html={processedContent} />
+  ) : !isIndex && (
+    <p class="text-[var(--color-text-muted)]">No content available</p>
+  )}
+
+  {/* For index/archive pages, show child documents in grid */}
+  {isIndex && childDocuments.length > 0 && (
+    <ArchiveGrid
+      items={childDocuments.map(doc => ({
+        id: doc.id,
+        title: doc.title,
+        description: doc.description,
+        href: getDocUrl(doc),
+        category: doc.category,
+        difficulty: doc.difficulty,
+        audience: doc.audience,
+        platform: doc.platform,
+        hero_image: doc.hero_image,
+        image_alt: doc.image_alt,
+        reading_time: doc.reading_time,
+        featured: doc.featured,
+        pub_date: doc.pub_date,
+      }))}
+      pageTitle={fullDocument.title}
+      pageDescription={fullDocument.description}
+      pageUrl={Astro.url.href}
+      enableFilters={true}
+      columns={3}
+    />
+  )}
+
+  {/* Empty state for index with no children and no content */}
+  {isIndex && childDocuments.length === 0 && !processedContent && (
+    <div class="archive-empty">
+      <p class="text-[var(--color-text-muted)]">No articles in this section yet.</p>
+    </div>
+  )}
+</DocLayout>
+
+<style>
+  /* Archive grid spacing when content exists above */
+  :global(.archive-grid) {
+    margin-top: 2rem;
+    padding-top: 2rem;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .archive-empty {
+    margin-top: 2rem;
+    text-align: center;
+    padding: 2rem;
+  }
+</style>

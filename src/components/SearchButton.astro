@@ -1,0 +1,171 @@
+---
+/**
+ * SearchButton Component - Trigger for search modal
+ * Keyboard shortcut: Cmd/Ctrl + K
+ */
+---
+
+<button
+  id="search-btn"
+  class="flex items-center gap-2 px-3 py-2 rounded-lg border border-[var(--color-border)] bg-[var(--color-background-secondary)] text-[var(--color-text-muted)] hover:border-[var(--color-text-muted)] transition-colors text-[0.8125rem] leading-[1.125rem]"
+  aria-label="Search documentation"
+>
+  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+  </svg>
+  <span class="hidden sm:inline">Search</span>
+  <kbd class="hidden sm:inline-flex items-center gap-1 ml-2 px-1.5 py-0.5 rounded bg-[var(--color-background-tertiary)] text-xs">
+    <span class="text-[10px]">⌘</span>K
+  </kbd>
+</button>
+
+<!-- Search Modal - Portal to body for proper stacking -->
+<div
+  id="search-modal"
+  class="search-modal-overlay hidden"
+  role="dialog"
+  aria-modal="true"
+>
+  <!-- Backdrop - covers entire screen including sidebar -->
+  <div class="search-modal-backdrop" id="search-backdrop"></div>
+
+  <!-- Modal Content -->
+  <div class="search-modal-content">
+    <div class="rounded-xl bg-[var(--color-surface)] border border-[var(--color-border)] shadow-2xl overflow-hidden">
+      <!-- Search Input -->
+      <div class="flex items-center gap-3 px-4 border-b border-[var(--color-border)]">
+        <svg class="w-5 h-5 text-[var(--color-text-muted)] flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+        </svg>
+        <input
+          type="text"
+          id="search-input"
+          class="flex-1 py-4 bg-transparent text-[var(--color-text-primary)] placeholder:text-[var(--color-text-muted)] focus:outline-none"
+          placeholder="Search documentation..."
+          autocomplete="off"
+        />
+        <kbd class="px-2 py-1 rounded bg-[var(--color-background-tertiary)] text-xs text-[var(--color-text-muted)]">
+          ESC
+        </kbd>
+      </div>
+
+      <!-- Search Results -->
+      <div id="search-results" class="max-h-[50vh] overflow-y-auto p-2">
+        <div class="p-4 text-center text-[var(--color-text-muted)] text-sm">
+          Start typing to search...
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="flex items-center justify-between px-4 py-3 border-t border-[var(--color-border)] bg-[var(--color-background-secondary)] text-xs text-[var(--color-text-muted)]">
+        <div class="flex items-center gap-4">
+          <span class="flex items-center gap-1">
+            <kbd class="px-1.5 py-0.5 rounded bg-[var(--color-background-tertiary)]">↑↓</kbd>
+            to navigate
+          </span>
+          <span class="flex items-center gap-1">
+            <kbd class="px-1.5 py-0.5 rounded bg-[var(--color-background-tertiary)]">↵</kbd>
+            to select
+          </span>
+        </div>
+        <span>Powered by AI</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  function initSearch() {
+    const searchBtn = document.getElementById('search-btn');
+    let searchModal = document.getElementById('search-modal');
+    const searchBackdrop = document.getElementById('search-backdrop');
+    const searchInput = document.getElementById('search-input') as HTMLInputElement | null;
+
+    if (!searchBtn || !searchModal || !searchBackdrop || !searchInput) return;
+
+    // Teleport modal to body to escape stacking contexts
+    if (searchModal.parentElement !== document.body) {
+      document.body.appendChild(searchModal);
+    }
+
+    // Store references after null check for use in closures
+    const modal = searchModal;
+    const input = searchInput;
+
+    function openSearch() {
+      modal.classList.remove('hidden');
+      document.body.classList.add('overflow-hidden');
+      input.focus();
+    }
+
+    function closeSearch() {
+      modal.classList.add('hidden');
+      document.body.classList.remove('overflow-hidden');
+      input.value = '';
+    }
+
+    // Open on button click
+    searchBtn.addEventListener('click', openSearch);
+
+    // Close on backdrop click
+    searchBackdrop.addEventListener('click', closeSearch);
+
+    // Close on ESC
+    document.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape' && !modal.classList.contains('hidden')) {
+        closeSearch();
+      }
+    });
+
+    // Open on Cmd/Ctrl + K
+    document.addEventListener('keydown', (e) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        if (modal.classList.contains('hidden')) {
+          openSearch();
+        } else {
+          closeSearch();
+        }
+      }
+    });
+
+    // Also trigger from sidebar search
+    const sidebarSearch = document.querySelector('[data-search-trigger]');
+    if (sidebarSearch) {
+      sidebarSearch.addEventListener('click', openSearch);
+    }
+  }
+
+  initSearch();
+  document.addEventListener('astro:after-swap', initSearch);
+</script>
+
+<style is:global>
+  .search-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    isolation: isolate;
+  }
+
+  .search-modal-overlay.hidden {
+    display: none !important;
+  }
+
+  .search-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+  }
+
+  .search-modal-content {
+    position: fixed;
+    left: 1rem;
+    right: 1rem;
+    top: 15vh;
+    margin: 0 auto;
+    max-width: 36rem;
+  }
+</style>

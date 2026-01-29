@@ -1,0 +1,66 @@
+# Robots.txt - Search Engine & AI Crawler Configuration
+# Documentation site: allow full crawling for SEO and LLM training
+
+# Allow all crawlers by default
+User-agent: *
+Allow: /
+Crawl-delay: 1
+
+# Google crawlers
+User-agent: Googlebot
+Allow: /
+
+User-agent: Googlebot-Image
+Allow: /
+
+# Bing crawlers
+User-agent: Bingbot
+Allow: /
+
+# AI/LLM crawlers - explicitly allowed
+User-agent: GPTBot
+Allow: /
+
+User-agent: ChatGPT-User
+Allow: /
+
+User-agent: Claude-Web
+Allow: /
+
+User-agent: Anthropic-AI
+Allow: /
+
+User-agent: PerplexityBot
+Allow: /
+
+User-agent: Cohere-ai
+Allow: /
+
+# SEO tool crawlers - rate limited
+User-agent: AhrefsBot
+Crawl-delay: 10
+Allow: /
+
+User-agent: SemrushBot
+Crawl-delay: 10
+Allow: /
+
+User-agent: DotBot
+Crawl-delay: 10
+Allow: /
+
+# Block known bad actors
+User-agent: MJ12bot
+Disallow: /
+
+User-agent: AIMBot
+Disallow: /
+
+User-agent: BLEXBot
+Disallow: /
+
+# Sitemap location
+Sitemap: https://docs.applivery.io/sitemap-index.xml
+
+# LLM-specific metadata
+# See: /llms.txt for AI crawler configuration

@@ -288,23 +288,6 @@ const CMS_API_KEY = import.meta.env.CMS_API_KEY || '';
       const messageEl = document.createElement('div');
       messageEl.className = `ai-message ai-message-${role}`;
 
-      // Avatar
-      const avatarEl = document.createElement('div');
-      avatarEl.className = 'ai-message-avatar';
-      if (role === 'assistant') {
-        avatarEl.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
-        </svg>`;
-      } else {
-        avatarEl.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-          <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" />
-        </svg>`;
-      }
-
-      // Bubble wrapper
-      const bubbleEl = document.createElement('div');
-      bubbleEl.className = 'ai-message-bubble';
-
       const contentEl = document.createElement('div');
       contentEl.className = 'ai-message-content';
 
@@ -314,9 +297,7 @@ const CMS_API_KEY = import.meta.env.CMS_API_KEY || '';
         contentEl.textContent = content;
       }
 
-      bubbleEl.appendChild(contentEl);
-      messageEl.appendChild(avatarEl);
-      messageEl.appendChild(bubbleEl);
+      messageEl.appendChild(contentEl);
       messagesContainer?.appendChild(messageEl);
       messagesContainer?.scrollTo({ top: messagesContainer.scrollHeight, behavior: 'smooth' });
     }
@@ -390,22 +371,15 @@ const CMS_API_KEY = import.meta.env.CMS_API_KEY || '';
       indicator.className = 'ai-message ai-message-assistant';
       indicator.id = 'ai-typing-indicator';
       indicator.innerHTML = `
-        <div class="ai-message-avatar">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
-          </svg>
-        </div>
-        <div class="ai-message-bubble">
-          <div class="ai-message-content ai-thinking">
-            <div class="ai-thinking-icon">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
-              </svg>
-            </div>
-            <div class="ai-thinking-text">
-              <span class="ai-shimmer-text">Thinking</span>
-              <span class="ai-thinking-dots"><span>.</span><span>.</span><span>.</span></span>
-            </div>
+        <div class="ai-message-content ai-thinking">
+          <div class="ai-thinking-icon">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+            </svg>
+          </div>
+          <div class="ai-thinking-text">
+            <span class="ai-shimmer-text">Thinking</span>
+            <span class="ai-thinking-dots"><span>.</span><span>.</span><span>.</span></span>
           </div>
         </div>
       `;
@@ -545,10 +519,10 @@ const CMS_API_KEY = import.meta.env.CMS_API_KEY || '';
   }
 
   .ai-welcome-icon {
-    width: 3rem;
-    height: 3rem;
+    width: 3.5rem;
+    height: 3.5rem;
     margin: 0 auto 1rem;
-    padding: 0.75rem;
+    padding: 0.625rem;
     background: var(--color-background-secondary);
     border-radius: 0.75rem;
     color: var(--color-primary);
@@ -597,91 +571,52 @@ const CMS_API_KEY = import.meta.env.CMS_API_KEY || '';
     background: var(--color-background-tertiary);
   }
 
-  /* Message row layout */
-  .ai-message {
+  /* Message row layout — :global because elements are created dynamically */
+  :global(.ai-message) {
     display: flex;
-    gap: 0.625rem;
+    flex-direction: column;
+  }
+
+  :global(.ai-message-user) {
+    align-items: flex-end;
+  }
+
+  :global(.ai-message-assistant) {
     align-items: flex-start;
   }
 
-  .ai-message-user {
-    flex-direction: row-reverse;
-  }
-
-  /* Avatars */
-  .ai-message-avatar {
-    width: 1.75rem;
-    height: 1.75rem;
-    min-width: 1.75rem;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    margin-top: 0.125rem;
-  }
-
-  .ai-message-avatar svg {
-    width: 1rem;
-    height: 1rem;
-  }
-
-  .ai-message-user .ai-message-avatar {
-    background: var(--color-primary);
-    color: white;
-  }
-
-  .ai-message-assistant .ai-message-avatar {
-    background: var(--color-background-tertiary);
-    color: var(--color-primary);
-  }
-
-  :global(.dark) .ai-message-assistant .ai-message-avatar {
-    background: var(--color-background-tertiary);
-    color: var(--color-primary-light);
-  }
-
-  /* Bubble */
-  .ai-message-bubble {
-    max-width: 80%;
+  /* Base content */
+  :global(.ai-message-content) {
+    font-size: 0.8125rem;
+    line-height: 1.6;
+    max-width: 85%;
   }
 
   /* User bubble */
-  .ai-message-user .ai-message-content {
+  :global(.ai-message-user .ai-message-content) {
     background: var(--color-primary);
     color: white;
+    padding: 0.625rem 0.875rem;
     border-radius: 1.125rem 1.125rem 0.25rem 1.125rem;
     box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
   }
 
-  :global(.dark) .ai-message-user .ai-message-content {
+  :global(.dark .ai-message-user .ai-message-content) {
     box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
   }
 
-  /* Assistant bubble */
-  .ai-message-assistant .ai-message-content {
-    background: var(--color-background-secondary);
+  /* Assistant plain text (no bubble) */
+  :global(.ai-message-assistant .ai-message-content) {
     color: var(--color-text-primary);
-    border-radius: 1.125rem 1.125rem 1.125rem 0.25rem;
-    border: 1px solid var(--color-border);
-  }
-
-  :global(.dark) .ai-message-assistant .ai-message-content {
-    border-color: var(--color-border);
-  }
-
-  .ai-message-content {
-    padding: 0.625rem 0.875rem;
-    font-size: 0.8125rem;
-    line-height: 1.6;
+    padding: 0.25rem 0;
   }
 
   /* Markdown rendering in assistant messages */
-  .ai-message-assistant .ai-message-content :global(strong) {
+  :global(.ai-message-assistant .ai-message-content strong) {
     font-weight: 600;
   }
 
-  .ai-message-assistant .ai-message-content :global(code) {
+  :global(.ai-message-assistant .ai-message-content code) {
     background: var(--color-background-tertiary, rgba(0,0,0,0.05));
     padding: 0.125rem 0.25rem;
     border-radius: 0.25rem;
@@ -689,7 +624,7 @@ const CMS_API_KEY = import.meta.env.CMS_API_KEY || '';
     font-family: var(--font-mono, monospace);
   }
 
-  .ai-message-assistant .ai-message-content :global(pre) {
+  :global(.ai-message-assistant .ai-message-content pre) {
     background: var(--color-background-tertiary, rgba(0,0,0,0.05));
     padding: 0.75rem;
     border-radius: 0.5rem;
@@ -697,44 +632,44 @@ const CMS_API_KEY = import.meta.env.CMS_API_KEY || '';
     margin: 0.5rem 0;
   }
 
-  .ai-message-assistant .ai-message-content :global(pre code) {
+  :global(.ai-message-assistant .ai-message-content pre code) {
     background: none;
     padding: 0;
   }
 
-  .ai-message-assistant .ai-message-content :global(h3),
-  .ai-message-assistant .ai-message-content :global(h4) {
+  :global(.ai-message-assistant .ai-message-content h3),
+  :global(.ai-message-assistant .ai-message-content h4) {
     font-weight: 600;
     margin: 0.5rem 0 0.25rem;
   }
 
-  .ai-message-assistant .ai-message-content :global(h3) {
+  :global(.ai-message-assistant .ai-message-content h3) {
     font-size: 0.9375rem;
   }
 
-  .ai-message-assistant .ai-message-content :global(h4) {
+  :global(.ai-message-assistant .ai-message-content h4) {
     font-size: 0.875rem;
   }
 
-  .ai-message-assistant .ai-message-content :global(ul) {
+  :global(.ai-message-assistant .ai-message-content ul) {
     list-style: disc;
     padding-left: 1.25rem;
     margin: 0.25rem 0;
   }
 
-  .ai-message-assistant .ai-message-content :global(li) {
+  :global(.ai-message-assistant .ai-message-content li) {
     margin: 0.125rem 0;
   }
 
   /* Shimmer thinking indicator */
-  .ai-thinking {
+  :global(.ai-thinking) {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    padding: 0.625rem 0.875rem;
+    padding: 0.625rem 0;
   }
 
-  .ai-thinking-icon {
+  :global(.ai-thinking-icon) {
     display: flex;
     align-items: center;
     justify-content: center;
@@ -742,19 +677,19 @@ const CMS_API_KEY = import.meta.env.CMS_API_KEY || '';
     animation: ai-sparkle-pulse 2s ease-in-out infinite;
   }
 
-  .ai-thinking-icon svg {
+  :global(.ai-thinking-icon svg) {
     width: 1rem;
     height: 1rem;
   }
 
-  .ai-thinking-text {
+  :global(.ai-thinking-text) {
     display: flex;
     align-items: baseline;
     font-size: 0.8125rem;
     font-weight: 500;
   }
 
-  .ai-shimmer-text {
+  :global(.ai-shimmer-text) {
     background: linear-gradient(
       90deg,
       var(--color-text-muted) 0%,
@@ -769,22 +704,22 @@ const CMS_API_KEY = import.meta.env.CMS_API_KEY || '';
     animation: ai-shimmer 2s ease-in-out infinite;
   }
 
-  .ai-thinking-dots {
+  :global(.ai-thinking-dots) {
     display: inline-flex;
     margin-left: 1px;
   }
 
-  .ai-thinking-dots span {
+  :global(.ai-thinking-dots span) {
     color: var(--color-text-muted);
     animation: ai-dot-fade 1.5s ease-in-out infinite;
     -webkit-text-fill-color: initial;
   }
 
-  .ai-thinking-dots span:nth-child(2) {
+  :global(.ai-thinking-dots span:nth-child(2)) {
     animation-delay: 0.3s;
   }
 
-  .ai-thinking-dots span:nth-child(3) {
+  :global(.ai-thinking-dots span:nth-child(3)) {
     animation-delay: 0.6s;
   }
 

@@ -121,7 +121,8 @@ export function parseDocumentPath(path: string): { locale: Locale; slug: string 
   // Remove file extension
   let cleanPath = path.replace(/\.mdx?$/, '');
 
-  // Remove content/ prefix if present
+  // Remove src/content/ or content/ prefix if present
+  cleanPath = cleanPath.replace(/^src\/content\//, '');
   cleanPath = cleanPath.replace(/^content\//, '');
 
   // Extract locale from first segment

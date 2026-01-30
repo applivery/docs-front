@@ -155,6 +155,7 @@ interface NavItem {
  */
 function extractSlugFromPath(path: string): string {
   let slug = path.replace(/\.mdx?$/, '');           // Remove file extension
+  slug = slug.replace(/^src\/content\//, '');        // Remove src/content/ prefix
   slug = slug.replace(/^content\//, '');             // Remove content/ prefix
   slug = slug.replace(/^[a-z]{2}\//, '');            // Remove locale prefix (en/, es/, etc.)
   slug = slug.replace(/^docs\//, '');                // Remove docs/ prefix (subdomain handles this)

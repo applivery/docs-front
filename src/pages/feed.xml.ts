@@ -97,7 +97,7 @@ export const GET: APIRoute = async ({ site }) => {
     ${sortedDocs.map(doc => {
       const collection = doc.collection || 'docs';
       const slug = doc.path
-        ? doc.path.replace(/\.mdx?$/, '').replace(/^content\//, '').replace(/^\/+/, '').toLowerCase()
+        ? doc.path.replace(/\.mdx?$/, '').replace(/^src\/content\//, '').replace(/^content\//, '').replace(/^\/+/, '').toLowerCase()
         : (doc.slug || doc.id);
       const itemUrl = `${siteUrl}/${slug}`;
       const pubDate = formatRssDate(doc.pub_date || doc.date);

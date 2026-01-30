@@ -544,6 +544,7 @@ export function buildNavigationTree(documents: Document[]): NavigationItem[] {
     if (doc.path) {
       href = doc.path
         .replace(/\.mdx?$/, "")
+        .replace(/^src\/content\//, "")
         .replace(/^content\//, "")
         .replace(/^[a-z]{2}\//, "")
         .replace(/^docs\//, "")

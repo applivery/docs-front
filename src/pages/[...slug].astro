@@ -22,6 +22,7 @@ export async function getStaticPaths() {
         if (doc.path) {
           return doc.path
             .replace(/\.mdx?$/, '')           // Remove file extension
+            .replace(/^src\/content\//, '')   // Remove src/content/ prefix
             .replace(/^content\//, '')        // Remove content/ prefix
             .replace(/^[a-z]{2}\//, '')       // Remove locale prefix
             .replace(/^docs\//, '')           // Remove docs/ prefix (subdomain handles this)

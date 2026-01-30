@@ -53,7 +53,8 @@ export async function getStaticPaths() {
 
   function extractSlugFromPath(path: string, isIndexDoc: boolean): string {
     let slug = path.replace(/\.mdx?$/, '');
-    // Remove "content/" prefix if present
+    // Remove "src/content/" or "content/" prefix if present
+    slug = slug.replace(/^src\/content\//, '');
     slug = slug.replace(/^content\//, '');
     // Remove locale prefix (e.g., "en/", "es/")
     slug = slug.replace(/^[a-z]{2}\//, '');
@@ -71,7 +72,7 @@ export async function getStaticPaths() {
   }
 
   function extractLocaleFromPath(path: string): Locale | null {
-    const match = path.match(/^(?:content\/)?([a-z]{2})\//);
+    const match = path.match(/^(?:src\/content\/|content\/)?([a-z]{2})\//);
     if (match && locales.includes(match[1] as Locale)) {
       return match[1] as Locale;
     }
@@ -212,6 +213,7 @@ function getPathPattern(doc: Document): string | null {
     // Remove content/, locale prefix, and keep the rest
     // e.g., "content/en/docs/endpoint-management/android/file.mdx" -> "docs/endpoint-management/android/file.mdx"
     return doc.path
+      .replace(/^src\/content\//, '')
       .replace(/^content\//, '')
       .replace(/^[a-z]{2}\//, '');
   }
@@ -225,6 +227,7 @@ function getDocSlug(doc: Document): string {
     // Extract slug from path and lowercase for URL consistency
     return doc.path
       .replace(/\.mdx?$/, '')
+      .replace(/^src\/content\//, '')
       .replace(/^content\//, '')
       .replace(/^[a-z]{2}\//, '')
       .replace(/^docs\//, '')
@@ -294,6 +297,7 @@ function getDocUrl(doc: Document): string {
   if (doc.path) {
     let url = doc.path
       .replace(/\.mdx?$/, '')           // Remove file extension
+      .replace(/^src\/content\//, '')   // Remove src/content/ prefix
       .replace(/^content\//, '')        // Remove content/ prefix
       .replace(/^[a-z]{2}\//, '')       // Remove locale prefix
       .replace(/^docs\//, '')           // Remove docs/ prefix (subdomain handles this)

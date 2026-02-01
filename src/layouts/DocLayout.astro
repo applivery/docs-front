@@ -106,7 +106,7 @@ let settings = null;
 
 try {
   const [docsResponse, settingsResponse] = await Promise.all([
-    getDocuments({ collection, visible: true, limit: 100 }),
+    getDocuments({ collection, visible: true, limit: 2000 }),
     getAllSettings(),
   ]);
   documents = docsResponse.documents;

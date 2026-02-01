@@ -503,9 +503,11 @@ export async function getSettings<T>(category: SettingsCategory): Promise<T> {
 }
 
 /**
- * Get all site settings for build
+ * Get all site settings for build (cached — settings are global and don't change per page)
  */
-export async function getAllSettings() {
+let _settingsCache: Awaited<ReturnType<typeof _fetchAllSettings>> | null = null;
+
+async function _fetchAllSettings() {
   const [appearance, content, seo, navigation, privacy, home] =
     await Promise.all([
       getSettings<AppearanceSettings>("appearance").catch(() => null),
@@ -524,6 +526,13 @@ export async function getAllSettings() {
     privacy,
     home,
   };
+}
+
+export async function getAllSettings() {
+  if (!_settingsCache) {
+    _settingsCache = await _fetchAllSettings();
+  }
+  return _settingsCache;
 }
 
 /**

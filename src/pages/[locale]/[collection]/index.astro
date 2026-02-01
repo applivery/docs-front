@@ -81,7 +81,7 @@ let settings = null;
 
 try {
   const [docsResponse, settingsResponse] = await Promise.all([
-    getDocuments({ collection: 'docs', locale, visible: true, limit: 500 }),
+    getDocuments({ collection: 'docs', locale, visible: true, limit: 2000 }),
     getAllSettings(),
   ]);
   // Filter documents where path contains the folder name

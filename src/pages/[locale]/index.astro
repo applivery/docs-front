@@ -46,7 +46,7 @@ let settings: Awaited<ReturnType<typeof getAllSettings>> | null = null;
 
 try {
   const [docsResponse, settingsResponse] = await Promise.all([
-    getDocuments({ visible: true, limit: 50, locale }),
+    getDocuments({ visible: true, limit: 2000, locale }),
     getAllSettings(),
   ]);
   documents = docsResponse.documents;

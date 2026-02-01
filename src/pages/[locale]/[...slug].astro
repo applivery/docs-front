@@ -340,7 +340,82 @@ const section = Array.isArray(fullDocument.section) ? fullDocument.section[0] : 
 const category = Array.isArray(fullDocument.category) ? fullDocument.category[0] : fullDocument.category;
 
 // Process markdown content with custom components
-const processedContent = fullDocument.content ? processMarkdown(fullDocument.content) : '';
+let processedContent = fullDocument.content ? processMarkdown(fullDocument.content) : '';
+
+// Resolve <ChildGrid /> placeholders — fetch child docs and render inline grids
+if (processedContent.includes('data-child-grid="true"')) {
+  const gridPlaceholderRegex = /<div data-child-grid="true"(?:\s+data-path="([^"]*)")?(?:\s+data-columns="(\d+)")?(?:\s+data-filters="(true|false)")?><\/div>/g;
+
+  // Determine the base folder path for this document
+  const docFolderPath = fullDocument.path
+    ? fullDocument.path.replace(/\/[^/]+\.mdx?$/, '')
+    : '';
+
+  // Collect all placeholders first (to batch-fetch if needed)
+  const placeholders: Array<{ match: string; path: string; columns: number; filters: boolean }> = [];
+  let m;
+  while ((m = gridPlaceholderRegex.exec(processedContent)) !== null) {
+    const customPath = m[1] || '';
+    const columns = parseInt(m[2] || '3', 10) as 2 | 3 | 4;
+    const filters = m[3] !== 'false';
+    // If a custom path is provided, resolve relative to content/{locale}/docs/
+    const resolvedFolder = customPath
+      ? `content/${locale}/docs/${customPath}`
+      : docFolderPath;
+    placeholders.push({ match: m[0], path: resolvedFolder, columns, filters });
+  }
+
+  if (placeholders.length > 0) {
+    // Fetch all docs once (reuse allDocs if available from archive logic, otherwise fetch)
+    let allDocsForGrid: Document[] = [];
+    try {
+      const { documents: fetchedDocs } = await getDocuments({
+        collection: fullDocument.collection || 'docs',
+        visible: true,
+        limit: 500,
+        locale,
+      });
+      allDocsForGrid = fetchedDocs;
+    } catch (err) {
+      console.error('Failed to fetch documents for ChildGrid:', err);
+    }
+
+    for (const ph of placeholders) {
+      // Filter child documents that belong to the resolved folder
+      const gridDocs = allDocsForGrid.filter((doc) => {
+        if (!doc.path || doc.id === fullDocument.id) return false;
+        if (doc.type === 'archive') return false;
+        const filename = doc.path.split('/').pop() || '';
+        if (/^index\.mdx?$/i.test(filename)) return false;
+        const docFolder = doc.path.replace(/\/[^/]+\.mdx?$/, '');
+        return docFolder === ph.path;
+      }).sort((a, b) => {
+        const orderA = a.sidebar_position ?? a.order ?? a.weight ?? 999;
+        const orderB = b.sidebar_position ?? b.order ?? b.weight ?? 999;
+        return orderA - orderB;
+      });
+
+      if (gridDocs.length > 0) {
+        // Render a lightweight card grid as HTML (no JS filters — keeps it simple for inline use)
+        const colClass = `cols-${ph.columns}`;
+        const cards = gridDocs.map((doc) => {
+          const href = getDocUrl(doc);
+          const desc = doc.description ? `<p class="child-grid-card-desc">${doc.description}</p>` : '';
+          return `<a href="${href}" class="child-grid-card">
+            <span class="child-grid-card-title">${doc.title}</span>
+            ${desc}
+          </a>`;
+        }).join('');
+
+        const gridHtml = `<div class="child-grid ${colClass}">${cards}</div>`;
+        processedContent = processedContent.replace(ph.match, gridHtml);
+      } else {
+        // Remove placeholder if no docs found
+        processedContent = processedContent.replace(ph.match, '');
+      }
+    }
+  }
+}
 ---
 
 <DocLayout

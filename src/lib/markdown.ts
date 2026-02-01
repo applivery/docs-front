@@ -195,6 +195,18 @@ export function processMarkdown(content: string): string {
     }
   );
 
+  // Process ChildGrid - renders a grid of child documents from the current path or a specified path
+  // Usage: <ChildGrid /> or <ChildGrid path="device-management/android" /> or <ChildGrid columns={2} />
+  processed = processed.replace(
+    /<ChildGrid\s*(?:path="([^"]*)")?\s*(?:columns=\{?(\d+)\}?)?\s*(?:filters=(true|false))?\s*\/?\s*>/g,
+    (_, path, cols, filters) => {
+      const dataPath = path ? ` data-path="${path}"` : '';
+      const dataCols = cols ? ` data-columns="${cols}"` : '';
+      const dataFilters = filters ? ` data-filters="${filters}"` : '';
+      return `<div data-child-grid="true"${dataPath}${dataCols}${dataFilters}></div>`;
+    }
+  );
+
   // Process code blocks with filename (```language title="filename")
   processed = processed.replace(
     /```(\w+)\s+title="([^"]+)"\n([\s\S]*?)```/g,

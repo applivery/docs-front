@@ -132,20 +132,20 @@
     @apply text-base md:text-lg;
   }
 
-  a {
+  .article-content a {
     color: var(--color-primary);
     transition: color var(--transition-fast);
   }
 
-  a:hover {
+  .article-content a:hover {
     color: var(--color-primary-dark);
   }
 
-  .dark a {
+  .dark .article-content a {
     color: var(--color-accent-light);
   }
 
-  .dark a:hover {
+  .dark .article-content a:hover {
     color: var(--color-accent);
   }
 

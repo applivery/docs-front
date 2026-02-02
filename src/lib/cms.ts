@@ -247,41 +247,73 @@ export interface BrandingSettings {
 }
 
 export interface ColorSettings {
-  // Light mode colors
+  // Light mode - Core
   primary: string;
   background: string;
   accent: string;
   text: string;
-  // Menu hover colors - support multiple naming conventions from CMS
+  // Light mode - Container & Surface
+  surface?: string;
+  backgroundSecondary?: string;
+  backgroundTertiary?: string;
+  // Light mode - Buttons
+  buttonBg?: string;
+  buttonBgHover?: string;
+  buttonText?: string;
+  // Light mode - Menu states
   menuItemHoverBg?: string;
   menuItemHoverText?: string;
+  menuItemActiveBg?: string;
+  menuItemActiveText?: string;
   menu_item_hover_bg?: string;
   menu_item_hover_text?: string;
-  // Also check for "Menu Hover Background" / "Menu Hover Text" field names
   menuHoverBackground?: string;
   menuHoverText?: string;
   menu_hover_background?: string;
   menu_hover_text?: string;
+  // Light mode - Borders
+  border?: string;
+  borderLight?: string;
+  // Light mode - Text variants
+  textSecondary?: string;
+  textTertiary?: string;
+  textMuted?: string;
 
-  // Dark mode colors
+  // Dark mode - Core
   darkPrimary?: string;
   darkBackground?: string;
   darkAccent?: string;
   darkText?: string;
-  // Dark mode - support multiple naming conventions from CMS
   dark_primary?: string;
   dark_background?: string;
   dark_accent?: string;
   dark_text?: string;
+  // Dark mode - Container & Surface
+  darkSurface?: string;
+  darkBackgroundSecondary?: string;
+  darkBackgroundTertiary?: string;
+  // Dark mode - Buttons
+  darkButtonBg?: string;
+  darkButtonBgHover?: string;
+  darkButtonText?: string;
+  // Dark mode - Menu states
   darkMenuItemHoverBg?: string;
   darkMenuItemHoverText?: string;
+  darkMenuItemActiveBg?: string;
+  darkMenuItemActiveText?: string;
   dark_menu_item_hover_bg?: string;
   dark_menu_item_hover_text?: string;
-  // Also check for dark mode menu hover with different naming
   darkMenuHoverBackground?: string;
   darkMenuHoverText?: string;
   dark_menu_hover_background?: string;
   dark_menu_hover_text?: string;
+  // Dark mode - Borders
+  darkBorder?: string;
+  darkBorderLight?: string;
+  // Dark mode - Text variants
+  darkTextSecondary?: string;
+  darkTextTertiary?: string;
+  darkTextMuted?: string;
 }
 
 export interface TypographySettings {

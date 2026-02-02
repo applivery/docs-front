@@ -166,9 +166,13 @@ const menuItemActiveText = colors?.menuItemActiveText || primaryColor;
 const backgroundSecondary = colors?.backgroundSecondary || '#f9fafb';
 const backgroundTertiary = colors?.backgroundTertiary || '#f3f4f6';
 
-// Light mode - Borders & text variants
+// Light mode - Borders
 const borderColor = colors?.border || '#e5e7eb';
+const borderLightColor = colors?.borderLight || '#f3f4f6';
+
+// Light mode - Text variants
 const textSecondary = colors?.textSecondary || '#4b5563';
+const textTertiary = colors?.textTertiary || '#6b7280';
 const textMuted = colors?.textMuted || '#9ca3af';
 
 // Dark mode - Core colors
@@ -195,9 +199,13 @@ const darkMenuItemActiveText = colors?.darkMenuItemActiveText || '#818cf8';
 const darkBackgroundSecondary = colors?.darkBackgroundSecondary || '#1e293b';
 const darkBackgroundTertiary = colors?.darkBackgroundTertiary || '#334155';
 
-// Dark mode - Borders & text variants
+// Dark mode - Borders
 const darkBorderColor = colors?.darkBorder || '#334155';
+const darkBorderLightColor = colors?.darkBorderLight || '#1e293b';
+
+// Dark mode - Text variants
 const darkTextSecondary = colors?.darkTextSecondary || '#cbd5e1';
+const darkTextTertiary = colors?.darkTextTertiary || '#94a3b8';
 const darkTextMuted = colors?.darkTextMuted || '#64748b';
 
 const brandBackgroundColor = '#000717';
@@ -338,10 +346,13 @@ const cssVars = `
     --color-background-secondary: ${hexToCss(backgroundSecondary)};
     --color-background-tertiary: ${hexToCss(backgroundTertiary)};
 
-    /* Light mode - Borders & text variants */
+    /* Light mode - Borders */
     --color-border: ${hexToCss(borderColor)};
+    --color-border-light: ${hexToCss(borderLightColor)};
+
+    /* Light mode - Text variants */
     --color-text-secondary: ${hexToCss(textSecondary)};
-    --color-text-tertiary: ${hexToCss(textMuted)};
+    --color-text-tertiary: ${hexToCss(textTertiary)};
     --color-text-muted: ${hexToCss(textMuted)};
 
     /* Brand background */
@@ -397,10 +408,13 @@ const cssVars = `
     --color-background-secondary: ${hexToCss(darkBackgroundSecondary)};
     --color-background-tertiary: ${hexToCss(darkBackgroundTertiary)};
 
-    /* Dark mode - Borders & text variants */
+    /* Dark mode - Borders */
     --color-border: ${hexToCss(darkBorderColor)};
+    --color-border-light: ${hexToCss(darkBorderLightColor)};
+
+    /* Dark mode - Text variants */
     --color-text-secondary: ${hexToCss(darkTextSecondary)};
-    --color-text-tertiary: ${hexToCss(darkTextMuted)};
+    --color-text-tertiary: ${hexToCss(darkTextTertiary)};
     --color-text-muted: ${hexToCss(darkTextMuted)};
   }
 `;

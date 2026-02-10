@@ -25,8 +25,8 @@ export const iconMap = {
   fileText: 'solar:file-text-linear',
   fileCode: 'solar:code-file-linear',
   document: 'solar:document-linear',
-  filePlus: 'solar:file-add-linear',
-  scroll: 'solar:scroll-linear',
+  filePlus: 'solar:document-add-linear',
+  scroll: 'solar:notebook-minimalistic-linear',
   notebook: 'solar:notebook-linear',
   clipboard: 'solar:clipboard-text-linear',
   clipboardList: 'solar:clipboard-list-linear',
@@ -34,7 +34,7 @@ export const iconMap = {
   // Folders
   folder: 'solar:folder-linear',
   folderOpen: 'solar:folder-open-linear',
-  folderPlus: 'solar:folder-add-linear',
+  folderPlus: 'solar:add-folder-linear',
   folderTree: 'solar:folder-path-connect-linear',
 
   // Navigation
@@ -51,7 +51,7 @@ export const iconMap = {
 
   // Settings & Config
   settings: 'solar:settings-linear',
-  wrench: 'solar:wrench-linear',
+  wrench: 'solar:settings-minimalistic-linear',
   sliders: 'solar:tuning-2-linear',
   slidersHorizontal: 'solar:tuning-linear',
 
@@ -77,14 +77,14 @@ export const iconMap = {
   monitor: 'solar:monitor-linear',
   laptop: 'solar:laptop-linear',
   tv: 'solar:tv-linear',
-  watch: 'solar:smart-watch-linear',
+  watch: 'solar:watch-round-linear',
   windowFrame: 'solar:window-frame-linear',
 
   // Operating Systems & Brands
-  apple: 'solar:apple-linear',
+  apple: 'solar:iphone-linear',
   android: 'solar:smartphone-linear',
   windows: 'solar:window-frame-linear',
-  chrome: 'solar:global-search-linear',
+  chrome: 'solar:magnifer-linear',
   github: 'solar:code-square-linear',
   gitlab: 'solar:code-square-linear',
   figma: 'solar:figma-linear',
@@ -120,7 +120,7 @@ export const iconMap = {
 
   // Integrations & Plugins
   plug: 'solar:plug-circle-linear',
-  puzzle: 'solar:puzzle-linear',
+  puzzle: 'solar:widget-add-linear',
   package: 'solar:box-linear',
   layers: 'solar:layers-linear',
   box: 'solar:box-linear',
@@ -134,7 +134,7 @@ export const iconMap = {
   lock: 'solar:lock-linear',
   lockOpen: 'solar:lock-unlocked-linear',
   key: 'solar:key-linear',
-  fingerprint: 'solar:finger-print-linear',
+  fingerprint: 'solar:shield-keyhole-linear',
   eye: 'solar:eye-linear',
   eyeOff: 'solar:eye-closed-linear',
 
@@ -157,7 +157,7 @@ export const iconMap = {
   messageSquare: 'solar:chat-square-linear',
   messageCircle: 'solar:chat-round-linear',
   phone: 'solar:phone-linear',
-  video: 'solar:videocam-linear',
+  video: 'solar:camera-linear',
   helpCircle: 'solar:question-circle-linear',
 
   // Analytics & Data
@@ -177,8 +177,8 @@ export const iconMap = {
   link: 'solar:link-linear',
   link2: 'solar:link-linear',
   externalLink: 'solar:link-round-angle-linear',
-  image: 'solar:image-linear',
-  bot: 'solar:bot-linear',
+  image: 'solar:gallery-minimalistic-linear',
+  bot: 'solar:chat-round-dots-linear',
   palette: 'solar:palette-linear',
   history: 'solar:clock-circle-linear',
 
@@ -188,9 +188,9 @@ export const iconMap = {
   listOrdered: 'solar:list-linear',
   penLine: 'solar:pen-linear',
   gripVertical: 'solar:menu-dots-linear',
-  moreVertical: 'solar:menu-dots-bold-linear',
-  tableProperties: 'solar:table-linear',
-  square: 'solar:square-linear',
+  moreVertical: 'solar:menu-dots-square-linear',
+  tableProperties: 'solar:checklist-minimalistic-linear',
+  square: 'solar:stop-linear',
 } as const;
 
 export type IconName = keyof typeof iconMap;

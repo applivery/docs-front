@@ -71,14 +71,76 @@ export const iconMap = {
   sparkles: 'solar:stars-linear',
   lightbulb: 'solar:lightbulb-linear',
 
-  // Technology & Platforms
+  // Electronic & Devices
   smartphone: 'solar:smartphone-linear',
+  smartphone2: 'solar:smartphone-2-linear',
+  smartphoneRotate: 'solar:smartphone-rotate-2-linear',
+  smartphoneUpdate: 'solar:smartphone-update-linear',
+  smartphoneVibration: 'solar:smartphone-vibration-linear',
   tablet: 'solar:tablet-linear',
   monitor: 'solar:monitor-linear',
+  monitorCamera: 'solar:monitor-camera-linear',
+  monitorSmartphone: 'solar:monitor-smartphone-linear',
   laptop: 'solar:laptop-linear',
+  laptop2: 'solar:laptop-2-linear',
+  laptopMinimalistic: 'solar:laptop-minimalistic-linear',
   tv: 'solar:tv-linear',
   watch: 'solar:watch-round-linear',
+  display: 'solar:display-linear',
+  devices: 'solar:devices-linear',
   windowFrame: 'solar:window-frame-linear',
+
+  // Audio & Media Devices
+  airbuds: 'solar:airbuds-linear',
+  airbudsCase: 'solar:airbuds-case-linear',
+  airbudsCharge: 'solar:airbuds-charge-linear',
+  headphones: 'solar:headphones-round-linear',
+  headphonesSound: 'solar:headphones-round-sound-linear',
+  headphonesSquare: 'solar:headphones-square-linear',
+  boombox: 'solar:boombox-linear',
+  smartSpeaker: 'solar:smart-speaker-linear',
+  turntable: 'solar:turntable-linear',
+  cassette: 'solar:cassette-linear',
+
+  // Input & Peripherals
+  keyboard: 'solar:keyboard-linear',
+  mouse: 'solar:mouse-linear',
+  printer: 'solar:printer-linear',
+  printerMinimalistic: 'solar:printer-minimalistic-linear',
+  projector: 'solar:projector-linear',
+
+  // Gaming
+  gamepad: 'solar:gamepad-linear',
+  gamepadMinimalistic: 'solar:gamepad-minimalistic-linear',
+  gamepadOld: 'solar:gamepad-old-linear',
+  gameboy: 'solar:gameboy-linear',
+
+  // Storage & Cards
+  diskette: 'solar:diskette-linear',
+  flashDrive: 'solar:flash-drive-linear',
+  sdCard: 'solar:sd-card-linear',
+  simCard: 'solar:sim-card-linear',
+  ssdRound: 'solar:ssd-round-linear',
+  ssdSquare: 'solar:ssd-square-linear',
+  cloudStorage: 'solar:cloud-storage-linear',
+
+  // Power & Connectivity
+  socket: 'solar:socket-linear',
+  lightning: 'solar:lightning-linear',
+  wirelessCharge: 'solar:wireless-charge-linear',
+  weigher: 'solar:weigher-linear',
+  telescope: 'solar:telescope-linear',
+
+  // Map & Navigation arrows
+  mapArrowDown: 'solar:map-arrow-down-linear',
+  mapArrowUp: 'solar:map-arrow-up-linear',
+
+  // Sliders
+  sliderVertical: 'solar:slider-vertical-linear',
+  sliderHorizontal: 'solar:slider-horizontal-linear',
+
+  // Magic & Effects
+  magicStick: 'solar:magic-stick-3-linear',
 
   // Operating Systems & Brands
   apple: 'solar:iphone-linear',

@@ -4,9 +4,8 @@ description: >-
   The Android Agent extends Android API limits to track device activity with
   geolocation, network traffic, and app usage reporting securely and
   efficiently.
-heroImage: 'https://www.applivery.com/wp-content/uploads/2021/12/Docs-featured-image.png'
-imageAlt: Applivery Android Agent dashboard showing device tracking features
-itemName: Agent Overview
+author: Paulo Lima
+category: Device Management
 keywords:
   - Android Agent Features
   - Geolocation Tracking
@@ -14,20 +13,7 @@ keywords:
   - Network Traffic Monitoring
   - Device Tracking Features
   - Android MDM Agent
-pubDate: '2025-01-10T00:00:00.000Z'
-updatedDate: '2025-01-11T00:00:00.000Z'
-author: Paulo Lima
-category: Device Management
-section: Android MDM
-type: article
-canonical: >-
-  https://learn.applivery.com/docs/device-management/android/agent-features/overview/
-audience: developers
-difficulty: intermediate
-platform: Android
 schema_type: TechArticle
-order: 0
-visible: true
 ---
 
 # What is the Android Agent?

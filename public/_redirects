@@ -1,0 +1,2 @@
+# Redirect root to default locale (instant, no flash)
+/ /en/ 301

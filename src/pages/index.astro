@@ -2,6 +2,10 @@
 /**
  * Root page - Redirects to default locale
  * docs.applivery.com/ -> docs.applivery.com/en/
+ *
+ * Primary redirect is handled by /public/_redirects (Cloudflare Pages)
+ * which is instant (server-level, no flash). This page is a fallback
+ * for environments that don't support _redirects.
  */
 import { defaultLocale } from '../lib/i18n';
 

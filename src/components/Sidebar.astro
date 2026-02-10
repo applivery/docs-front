@@ -1291,6 +1291,9 @@ const cmsUrl = import.meta.env.PUBLIC_CMS_URL || import.meta.env.CMS_URL || '';
 
     // Initialize toggle handlers
     initFolderToggles(container);
+
+    // Hydrate iconify placeholders with actual SVGs
+    await hydrateIcons(container);
   }
 
   /**
@@ -1346,6 +1349,9 @@ const cmsUrl = import.meta.env.PUBLIC_CMS_URL || import.meta.env.CMS_URL || '';
     }
     container.innerHTML = `<div class="tab-nav-content">${renderFolderTree(items, location.pathname)}</div>`;
     initFolderToggles(container);
+
+    // Hydrate iconify placeholders with actual SVGs
+    hydrateIcons(container);
   }
 
   function initSidebar() {

@@ -7,6 +7,7 @@
  */
 
 import BaseLayout from '../../layouts/BaseLayout.astro';
+import SearchButton from '../../components/SearchButton.astro';
 import Icon from '../../components/Icon';
 import type { IconName } from '../../lib/icons';
 import { getDocuments, getAllSettings, resolveMediaUrl, type Document, type HomeSettings, type LocalizedText, type ContentSettings } from '../../lib/cms';
@@ -217,7 +218,7 @@ function localizeUrl(path: string): string {
   description="Documentation and guides"
   locale={locale}
 >
-  <div class="min-h-screen bg-[var(--color-background)]">
+  <div class="min-h-screen bg-[var(--color-background)] flex flex-col">
     <!-- Header -->
     <header class="fixed top-0 left-0 right-0 h-16 bg-[var(--color-background)]/80 backdrop-blur-md border-b border-[var(--color-border)] z-50">
       <div class="max-w-7xl mx-auto px-6 h-full flex items-center justify-between">
@@ -305,6 +306,11 @@ function localizeUrl(path: string): string {
             <Icon name="sun" className="w-5 h-5 hidden dark:block" aria-hidden={true} client:only="react" />
             <Icon name="moon" className="w-5 h-5 block dark:hidden" aria-hidden={true} client:only="react" />
           </button>
+
+          <!-- Search (hidden button, modal rendered) -->
+          <div class="hidden">
+            <SearchButton />
+          </div>
 
           <a href={localizeUrl(ctaHref)} class="btn btn-primary">
             {ctaLabel}
@@ -412,8 +418,8 @@ function localizeUrl(path: string): string {
       </section>
     )}
 
-    <!-- Footer -->
-    <footer class="py-12 px-6 border-t border-[var(--color-border)]">
+    <!-- Footer (pushed to bottom via flex) -->
+    <footer class="mt-auto py-12 px-6 border-t border-[var(--color-border)] bg-[var(--color-background)]">
       <div class="max-w-6xl mx-auto">
         <div class="flex flex-col md:flex-row justify-between items-center gap-6">
           <div class="flex items-center gap-2">
@@ -489,4 +495,13 @@ function localizeUrl(path: string): string {
   document.addEventListener('click', () => {
     document.querySelectorAll('[data-language-selector]').forEach(s => s.classList.remove('open'));
   });
+
+  // Wire hero search button to open the real search modal
+  const heroSearch = document.getElementById('hero-search');
+  if (heroSearch) {
+    heroSearch.addEventListener('click', () => {
+      const searchBtn = document.getElementById('search-btn');
+      if (searchBtn) searchBtn.click();
+    });
+  }
 </script>

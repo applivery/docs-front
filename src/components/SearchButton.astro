@@ -218,7 +218,7 @@ const CMS_API_KEY = import.meta.env.CMS_API_KEY || '';
         let sourcePillsHtml = '';
         if (sources && sources.length > 0) {
           const pills = sources.slice(0, 3).map(s => {
-            const href = s.slug ? `/${s.locale || 'en'}/${s.collection}/${s.slug}` : '#';
+            const href = s.slug ? `/${s.locale || 'en'}/${s.slug}` : '#';
             const breadcrumb = getBreadcrumb(s.path, s.collection);
             return `<a href="${escapeHtml(href)}" class="search-answer-source-pill" data-search-result>
               <span class="search-answer-source-title">${escapeHtml(s.title)}</span>
@@ -275,7 +275,7 @@ const CMS_API_KEY = import.meta.env.CMS_API_KEY || '';
         for (const source of sources.slice(0, 5)) {
           const card = document.createElement('a');
           const href = source.slug
-            ? `/${source.locale || 'en'}/${source.collection}/${source.slug}`
+            ? `/${source.locale || 'en'}/${source.slug}`
             : '#';
           card.href = href;
           card.className = 'search-source-card';
@@ -517,7 +517,7 @@ const CMS_API_KEY = import.meta.env.CMS_API_KEY || '';
       for (const source of sources.slice(0, 6)) {
         const card = document.createElement('a');
         const href = source.slug
-          ? `/${source.locale || 'en'}/${source.collection}/${source.slug}`
+          ? `/${source.locale || 'en'}/${source.slug}`
           : '#';
         card.href = href;
         card.className = 'search-source-card';

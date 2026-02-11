@@ -373,7 +373,7 @@ const CMS_API_KEY = import.meta.env.CMS_API_KEY || '';
       for (const source of sources.slice(0, 3)) {
         const link = document.createElement('a');
         const href = source.slug
-          ? `/${source.locale || 'en'}/${source.collection}/${source.slug}`
+          ? `/${source.locale || 'en'}/${source.slug}`
           : '#';
         link.href = href;
         link.className = 'ai-source-pill';

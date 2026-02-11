@@ -347,7 +347,22 @@ const CMS_API_KEY = import.meta.env.CMS_API_KEY || '';
       messagesContainer?.scrollTo({ top: messagesContainer.scrollHeight, behavior: 'smooth' });
     }
 
-    function renderSourceLinks(sources: Array<{ title: string; locale: string; collection: string; slug: string }>) {
+    function getBreadcrumb(path?: string, collection?: string): string {
+      if (!path) return escapeHtml(collection || 'docs');
+      const cleaned = path
+        .replace(/^src\/content\/\w+\/\w+\//, '')
+        .replace(/\.mdx?$/, '')
+        .replace(/\/index$/, '');
+      if (!cleaned) return escapeHtml(collection || 'docs');
+      const segments = cleaned.split('/').map(seg =>
+        seg.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+      );
+      const crumbs = segments.slice(0, -1);
+      if (crumbs.length === 0) return escapeHtml(collection || 'docs');
+      return crumbs.map(c => escapeHtml(c)).join(' › ');
+    }
+
+    function renderSourceLinks(sources: Array<{ title: string; locale: string; collection: string; slug: string; path?: string }>) {
       const container = document.createElement('div');
       container.className = 'ai-source-links';
 
@@ -371,7 +386,12 @@ const CMS_API_KEY = import.meta.env.CMS_API_KEY || '';
           : '#';
         link.href = href;
         link.className = 'ai-source-pill';
-        link.textContent = source.title;
+
+        const breadcrumb = getBreadcrumb(source.path, source.collection);
+        link.innerHTML = `
+          <span class="ai-source-pill-title">${escapeHtml(source.title)}</span>
+          <span class="ai-source-pill-breadcrumb">${breadcrumb}</span>
+        `;
         link.title = source.title;
         pills.appendChild(link);
       }
@@ -995,9 +1015,9 @@ const CMS_API_KEY = import.meta.env.CMS_API_KEY || '';
 
   :global(.ai-source-pill) {
     display: inline-flex;
-    align-items: center;
+    flex-direction: column;
     font-size: 0.6875rem;
-    padding: 0.25rem 0.625rem;
+    padding: 0.375rem 0.625rem;
     border-radius: 0.5rem;
     background: var(--color-background-secondary);
     border: 1px solid var(--color-border);
@@ -1005,15 +1025,29 @@ const CMS_API_KEY = import.meta.env.CMS_API_KEY || '';
     text-decoration: none;
     font-weight: 500;
     transition: all 0.15s ease;
-    max-width: 12rem;
+    max-width: 14rem;
     overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 
   :global(.ai-source-pill:hover) {
     border-color: var(--color-primary);
     background: var(--color-background-tertiary);
+  }
+
+  :global(.ai-source-pill-title) {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  :global(.ai-source-pill-breadcrumb) {
+    font-size: 0.5625rem;
+    font-weight: 400;
+    color: var(--color-text-muted);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    margin-top: 0.0625rem;
   }
 
   /* Suggestion pills */

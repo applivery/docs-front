@@ -202,7 +202,7 @@ const CMS_API_KEY = import.meta.env.CMS_API_KEY || '';
     }
 
     // --- Render results ---
-    interface Source { title: string; collection: string; locale: string; slug: string; path?: string; }
+    interface Source { title: string; collection: string; locale: string; slug: string; path?: string; snippet?: string; }
 
     function renderResults(answer: string, sources: Source[], suggestions: string[]) {
       hideLoading();
@@ -263,8 +263,7 @@ const CMS_API_KEY = import.meta.env.CMS_API_KEY || '';
             <div class="search-source-card-body">
               <div class="search-source-card-title">${escapeHtml(source.title)}</div>
               <div class="search-source-card-meta">
-                <span class="search-source-badge">${escapeHtml(source.collection || 'docs')}</span>
-                ${source.slug ? `<span class="search-source-path">/${source.slug}</span>` : ''}
+                <span class="search-source-breadcrumb">${getBreadcrumb(source.path, source.collection)}</span>
               </div>
             </div>
             <svg class="search-source-card-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -502,8 +501,7 @@ const CMS_API_KEY = import.meta.env.CMS_API_KEY || '';
           <div class="search-source-card-body">
             <div class="search-source-card-title">${escapeHtml(source.title)}</div>
             <div class="search-source-card-meta">
-              <span class="search-source-badge">${escapeHtml(source.collection || 'docs')}</span>
-              ${source.slug ? `<span class="search-source-path">/${source.slug}</span>` : ''}
+              <span class="search-source-breadcrumb">${getBreadcrumb(source.path, source.collection)}</span>
             </div>
             ${source.snippet ? `<div class="search-source-card-snippet">${escapeHtml(source.snippet)}</div>` : ''}
           </div>
@@ -658,6 +656,36 @@ const CMS_API_KEY = import.meta.env.CMS_API_KEY || '';
     });
 
     return processed;
+  }
+
+  // Parse path into breadcrumb segments
+  // e.g. "src/content/en/docs/device-management/android/agent-features/overview.md"
+  //   → ["Device Management", "Android", "Agent Features"]
+  function getBreadcrumb(path?: string, collection?: string): string {
+    if (!path) return escapeHtml(collection || 'docs');
+
+    // Remove prefix like "src/content/en/docs/" and file extension
+    const cleaned = path
+      .replace(/^src\/content\/\w+\/\w+\//, '')  // strip src/content/{locale}/{collection}/
+      .replace(/\.mdx?$/, '')                     // strip extension
+      .replace(/\/index$/, '');                    // strip trailing /index
+
+    if (!cleaned) return escapeHtml(collection || 'docs');
+
+    // Split into path segments, humanize each
+    const segments = cleaned.split('/').map(seg =>
+      seg.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+    );
+
+    // Don't include the last segment if it matches the title (it's the doc itself)
+    // Show parent folders as breadcrumb
+    const crumbs = segments.slice(0, -1); // exclude filename
+    if (crumbs.length === 0) {
+      // Top-level doc, just show collection
+      return escapeHtml(collection || 'docs');
+    }
+
+    return crumbs.map(c => escapeHtml(c)).join(' <span class="search-breadcrumb-sep">›</span> ');
   }
 
   function getCollectionIcon(collection: string): string {
@@ -1045,25 +1073,20 @@ const CMS_API_KEY = import.meta.env.CMS_API_KEY || '';
     margin-top: 0.125rem;
   }
 
-  .search-source-badge {
+  .search-source-breadcrumb {
     display: inline-flex;
     align-items: center;
-    padding: 0.0625rem 0.375rem;
-    border-radius: 0.25rem;
-    font-size: 0.625rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    color: var(--color-primary, #6366f1);
-    background: rgba(var(--color-primary-rgb, 99, 102, 241), 0.08);
-  }
-
-  .search-source-path {
+    gap: 0;
     font-size: 0.6875rem;
     color: var(--color-text-muted);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  :global(.search-breadcrumb-sep) {
+    margin: 0 0.25rem;
+    opacity: 0.5;
   }
 
   .search-source-card-snippet {

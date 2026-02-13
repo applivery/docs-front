@@ -32,6 +32,9 @@ import {
 
 // ─── getStaticPaths — single data load, zero per-page API calls ──────
 
+type DocEntry = (Awaited<ReturnType<typeof getCollection>>)[0];
+type DocData = DocEntry['data'];
+
 export async function getStaticPaths() {
   // ONE call to the local data store (populated by the CMS loader)
   const allDocs = await getCollection('docs');
@@ -59,27 +62,48 @@ export async function getStaticPaths() {
   const paths: Array<{
     params: { locale: string; slug: string };
     props: {
-      entry: typeof allDocs[0];
+      entry: DocEntry | null;
       isIndex: boolean;
       locale: Locale;
       allDocs: typeof allDocs;
       translationMap: typeof translationMap;
       pathPatternMap: typeof pathPatternMap;
+      virtual?: { title: string; path: string; collection: string };
     };
   }> = [];
 
+  const resolveDocLocale = (doc: { locale?: string; path?: string }): Locale =>
+    (doc.locale && locales.includes(doc.locale as Locale))
+      ? (doc.locale as Locale)
+      : extractLocaleFromPath(doc.path || '') || 'en';
+
   const validDocs = allDocs.filter((entry) => {
-    if (entry.data.type === 'archive') return false;
-    return isValidSlug(entry.data.slug) || isValidSlug(entry.data.path);
+    const doc = entry.data;
+    if (!isValidSlug(doc.slug) && !isValidSlug(doc.path)) return false;
+    if (doc.type !== 'archive') return true;
+
+    const folderPath = getIndexFolderPath(doc);
+    if (!folderPath) return false;
+    const docLocale = resolveDocLocale(doc);
+
+    const hasChildren = allDocs.some((other) => {
+      const d = other.data;
+      if (!d.path || other.id === entry.id) return false;
+      if (d.visible === false) return false;
+      if (resolveDocLocale(d) !== docLocale) return false;
+      if (isIndexFile(d)) return false;
+      const docFolder = d.path.replace(/\/[^/]+\.mdx?$/, '');
+      return docFolder === folderPath;
+    });
+
+    return hasChildren;
   });
 
   for (const entry of validDocs) {
     const doc = entry.data;
     const isIndex = isIndexFile(doc);
 
-    const docLocale: Locale = (doc.locale && locales.includes(doc.locale as Locale))
-      ? (doc.locale as Locale)
-      : extractLocaleFromPath(doc.path || '') || 'en';
+    const docLocale: Locale = resolveDocLocale(doc);
 
     let fullSlug: string;
 
@@ -111,6 +135,60 @@ export async function getStaticPaths() {
     });
   }
 
+  const indexFoldersByLocale = new Map<Locale, Set<string>>();
+  const childFoldersByLocale = new Map<Locale, Set<string>>();
+  const pathKeys = new Set(paths.map(p => `${p.params.locale}:${p.params.slug}`));
+
+  for (const entry of allDocs) {
+    const doc = entry.data;
+    if (!doc.path) continue;
+    const docLocale = resolveDocLocale(doc);
+    if (isIndexFile(doc)) {
+      const folderPath = getIndexFolderPath(doc);
+      if (!folderPath) continue;
+      if (!indexFoldersByLocale.has(docLocale)) indexFoldersByLocale.set(docLocale, new Set());
+      indexFoldersByLocale.get(docLocale)!.add(folderPath);
+      continue;
+    }
+    if (doc.visible === false) continue;
+    const docFolder = doc.path.replace(/\/[^/]+\.mdx?$/, '');
+    if (!childFoldersByLocale.has(docLocale)) childFoldersByLocale.set(docLocale, new Set());
+    childFoldersByLocale.get(docLocale)!.add(docFolder);
+  }
+
+  const toTitle = (value: string) =>
+    value
+      .split('-')
+      .map(part => (part ? part[0].toUpperCase() + part.slice(1) : part))
+      .join(' ');
+
+  for (const [docLocale, folderPaths] of childFoldersByLocale.entries()) {
+    const indexFolders = indexFoldersByLocale.get(docLocale) || new Set<string>();
+    for (const folderPath of folderPaths) {
+      if (indexFolders.has(folderPath)) continue;
+      const folderSlug = extractSlugFromPath(`${folderPath}/index.md`, true);
+      if (!folderSlug || !folderSlug.includes('/')) continue;
+      const key = `${docLocale}:${folderSlug}`;
+      if (pathKeys.has(key)) continue;
+      const segment = folderSlug.split('/').pop() || folderSlug;
+      const title = toTitle(segment);
+      const collection = folderSlug.split('/')[0] || 'docs';
+      paths.push({
+        params: { locale: docLocale, slug: folderSlug },
+        props: {
+          entry: null,
+          isIndex: true,
+          locale: docLocale,
+          allDocs,
+          translationMap,
+          pathPatternMap,
+          virtual: { title, path: folderPath, collection },
+        },
+      });
+      pathKeys.add(key);
+    }
+  }
+
   if (paths.length > 0 && import.meta.env.DEV) {
     console.log(`[locale]/[...slug] Generated ${paths.length} paths. Sample:`, paths.slice(0, 3).map(p => `/${p.params.locale}/${p.params.slug}`));
   }
@@ -120,25 +198,38 @@ export async function getStaticPaths() {
 
 // ─── Page rendering — all data from props, zero API calls ────────────
 
-const { entry, isIndex, locale, allDocs, translationMap, pathPatternMap } = Astro.props;
-const fullDocument = entry.data;
+const { entry, isIndex, locale, allDocs, translationMap, pathPatternMap, virtual } = Astro.props;
+const fullDocument: DocData = entry?.data || {
+  title: virtual?.title || 'Untitled',
+  description: undefined,
+  content: '',
+  collection: virtual?.collection || 'docs',
+  locale,
+  type: 'archive',
+  path: virtual?.path,
+  slug: undefined,
+  visible: true,
+  item_name: virtual?.title,
+  show_child_grid: true,
+};
 
 if (!isValidLocale(locale)) {
   return Astro.redirect(`/${defaultLocale}/`, 301);
 }
 
 // Content is already in the data store — no API call needed
-const content = fullDocument.content || entry.rendered?.html || '';
+const content = fullDocument.content || entry?.rendered?.html || '';
 
 // For index/archive pages, find child documents from the local store
 // The show_child_grid flag (default true) controls whether the grid renders
 const showChildGrid = fullDocument.show_child_grid !== false;
 let childDocuments: typeof allDocs = [];
+const entryId = entry?.id;
 if (isIndex && showChildGrid) {
   const folderPath = getIndexFolderPath(fullDocument);
   childDocuments = allDocs.filter((other) => {
     const d = other.data;
-    if (!d.path || other.id === entry.id) return false;
+    if (!d.path || (entryId && other.id === entryId)) return false;
     if (d.visible === false) return false;
     if (d.locale !== locale) return false;
     if (isIndexFile(d)) return false;
@@ -223,7 +314,7 @@ if (processedContent.includes('data-child-grid="true"')) {
     for (const ph of placeholders) {
       const gridDocs = collectionDocs.filter((other) => {
         const d = other.data;
-        if (!d.path || other.id === entry.id) return false;
+        if (!d.path || (entryId && other.id === entryId)) return false;
         if (d.type === 'archive') return false;
         if (isIndexFile(d)) return false;
         const docFolder = d.path.replace(/\/[^/]+\.mdx?$/, '');

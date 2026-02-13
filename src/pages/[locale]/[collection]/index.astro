@@ -32,20 +32,8 @@ export async function getStaticPaths() {
   // These match top-level folders inside content/{locale}/docs/ OR other content types
   // The actual folders in docs are: app-distribution, device-management, platform
   const collections = [
-    // Actual folders in content/{locale}/docs/
-    'app-distribution',
-    'platform',
-    // Other content collections (may be separate or inside docs)
-    'docs',
-    'academy',
-    'insights',
-    'roadmap',
-    'glossary',
-    'answers',
-    'product-updates',
-    'about',
-    'mdm',
-    'api',
+    // These are now handled by [...slug].astro for layout consistency
+    // But we keep them here as a fallback or for non-doc collections
   ];
 
   const paths = [];

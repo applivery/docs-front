@@ -131,7 +131,8 @@ export async function getStaticPaths() {
       'product-updates',
       'about',
       'mdm',
-      'api'
+      'api',
+      'docs'
     ].includes(fullSlug);
 
     if (!fullSlug || (!fullSlug.includes('/') && !isTopLevelAllowed)) {
@@ -167,9 +168,20 @@ export async function getStaticPaths() {
       continue;
     }
     if (doc.visible === false) continue;
-    const docFolder = doc.path.replace(/\/[^/]+\.mdx?$/, '');
+    let docFolder = doc.path.replace(/\/[^/]+\.mdx?$/, '');
     if (!childFoldersByLocale.has(docLocale)) childFoldersByLocale.set(docLocale, new Set());
-    childFoldersByLocale.get(docLocale)!.add(docFolder);
+    
+    // Add the folder and all its parent folders up to the locale/docs root
+    while (docFolder && docFolder.includes('/')) {
+      childFoldersByLocale.get(docLocale)!.add(docFolder);
+      const parts = docFolder.split('/');
+      parts.pop();
+      docFolder = parts.join('/');
+      // Stop if we reach the base content folders
+      if (docFolder === 'src/content' || docFolder === 'content' || docFolder.match(/^(src\/)?content\/[a-z]{2}(\/docs)?$/)) {
+        break;
+      }
+    }
   }
 
   const toTitle = (value: string) =>
@@ -217,7 +229,7 @@ export async function getStaticPaths() {
 const { entry, isIndex, locale, allDocs, translationMap, pathPatternMap, virtual } = Astro.props;
 const fullDocument: DocData = entry?.data || {
   title: virtual?.title || 'Untitled',
-  description: undefined,
+  description: virtual ? `Explore our comprehensive documentation for ${virtual.title}.` : undefined,
   content: '',
   collection: virtual?.collection || 'docs',
   locale,
@@ -250,7 +262,7 @@ if (isIndex && showChildGrid) {
     if (d.locale !== locale) return false;
     if (isIndexFile(d)) return false;
     const docFolder = d.path.replace(/\/[^/]+\.mdx?$/, '');
-    return docFolder === folderPath;
+    return docFolder === folderPath || docFolder.startsWith(folderPath + '/');
   }).sort((a, b) => {
     const orderA = a.data.sidebar_position ?? a.data.order_num ?? a.data.weight ?? 999;
     const orderB = b.data.sidebar_position ?? b.data.order_num ?? b.data.weight ?? 999;

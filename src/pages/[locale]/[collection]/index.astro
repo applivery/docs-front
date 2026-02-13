@@ -10,7 +10,8 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
 import Icon from '../../../components/Icon';
 import ArchiveGrid from '../../../components/ArchiveGrid.astro';
 import { getDocuments, getAllSettings, resolveMediaUrl, type Document, type HomeSettings, type LocalizedText } from '../../../lib/cms';
-import { getCollection } from 'astro:content';
+import { readdir } from 'node:fs/promises';
+import { fileURLToPath } from 'node:url';
 import {
   locales,
   localeNames,
@@ -49,20 +50,20 @@ export async function getStaticPaths() {
 
   const paths = [];
 
-  const allDocs = await getCollection('docs');
-  const foundLocales = new Set<Locale>();
-
-  for (const entry of allDocs) {
-    const docLocale = entry.data.locale;
-    if (docLocale && isValidLocale(docLocale)) {
-      foundLocales.add(docLocale);
-    }
+  const contentDir = fileURLToPath(new URL('../../../content', import.meta.url));
+  let localeFolders: string[] = [];
+  try {
+    const entries = await readdir(contentDir, { withFileTypes: true });
+    localeFolders = entries.filter(entry => entry.isDirectory()).map(entry => entry.name);
+  } catch {
+    localeFolders = [];
   }
 
-  const localesToBuild = foundLocales.size > 0 ? Array.from(foundLocales) : [defaultLocale];
+  const localesToBuild = localeFolders.filter(isValidLocale);
+  const effectiveLocales = localesToBuild.length > 0 ? localesToBuild : [defaultLocale];
 
   // Generate paths for each locale + collection combination
-  for (const locale of localesToBuild) {
+  for (const locale of effectiveLocales) {
     for (const collection of collections) {
       paths.push({
         params: { locale, collection },

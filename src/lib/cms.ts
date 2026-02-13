@@ -12,10 +12,12 @@ const CMS_API_KEY = import.meta.env.CMS_API_KEY || "";
  */
 export function resolveMediaUrl(url: string | undefined | null): string {
   if (!url) return '';
-  if (url.startsWith('/_r2/')) {
-    return `${CMS_URL}${url}`;
+  const trimmed = url.trim();
+  if (!trimmed || trimmed.toLowerCase() === 'null' || trimmed.toLowerCase() === 'undefined') return '';
+  if (trimmed.startsWith('/_r2/')) {
+    return `${CMS_URL}${trimmed}`;
   }
-  return url;
+  return trimmed;
 }
 
 interface FetchOptions {

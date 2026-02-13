@@ -242,6 +242,55 @@ if (isIndex && showChildGrid) {
   });
 }
 
+const normalizeString = (value?: string | null) => {
+  if (!value) return '';
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.toLowerCase() === 'null' || trimmed.toLowerCase() === 'undefined') return '';
+  return trimmed;
+};
+
+const formatSegmentLabel = (segment: string) =>
+  segment
+    .replace(/[-_]/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .replace(/\bApi\b/g, 'API')
+    .replace(/\bSdk\b/g, 'SDK')
+    .replace(/\bCli\b/g, 'CLI')
+    .replace(/\bUi\b/g, 'UI')
+    .replace(/\bSso\b/g, 'SSO')
+    .replace(/\bMdm\b/g, 'MDM')
+    .replace(/\bEmm\b/g, 'EMM')
+    .trim();
+
+const getMenuLabel = (doc: DocData) => {
+  if (doc.item_name && doc.item_name !== 'null') return doc.item_name;
+  return doc.title;
+};
+
+const indexDocsBySlug = new Map<string, DocData>();
+for (const entryItem of allDocs) {
+  const doc = entryItem.data;
+  if (!doc.path) continue;
+  if (!isIndexFile(doc) && doc.type !== 'archive') continue;
+  const slug = extractSlugFromPath(doc.path, true);
+  if (slug) indexDocsBySlug.set(slug, doc);
+}
+
+const getCategoryMeta = (doc: DocData, docId: string) => {
+  const slug = getDocSlug({ ...doc, id: docId });
+  const segments = slug.split('/').filter(Boolean);
+  if (segments.length < 2) return {};
+  const categorySlug = segments.slice(0, 2).join('/');
+  const categoryDoc = indexDocsBySlug.get(categorySlug);
+  const label = categoryDoc ? getMenuLabel(categoryDoc) : formatSegmentLabel(segments[1]);
+  const icon = normalizeString(categoryDoc?.sidebar_icon || categoryDoc?.icon);
+  return {
+    category_label: label,
+    category_icon: icon || undefined,
+  };
+};
+
 // Find available translations — from precomputed maps, zero API calls
 let availableTranslations: Locale[] = [locale];
 const translationSlugs: Partial<Record<Locale, string>> = {};
@@ -383,24 +432,29 @@ if (processedContent.includes('data-child-grid="true"')) {
   {/* For index/archive pages, show child documents in grid (controlled by show_child_grid flag) */}
   {isIndex && showChildGrid && childDocuments.length > 0 && (
     <ArchiveGrid
-      items={childDocuments.map(d => ({
-        id: d.id,
-        title: d.data.title,
-        description: d.data.description,
-        og_title: d.data.og_title,
-        og_description: d.data.og_description,
-        href: getDocUrl({ ...d.data, id: d.id }, locale),
-        category: d.data.category,
-        difficulty: d.data.difficulty,
-        audience: d.data.audience,
-        platform: d.data.platform,
-        hero_image: resolveMediaUrl(d.data.hero_image),
-        og_image: resolveMediaUrl(d.data.og_image),
-        image_alt: d.data.image_alt,
-        reading_time: d.data.reading_time,
-        featured: d.data.featured,
-        pub_date: d.data.pub_date,
-      }))}
+      items={childDocuments.map(d => {
+        const categoryMeta = getCategoryMeta(d.data, d.id);
+        return ({
+          id: d.id,
+          title: d.data.title,
+          description: d.data.description,
+          og_title: d.data.og_title,
+          og_description: d.data.og_description,
+          href: getDocUrl({ ...d.data, id: d.id }, locale),
+          category: d.data.category,
+          category_label: categoryMeta.category_label,
+          category_icon: categoryMeta.category_icon,
+          difficulty: d.data.difficulty,
+          audience: d.data.audience,
+          platform: d.data.platform,
+          hero_image: resolveMediaUrl(d.data.hero_image),
+          og_image: resolveMediaUrl(d.data.og_image),
+          image_alt: d.data.image_alt,
+          reading_time: d.data.reading_time,
+          featured: d.data.featured,
+          pub_date: d.data.pub_date,
+        });
+      })}
       pageTitle={fullDocument.title}
       pageDescription={fullDocument.description}
       pageUrl={Astro.url.href}

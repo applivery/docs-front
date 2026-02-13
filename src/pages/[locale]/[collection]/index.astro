@@ -10,6 +10,7 @@ import BaseLayout from '../../../layouts/BaseLayout.astro';
 import Icon from '../../../components/Icon';
 import ArchiveGrid from '../../../components/ArchiveGrid.astro';
 import { getDocuments, getAllSettings, resolveMediaUrl, type Document, type HomeSettings, type LocalizedText } from '../../../lib/cms';
+import { extractSlugFromPath, isIndexFile } from '../../../lib/doc-helpers';
 import { readdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import {
@@ -110,6 +111,54 @@ try {
 } catch (error) {
   console.warn(`Failed to fetch ${collectionName} documents:`, error);
 }
+
+const normalizeString = (value?: string | null) => {
+  if (!value) return '';
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.toLowerCase() === 'null' || trimmed.toLowerCase() === 'undefined') return '';
+  return trimmed;
+};
+
+const formatSegmentLabel = (segment: string) =>
+  segment
+    .replace(/[-_]/g, ' ')
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/\b\w/g, (c) => c.toUpperCase())
+    .replace(/\bApi\b/g, 'API')
+    .replace(/\bSdk\b/g, 'SDK')
+    .replace(/\bCli\b/g, 'CLI')
+    .replace(/\bUi\b/g, 'UI')
+    .replace(/\bSso\b/g, 'SSO')
+    .replace(/\bMdm\b/g, 'MDM')
+    .replace(/\bEmm\b/g, 'EMM')
+    .trim();
+
+const getMenuLabel = (doc: Document) => {
+  if (doc.item_name && doc.item_name !== 'null') return doc.item_name;
+  return doc.title;
+};
+
+const indexDocsBySlug = new Map<string, Document>();
+documents.forEach((doc) => {
+  if (!doc.path) return;
+  if (!isIndexFile(doc)) return;
+  const slug = extractSlugFromPath(doc.path, true);
+  if (slug) indexDocsBySlug.set(slug, doc);
+});
+
+const getCategoryMeta = (doc: Document) => {
+  const slug = getDocSlug(doc);
+  const segments = slug.split('/').filter(Boolean);
+  if (segments.length < 2) return {};
+  const categorySlug = segments.slice(0, 2).join('/');
+  const categoryDoc = indexDocsBySlug.get(categorySlug);
+  const label = categoryDoc ? getMenuLabel(categoryDoc) : formatSegmentLabel(segments[1]);
+  const icon = normalizeString(categoryDoc?.sidebar_icon || categoryDoc?.icon);
+  return {
+    category_label: label,
+    category_icon: icon || undefined,
+  };
+};
 
 // Get home settings for header/footer
 const homeSettings = settings?.home;
@@ -349,24 +398,29 @@ function localizeUrl(path: string): string {
         <!-- Documents Grid with Filters -->
         {documents.length > 0 ? (
           <ArchiveGrid
-            items={documents.map(doc => ({
-              id: doc.id,
-              title: doc.title,
-              description: doc.description,
-              og_title: doc.og_title,
-              og_description: doc.og_description,
-              href: localizeUrl(`/${getDocSlug(doc)}`),
-              category: doc.category,
-              difficulty: doc.difficulty,
-              audience: doc.audience,
-              platform: doc.platform,
-              hero_image: resolveMediaUrl(doc.hero_image),
-              og_image: resolveMediaUrl(doc.og_image),
-              image_alt: doc.image_alt,
-              reading_time: doc.reading_time,
-              featured: doc.featured,
-              pub_date: doc.pub_date,
-            }))}
+            items={documents.map(doc => {
+              const categoryMeta = getCategoryMeta(doc);
+              return ({
+                id: doc.id,
+                title: doc.title,
+                description: doc.description,
+                og_title: doc.og_title,
+                og_description: doc.og_description,
+                href: localizeUrl(`/${getDocSlug(doc)}`),
+                category: doc.category,
+                category_label: categoryMeta.category_label,
+                category_icon: categoryMeta.category_icon,
+                difficulty: doc.difficulty,
+                audience: doc.audience,
+                platform: doc.platform,
+                hero_image: resolveMediaUrl(doc.hero_image),
+                og_image: resolveMediaUrl(doc.og_image),
+                image_alt: doc.image_alt,
+                reading_time: doc.reading_time,
+                featured: doc.featured,
+                pub_date: doc.pub_date,
+              });
+            })}
             pageTitle={collectionTitle}
             pageDescription={collectionDescriptions[collectionName] || `Browse ${collectionTitle}`}
             pageUrl={Astro.url.href}

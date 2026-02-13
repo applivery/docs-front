@@ -244,54 +244,50 @@ function buildNavigation(docs: Document[]): NavGroup[] {
 
     // Extract path parts (skip collection, get folder structure)
     // e.g., docs/platform/workspaces/Overview.md -> [platform, workspaces]
-    const pathParts = doc.path ? extractDocSlug(doc.path, false).split('/') : [];
+    const slug = doc.path ? extractDocSlug(doc.path, false) : (doc.slug?.replace(/^docs\//, '') || doc.id);
+    const pathParts = slug.split('/');
 
-    // Skip collection (first part) and filename (last part) to get folders
+    // First part is the top-level group (e.g., 'device-management' or 'platform')
+    const groupKey = pathParts[0];
+    // Remaining parts (excluding the filename) are subfolders
     const folders = pathParts.slice(1, -1);
 
-    if (folders.length === 0) {
-      // Root level document - put in General or collection-based group
-      const groupKey = doc.collection || 'General';
+    if (pathParts.length === 1) {
+      // Root level document - put in its own group or General
+      const rootKey = doc.collection || 'General';
+      if (!root[rootKey]) {
+        root[rootKey] = { title: formatTitle(rootKey), items: [], children: {} };
+      }
+      root[rootKey].items.push(navItem);
+    } else {
+      // Navigate/create the tree structure starting from the top-level group
       if (!root[groupKey]) {
         root[groupKey] = { title: formatTitle(groupKey), items: [], children: {} };
       }
-      root[groupKey].items.push(navItem);
-    } else {
-      // Navigate/create the tree structure
-      let current = root;
-      for (let i = 0; i < folders.length; i++) {
-        const folder = folders[i];
-        const key = folder;
 
-        if (i === 0) {
-          // First level folder
+      if (folders.length === 0) {
+        // Only group and filename: e.g., device-management/overview.md
+        root[groupKey].items.push(navItem);
+      } else {
+        // Deep nesting: e.g., device-management/ipados/overview.md
+        let current = root[groupKey].children;
+        for (let i = 0; i < folders.length; i++) {
+          const folder = folders[i];
+          const key = folder;
+
           if (!current[key]) {
             current[key] = {
-              title: formatTitle(folder),
-              items: [],
-              children: {},
-              icon: doc.sidebar_icon || doc.icon
-            };
-          }
-          if (i === folders.length - 1) {
-            // This is the deepest folder, add item here
-            current[key].items.push(navItem);
-          }
-          current = { [key]: current[key] };
-        } else {
-          // Deeper levels
-          const parent = Object.values(current)[0];
-          if (!parent.children[key]) {
-            parent.children[key] = {
               title: formatTitle(folder),
               items: [],
               children: {}
             };
           }
+
           if (i === folders.length - 1) {
-            parent.children[key].items.push(navItem);
+            // This is the deepest folder, add item here
+            current[key].items.push(navItem);
           }
-          current = parent.children;
+          current = current[key].children;
         }
       }
     }
@@ -370,12 +366,23 @@ function buildNavigation(docs: Document[]): NavGroup[] {
 }
 
 /**
+ * Check if a path is active compared to current path
+ * Handles trailing slashes and nested paths
+ */
+function isPathActive(path: string, currentPath: string): boolean {
+  const normPath = path.replace(/\/+$/, '') || '/';
+  const normCurrent = currentPath.replace(/\/+$/, '') || '/';
+  return normCurrent === normPath || normCurrent.startsWith(normPath + '/');
+}
+
+/**
  * Check if a group or any of its children are active
  */
-function isGroupActive(group: NavGroup): boolean {
+function isGroupActive(group: NavGroup, currentPath: string): boolean {
+  if (group.href && isPathActive(group.href, currentPath)) return true;
   if (group.active) return true;
-  if (group.items.some(item => item.active)) return true;
-  if (group.subgroups && group.subgroups.some(sub => isGroupActive(sub))) return true;
+  if (group.items.some(item => isPathActive(item.href, currentPath) || item.active)) return true;
+  if (group.subgroups && group.subgroups.some(sub => isGroupActive(sub, currentPath))) return true;
   return false;
 }
 
@@ -935,7 +942,7 @@ const cmsUrl = import.meta.env.PUBLIC_CMS_URL || import.meta.env.CMS_URL || '';
   <nav class:list={['sidebar-content', 'scrollbar-on-hover', { 'has-products': hasProducts, 'has-tabs': hasTabs }]}>
     {navigation.length > 0 ? (
       navigation.map((group) => {
-        const isExpanded = isGroupActive(group);
+        const isExpanded = isGroupActive(group, currentPath);
 
         return (
           <div class="sidebar-nav-group" data-nav-group>
@@ -971,7 +978,7 @@ const cmsUrl = import.meta.env.PUBLIC_CMS_URL || import.meta.env.CMS_URL || '';
                     <li>
                       <a
                         href={item.href}
-                        class:list={['sidebar-nav-item', { active: item.active }]}
+                        class:list={['sidebar-nav-item', { active: isPathActive(item.href, currentPath) || item.active }]}
                       >
                         {item.icon && (
                           <Icon name={getIconName(item.icon)} className="nav-item-icon" aria-hidden={true} client:only="react" />
@@ -985,14 +992,14 @@ const cmsUrl = import.meta.env.PUBLIC_CMS_URL || import.meta.env.CMS_URL || '';
 
               {/* Nested subgroups */}
               {group.subgroups && group.subgroups.map((subgroup) => {
-                const subHasActive = isGroupActive(subgroup);
+                const subHasActive = isGroupActive(subgroup, currentPath);
                 const hasChildren = subgroup.items.length > 0 || (subgroup.subgroups && subgroup.subgroups.length > 0);
                 return hasChildren ? (
                   <div class="sidebar-nav-subgroup" data-nav-group>
                     {subgroup.href ? (
                       <a
                         href={subgroup.href}
-                        class:list={['sidebar-nav-subgroup-title', 'sidebar-nav-subgroup-link', { active: subgroup.active }]}
+                        class:list={['sidebar-nav-subgroup-title', 'sidebar-nav-subgroup-link', { active: isPathActive(subgroup.href, currentPath) || subgroup.active }]}
                         data-nav-toggle
                         aria-expanded={subHasActive ? 'true' : 'false'}
                       >
@@ -1041,7 +1048,7 @@ const cmsUrl = import.meta.env.PUBLIC_CMS_URL || import.meta.env.CMS_URL || '';
                         <li>
                           <a
                             href={item.href}
-                            class:list={['sidebar-nav-item sidebar-nav-item-nested', { active: item.active }]}
+                            class:list={['sidebar-nav-item sidebar-nav-item-nested', { active: isPathActive(item.href, currentPath) || item.active }]}
                           >
                             {item.icon && (
                               <Icon name={getIconName(item.icon)} className="nav-item-icon" aria-hidden={true} client:only="react" />
@@ -1057,7 +1064,7 @@ const cmsUrl = import.meta.env.PUBLIC_CMS_URL || import.meta.env.CMS_URL || '';
                   <li>
                     <a
                       href={subgroup.href}
-                      class:list={['sidebar-nav-item', { active: subgroup.active }]}
+                      class:list={['sidebar-nav-item', { active: isPathActive(subgroup.href, currentPath) || subgroup.active }]}
                     >
                       {subgroup.icon && (
                         <Icon name={getIconName(subgroup.icon)} className="nav-item-icon" aria-hidden={true} client:only="react" />
@@ -1423,8 +1430,10 @@ const cmsUrl = import.meta.env.PUBLIC_CMS_URL || import.meta.env.CMS_URL || '';
 
   // Check if any item or its descendants are active (recursive)
   function hasActiveDescendant(items, currentPath) {
+    const normCurrent = currentPath.replace(/\/+$/, '') || '/';
     for (const item of items) {
-      if (currentPath === item.href || currentPath.startsWith(item.href + '/')) {
+      const normItem = (item.href || '').replace(/\/+$/, '') || '/';
+      if (normCurrent === normItem || normCurrent.startsWith(normItem + '/')) {
         return true;
       }
       if (item.children && hasActiveDescendant(item.children, currentPath)) {
@@ -1437,9 +1446,11 @@ const cmsUrl = import.meta.env.PUBLIC_CMS_URL || import.meta.env.CMS_URL || '';
   // Render folder navigation tree
   function renderFolderTree(items, currentPath, depth = 0) {
     if (!items || items.length === 0) return '';
+    const normCurrent = currentPath.replace(/\/+$/, '') || '/';
 
     return items.map(item => {
-      const isActive = currentPath === item.href || currentPath.startsWith(item.href + '/');
+      const normItem = (item.href || '').replace(/\/+$/, '') || '/';
+      const isActive = normCurrent === normItem || normCurrent.startsWith(normItem + '/');
       const isFolder = item.type === 'folder';
       const paddingLeft = 0.75 + (depth * 0.75);
 

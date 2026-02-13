@@ -85,7 +85,13 @@ export function getPathPattern(doc: { path?: string }): string | null {
   return null;
 }
 
-export function getDocSlug(doc: { path?: string; slug?: string; id: string }): string {
+const withCollectionPrefix = (slug: string, collection?: string): string => {
+  if (!collection || collection === 'docs') return slug;
+  if (slug.includes('/')) return slug;
+  return `${collection}/${slug}`;
+};
+
+export function getDocSlug(doc: { path?: string; slug?: string; id: string; collection?: string }): string {
   if (doc.path) {
     let slug = doc.path
       .replace(/\.mdx?$/, '')
@@ -97,12 +103,12 @@ export function getDocSlug(doc: { path?: string; slug?: string; id: string }): s
     return stripFolderNamedFile(slug);
   }
   if (doc.slug) {
-    return stripFolderNamedFile(doc.slug.replace(/^docs\//, '').toLowerCase());
+    return stripFolderNamedFile(withCollectionPrefix(doc.slug.replace(/^docs\//, '').toLowerCase(), doc.collection));
   }
-  return doc.id;
+  return withCollectionPrefix(doc.id, doc.collection);
 }
 
-export function getDocUrl(doc: { path?: string; slug?: string; id: string }, docLocale: string): string {
+export function getDocUrl(doc: { path?: string; slug?: string; id: string; collection?: string }, docLocale: string): string {
   if (doc.path) {
     let url = doc.path
       .replace(/\.mdx?$/, '')
@@ -118,9 +124,9 @@ export function getDocUrl(doc: { path?: string; slug?: string; id: string }, doc
     return `/${docLocale}${url}`;
   }
   if (doc.slug) {
-    return `/${docLocale}/${stripFolderNamedFile(doc.slug.toLowerCase())}`;
+    return `/${docLocale}/${stripFolderNamedFile(withCollectionPrefix(doc.slug.toLowerCase(), doc.collection))}`;
   }
-  return `/${docLocale}/${doc.id}`;
+  return `/${docLocale}/${withCollectionPrefix(doc.id, doc.collection)}`;
 }
 
 export function extractHeadings(content: string) {

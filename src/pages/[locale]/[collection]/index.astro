@@ -178,7 +178,16 @@ function getDocSlug(doc: Document): string {
       .replace(/^\/+/, '')              // Remove leading slashes
       .toLowerCase();                   // Lowercase for URL consistency
   }
-  if (doc.slug) return doc.slug.toLowerCase();
+  if (doc.slug) {
+    const slug = doc.slug.toLowerCase();
+    if (collectionName !== 'docs' && !slug.includes('/')) {
+      return `${collectionName}/${slug}`;
+    }
+    return slug;
+  }
+  if (collectionName !== 'docs' && !doc.id.includes('/')) {
+    return `${collectionName}/${doc.id}`;
+  }
   return doc.id;
 }
 

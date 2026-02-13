@@ -353,12 +353,15 @@ function localizeUrl(path: string): string {
               id: doc.id,
               title: doc.title,
               description: doc.description,
+              og_title: doc.og_title,
+              og_description: doc.og_description,
               href: localizeUrl(`/${getDocSlug(doc)}`),
               category: doc.category,
               difficulty: doc.difficulty,
               audience: doc.audience,
               platform: doc.platform,
               hero_image: resolveMediaUrl(doc.hero_image),
+              og_image: resolveMediaUrl(doc.og_image),
               image_alt: doc.image_alt,
               reading_time: doc.reading_time,
               featured: doc.featured,
@@ -369,6 +372,7 @@ function localizeUrl(path: string): string {
             pageUrl={Astro.url.href}
             enableFilters={true}
             columns={3}
+            showImages={true}
           />
         ) : (
           <div class="text-center py-16">

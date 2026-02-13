@@ -387,12 +387,15 @@ if (processedContent.includes('data-child-grid="true"')) {
         id: d.id,
         title: d.data.title,
         description: d.data.description,
+        og_title: d.data.og_title,
+        og_description: d.data.og_description,
         href: getDocUrl({ ...d.data, id: d.id }, locale),
         category: d.data.category,
         difficulty: d.data.difficulty,
         audience: d.data.audience,
         platform: d.data.platform,
         hero_image: resolveMediaUrl(d.data.hero_image),
+        og_image: resolveMediaUrl(d.data.og_image),
         image_alt: d.data.image_alt,
         reading_time: d.data.reading_time,
         featured: d.data.featured,
@@ -403,6 +406,7 @@ if (processedContent.includes('data-child-grid="true"')) {
       pageUrl={Astro.url.href}
       enableFilters={true}
       columns={3}
+      showImages={true}
     />
   )}
 

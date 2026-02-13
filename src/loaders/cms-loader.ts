@@ -53,7 +53,7 @@ export function cmsLoader(config: CmsLoaderConfig): Loader {
       } catch (error) {
         logger.error(`Failed to fetch from CMS: ${error}`);
         // On failure, keep the existing store data (graceful degradation)
-        if (store.keys().next().done === false) {
+        if (store.keys().length > 0) {
           logger.warn('Using cached data from previous build');
           return;
         }
@@ -63,8 +63,8 @@ export function cmsLoader(config: CmsLoaderConfig): Loader {
       const newIds = new Set<string>();
 
       for (const doc of documents) {
-        const id = doc.id;
-        if (!id) continue;
+        const id = String(doc.id);
+        if (!id || id === 'undefined') continue;
 
         newIds.add(id);
 
@@ -109,7 +109,7 @@ export function cmsLoader(config: CmsLoaderConfig): Loader {
 
       meta.set('lastSync', new Date().toISOString());
       logger.info(
-        `Store updated: ${newIds.size} documents (${documents.length - [...store.keys()].length + newIds.size} changed)`,
+        `Store updated: ${newIds.size} documents (${store.keys().length} in store)`,
       );
     },
   };

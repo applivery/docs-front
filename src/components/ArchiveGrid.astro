@@ -22,9 +22,6 @@
  * - Progressive enhancement (works without JS)
  */
 
-import Icon from './Icon';
-import { iconMap, type IconName } from '../lib/icons';
-
 interface ArchiveItem {
   id: string;
   title: string;
@@ -32,10 +29,7 @@ interface ArchiveItem {
   og_title?: string;
   og_description?: string;
   href: string;
-  category?: string | string[];
-  category_label?: string;
-  category_icon?: string;
-  difficulty?: string;
+  section?: string | string[];
   audience?: string;
   platform?: string;
   hero_image?: string;
@@ -49,7 +43,7 @@ interface ArchiveItem {
 interface FilterConfig {
   id: string;
   label: string;
-  field: 'category' | 'difficulty' | 'audience' | 'platform';
+  field: 'section' | 'audience' | 'platform';
   values: string[];
 }
 
@@ -88,7 +82,15 @@ function extractFilterValues(field: FilterConfig['field']): string[] {
   items.forEach(item => {
     const val = item[field];
     const arr = normalizeToArray(val);
-    arr.forEach(v => v && values.add(v));
+    arr.forEach(v => {
+      if (!v) return;
+      if (typeof v === 'object' && v !== null) {
+        const label = (v as any).label || (v as any).name || String(v);
+        values.add(label);
+      } else {
+        values.add(String(v));
+      }
+    });
   });
   return Array.from(values).sort();
 }
@@ -98,8 +100,9 @@ const activeFilters: FilterConfig[] = enableFilters
   ? filters.length > 0
     ? filters
     : [
-        { id: 'category', label: 'Category', field: 'category', values: extractFilterValues('category') } as FilterConfig,
-        { id: 'difficulty', label: 'Level', field: 'difficulty', values: extractFilterValues('difficulty') } as FilterConfig,
+        { id: 'section', label: 'Section', field: 'section', values: extractFilterValues('section') } as FilterConfig,
+        { id: 'audience', label: 'Audience', field: 'audience', values: extractFilterValues('audience') } as FilterConfig,
+        { id: 'platform', label: 'Platform', field: 'platform', values: extractFilterValues('platform') } as FilterConfig,
       ].filter(f => f.values.length > 1)
   : [];
 
@@ -115,6 +118,25 @@ function formatDate(dateStr: string): string {
   } catch {
     return dateStr;
   }
+}
+
+function getPlatformIcon(platform: string): string {
+  const p = platform.toLowerCase();
+  
+  // Base SVG wrapper with common attributes
+  const wrap = (content: string) => `<svg class="meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${content}</svg>`;
+
+  if (p.includes('ios')) return wrap('<rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line>');
+  if (p.includes('ipados')) return wrap('<rect x="4" y="2" width="16" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line>');
+  if (p.includes('macos')) return wrap('<path d="M20 16V7a2 2 0 0 0-2-2H6a2 2 0 0 0-2 2v9m16 0H4m16 0 1.28 2.55a1 1 0 0 1-.9 1.45H3.62a1 1 0 0 1-.9-1.45L4 16"></path>');
+  if (p.includes('windows')) return wrap('<rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line>');
+  if (p.includes('api')) return wrap('<polyline points="16 18 22 12 16 6"></polyline><polyline points="8 6 2 12 8 18"></polyline>');
+  if (p.includes('cross-platform')) return wrap('<path d="M12 22v-7m0 0 3.5 3.5M12 15l-3.5 3.5"></path><path d="m2 7 4.95-4.95a1 1 0 0 1 1.41 0L12 5.66l3.64-3.61a1 1 0 0 1 1.41 0L22 7l-4.95 4.95a1 1 0 0 1-1.41 0L12 8.34l-3.64 3.61a1 1 0 0 1-1.41 0L2 7z"></path>');
+  if (p.includes('web')) return wrap('<rect x="2" y="3" width="20" height="18" rx="2"></rect><path d="M10 3v18M2 12h20"></path>');
+  if (p.includes('android')) return wrap('<rect x="2" y="4" width="14" height="10" rx="2"></rect><rect x="15" y="8" width="7" height="12" rx="2"></rect><path d="M2 14v4a2 2 0 0 0 2 2h8"></path>');
+
+  // Default: monitor
+  return wrap('<rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line>');
 }
 
 function getCardTitle(item: ArchiveItem): string {
@@ -135,66 +157,14 @@ function getCardImage(item: ArchiveItem): string | undefined {
   return trimmed;
 }
 
-function formatSegmentLabel(segment: string): string {
-  return segment
-    .replace(/[-_]/g, ' ')
-    .replace(/([a-z])([A-Z])/g, '$1 $2')
-    .replace(/\b\w/g, (c) => c.toUpperCase())
-    .replace(/\bApi\b/g, 'API')
-    .replace(/\bSdk\b/g, 'SDK')
-    .replace(/\bCli\b/g, 'CLI')
-    .replace(/\bUi\b/g, 'UI')
-    .replace(/\bSso\b/g, 'SSO')
-    .replace(/\bMdm\b/g, 'MDM')
-    .replace(/\bEmm\b/g, 'EMM')
-    .trim();
-}
-
-function getPathSegments(href: string): string[] {
-  const clean = href.split('?')[0]?.split('#')[0] || '';
-  const segments = clean.split('/').filter(Boolean);
-  if (segments.length > 0 && segments[0].length === 2) {
-    segments.shift();
+function getSectionLabel(item: ArchiveItem): string | undefined {
+  const sections = normalizeToArray(item.section);
+  const first = sections[0];
+  if (!first) return undefined;
+  if (typeof first === 'object' && first !== null) {
+    return (first as any).label || (first as any).name || String(first);
   }
-  return segments;
-}
-
-function getBreadcrumbs(item: ArchiveItem): string[] {
-  const segments = getPathSegments(item.href);
-  if (segments.length <= 1) return [];
-  const parentSegments = segments.slice(0, -1);
-  return parentSegments.map((segment, index) => {
-    if (index === 1 && item.category_label) return item.category_label;
-    return formatSegmentLabel(segment);
-  });
-}
-
-function getCategoryLabel(item: ArchiveItem): string | undefined {
-  if (item.category_label) return item.category_label;
-  const categories = normalizeToArray(item.category);
-  return categories[0];
-}
-
-function resolveIconName(icon?: string): IconName | undefined {
-  if (!icon) return undefined;
-  const trimmed = icon.trim();
-  if (!trimmed || trimmed.toLowerCase() === 'null' || trimmed.toLowerCase() === 'undefined') {
-    return undefined;
-  }
-  const normalized = trimmed.toLowerCase().replace(/_/g, '-');
-  if (Object.prototype.hasOwnProperty.call(iconMap, normalized)) {
-    return normalized as IconName;
-  }
-  const camel = normalized.replace(/-([a-z0-9])/g, (_, c) => c.toUpperCase());
-  if (Object.prototype.hasOwnProperty.call(iconMap, camel)) {
-    return camel as IconName;
-  }
-  return undefined;
-}
-
-function shouldShowDifficulty(difficulty?: string): boolean {
-  if (!difficulty) return false;
-  return difficulty.toLowerCase() !== 'beginner';
+  return String(first);
 }
 
 // JSON-LD: CollectionPage schema
@@ -249,8 +219,8 @@ const speakableSchema = {
   }
 };
 
-// Extract unique categories for LLM summary
-const allCategories = [...new Set(items.flatMap(item => normalizeToArray(item.category)))];
+// Extract unique sections for LLM summary
+const allSections = [...new Set(items.flatMap(item => normalizeToArray(item.section)))];
 const keyTopics = items.map(i => getCardTitle(i)).slice(0, 10).join(', ');
 ---
 
@@ -262,7 +232,7 @@ const keyTopics = items.map(i => getCardTitle(i)).slice(0, 10).join(', ');
 <!-- Hidden semantic content for LLMs and screen readers -->
 <div class="sr-only" aria-hidden="false" role="navigation" aria-label="Content collection overview">
   <h2>Archive Contents: {pageTitle}</h2>
-  <p>This collection contains {items.length} articles{allCategories.length > 0 && ` across ${allCategories.length} categories: ${allCategories.join(', ')}`}.</p>
+  <p>This collection contains {items.length} articles{allSections.length > 0 && ` across ${allSections.length} sections: ${allSections.join(', ')}`}.</p>
   <p>Topics covered: {keyTopics}</p>
   <h3>Article listing:</h3>
   <ol>
@@ -270,7 +240,7 @@ const keyTopics = items.map(i => getCardTitle(i)).slice(0, 10).join(', ');
       <li>
         <strong>{getCardTitle(item)}</strong>
         {getCardDescription(item) && ` - ${getCardDescription(item)}`}
-        {normalizeToArray(item.category).length > 0 && ` [${normalizeToArray(item.category).join(', ')}]`}
+        {normalizeToArray(item.section).length > 0 && ` [${normalizeToArray(item.section).join(', ')}]`}
       </li>
     ))}
   </ol>
@@ -383,10 +353,7 @@ const keyTopics = items.map(i => getCardTitle(i)).slice(0, 10).join(', ');
         const cardTitle = getCardTitle(item);
         const cardDescription = getCardDescription(item);
         const cardImage = getCardImage(item);
-        const breadcrumbs = getBreadcrumbs(item);
-        const categoryLabel = getCategoryLabel(item);
-        const categoryIconName = resolveIconName(item.category_icon);
-        const showDifficulty = shouldShowDifficulty(item.difficulty);
+        const sectionLabel = getSectionLabel(item);
         return (
           <article
             class={`archive-card archive-card-featured cols-${columns}`}
@@ -394,8 +361,12 @@ const keyTopics = items.map(i => getCardTitle(i)).slice(0, 10).join(', ');
             itemprop="itemListElement"
             itemscope
             itemtype="https://schema.org/Article"
-            data-category={normalizeToArray(item.category).join(',').toLowerCase()}
-            data-difficulty={item.difficulty?.toLowerCase()}
+            data-section={normalizeToArray(item.section).map(v => {
+              if (typeof v === 'object' && v !== null) {
+                return (v as any).label || (v as any).name || String(v);
+              }
+              return String(v);
+            }).join(',').toLowerCase()}
             data-audience={item.audience?.toLowerCase()}
             data-platform={item.platform?.toLowerCase()}
             data-featured="true"
@@ -414,25 +385,6 @@ const keyTopics = items.map(i => getCardTitle(i)).slice(0, 10).join(', ');
                   />
                 )}
                 <div class="card-media-overlay">
-                  {(breadcrumbs.length > 0 || categoryLabel) && (
-                    <div class="card-context">
-                      {breadcrumbs.length > 0 && (
-                        <div class="card-breadcrumbs" aria-hidden="true">
-                          {breadcrumbs.map((crumb) => (
-                            <span class="breadcrumb-item">{crumb}</span>
-                          ))}
-                        </div>
-                      )}
-                      {categoryLabel && (
-                        <div class="card-category">
-                          {categoryIconName && (
-                            <Icon name={categoryIconName} className="card-category-icon" aria-hidden={true} client:only="react" />
-                          )}
-                          <span class="card-category-label">{categoryLabel}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
                   <h3 class="card-title" itemprop="headline">
                     <a href={item.href} itemprop="url">{cardTitle}</a>
                   </h3>
@@ -445,38 +397,14 @@ const keyTopics = items.map(i => getCardTitle(i)).slice(0, 10).join(', ');
 
             <div class="card-content">
               <div class="card-badges">
-                <span class="badge badge-featured">Featured</span>
-                {normalizeToArray(item.category).slice(0, 1).map(cat => (
-                  <span class="badge badge-category">{cat}</span>
-                ))}
-                {item.difficulty && showDifficulty && (
-                  <span class={`badge badge-difficulty badge-difficulty-${item.difficulty.toLowerCase()}`}>
-                    {item.difficulty}
-                  </span>
+                {sectionLabel && (
+                  <span class="badge badge-section">{sectionLabel}</span>
                 )}
+                <span class="badge badge-featured">Featured</span>
               </div>
 
               {!showImages && (
                 <>
-                  {(breadcrumbs.length > 0 || categoryLabel) && (
-                    <div class="card-context card-context-inline">
-                      {breadcrumbs.length > 0 && (
-                        <div class="card-breadcrumbs" aria-hidden="true">
-                          {breadcrumbs.map((crumb) => (
-                            <span class="breadcrumb-item">{crumb}</span>
-                          ))}
-                        </div>
-                      )}
-                      {categoryLabel && (
-                        <div class="card-category">
-                          {categoryIconName && (
-                            <Icon name={categoryIconName} className="card-category-icon" aria-hidden={true} client:only="react" />
-                          )}
-                          <span class="card-category-label">{categoryLabel}</span>
-                        </div>
-                      )}
-                    </div>
-                  )}
                   <h3 class="card-title" itemprop="headline">
                     <a href={item.href} itemprop="url">{cardTitle}</a>
                   </h3>
@@ -491,14 +419,37 @@ const keyTopics = items.map(i => getCardTitle(i)).slice(0, 10).join(', ');
                   <span class="meta-item">
                     <svg class="meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                       <circle cx="12" cy="12" r="10"/>
-                      <path d="M12 6v6l4 2"/>
+                      <polyline points="12 6 12 12 16 14"/>
                     </svg>
                     <span>{item.reading_time} min read</span>
                   </span>
                 )}
+                {item.audience && (
+                  <span class="meta-item">
+                    <svg class="meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                      <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                      <circle cx="9" cy="7" r="4"/>
+                      <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                      <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                    </svg>
+                    <span>{item.audience}</span>
+                  </span>
+                )}
+                {item.platform && (
+            <span class="meta-item">
+              <Fragment set:html={getPlatformIcon(item.platform)} />
+              <span>{item.platform}</span>
+            </span>
+          )}
                 {item.pub_date && (
                   <time datetime={item.pub_date} itemprop="datePublished" class="meta-item">
-                    {formatDate(item.pub_date)}
+                    <svg class="meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                      <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                      <line x1="16" y1="2" x2="16" y2="6"/>
+                      <line x1="8" y1="2" x2="8" y2="6"/>
+                      <line x1="3" y1="10" x2="21" y2="10"/>
+                    </svg>
+                    <span>{formatDate(item.pub_date)}</span>
                   </time>
                 )}
               </div>
@@ -519,10 +470,7 @@ const keyTopics = items.map(i => getCardTitle(i)).slice(0, 10).join(', ');
       const cardTitle = getCardTitle(item);
       const cardDescription = getCardDescription(item);
       const cardImage = getCardImage(item);
-      const breadcrumbs = getBreadcrumbs(item);
-      const categoryLabel = getCategoryLabel(item);
-      const categoryIconName = resolveIconName(item.category_icon);
-      const showDifficulty = shouldShowDifficulty(item.difficulty);
+      const sectionLabel = getSectionLabel(item);
       return (
         <article
           class="archive-card"
@@ -530,8 +478,12 @@ const keyTopics = items.map(i => getCardTitle(i)).slice(0, 10).join(', ');
           itemprop="itemListElement"
           itemscope
           itemtype="https://schema.org/Article"
-          data-category={normalizeToArray(item.category).join(',').toLowerCase()}
-          data-difficulty={item.difficulty?.toLowerCase()}
+          data-section={normalizeToArray(item.section).map(v => {
+            if (typeof v === 'object' && v !== null) {
+              return (v as any).label || (v as any).name || String(v);
+            }
+            return String(v);
+          }).join(',').toLowerCase()}
           data-audience={item.audience?.toLowerCase()}
           data-platform={item.platform?.toLowerCase()}
           data-featured="false"
@@ -550,25 +502,6 @@ const keyTopics = items.map(i => getCardTitle(i)).slice(0, 10).join(', ');
                 />
               )}
               <div class="card-media-overlay">
-                {(breadcrumbs.length > 0 || categoryLabel) && (
-                  <div class="card-context">
-                    {breadcrumbs.length > 0 && (
-                      <div class="card-breadcrumbs" aria-hidden="true">
-                        {breadcrumbs.map((crumb) => (
-                          <span class="breadcrumb-item">{crumb}</span>
-                        ))}
-                      </div>
-                    )}
-                    {categoryLabel && (
-                      <div class="card-category">
-                        {categoryIconName && (
-                          <Icon name={categoryIconName} className="card-category-icon" aria-hidden={true} client:only="react" />
-                        )}
-                        <span class="card-category-label">{categoryLabel}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
                 <h3 class="card-title" itemprop="headline">
                   <a href={item.href} itemprop="url">{cardTitle}</a>
                 </h3>
@@ -580,40 +513,14 @@ const keyTopics = items.map(i => getCardTitle(i)).slice(0, 10).join(', ');
           )}
 
           <div class="card-content">
-            {(normalizeToArray(item.category).length > 0 || item.difficulty) && (
-              <div class="card-badges">
-                {normalizeToArray(item.category).slice(0, 2).map(cat => (
-                  <span class="badge badge-category">{cat}</span>
-                ))}
-                {item.difficulty && showDifficulty && (
-                  <span class={`badge badge-difficulty badge-difficulty-${item.difficulty.toLowerCase()}`}>
-                    {item.difficulty}
-                  </span>
-                )}
-              </div>
-            )}
+            <div class="card-badges">
+              {sectionLabel && (
+                <span class="badge badge-section">{sectionLabel}</span>
+              )}
+            </div>
 
             {!showImages && (
               <>
-                {(breadcrumbs.length > 0 || categoryLabel) && (
-                  <div class="card-context card-context-inline">
-                    {breadcrumbs.length > 0 && (
-                      <div class="card-breadcrumbs" aria-hidden="true">
-                        {breadcrumbs.map((crumb) => (
-                          <span class="breadcrumb-item">{crumb}</span>
-                        ))}
-                      </div>
-                    )}
-                    {categoryLabel && (
-                      <div class="card-category">
-                        {categoryIconName && (
-                          <Icon name={categoryIconName} className="card-category-icon" aria-hidden={true} client:only="react" />
-                        )}
-                        <span class="card-category-label">{categoryLabel}</span>
-                      </div>
-                    )}
-                  </div>
-                )}
                 <h3 class="card-title" itemprop="headline">
                   <a href={item.href} itemprop="url">{cardTitle}</a>
                 </h3>
@@ -628,14 +535,37 @@ const keyTopics = items.map(i => getCardTitle(i)).slice(0, 10).join(', ');
                 <span class="meta-item">
                   <svg class="meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
                     <circle cx="12" cy="12" r="10"/>
-                    <path d="M12 6v6l4 2"/>
+                    <polyline points="12 6 12 12 16 14"/>
                   </svg>
                   <span>{item.reading_time} min read</span>
                 </span>
               )}
+              {item.audience && (
+                <span class="meta-item">
+                  <svg class="meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/>
+                    <circle cx="9" cy="7" r="4"/>
+                    <path d="M23 21v-2a4 4 0 0 0-3-3.87"/>
+                    <path d="M16 3.13a4 4 0 0 1 0 7.75"/>
+                  </svg>
+                  <span>{item.audience}</span>
+                </span>
+              )}
+              {item.platform && (
+                <span class="meta-item">
+                  <Fragment set:html={getPlatformIcon(item.platform)} />
+                  <span>{item.platform}</span>
+                </span>
+              )}
               {item.pub_date && (
                 <time datetime={item.pub_date} itemprop="datePublished" class="meta-item">
-                  {formatDate(item.pub_date)}
+                  <svg class="meta-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+                    <line x1="16" y1="2" x2="16" y2="6"/>
+                    <line x1="8" y1="2" x2="8" y2="6"/>
+                    <line x1="3" y1="10" x2="21" y2="10"/>
+                  </svg>
+                  <span>{formatDate(item.pub_date)}</span>
                 </time>
               )}
             </div>
@@ -1255,67 +1185,6 @@ const keyTopics = items.map(i => getCardTitle(i)).slice(0, 10).join(', ');
     gap: 0.75rem;
   }
 
-  .card-context {
-    display: flex;
-    flex-direction: column;
-    gap: 0.35rem;
-  }
-
-  .card-context-inline {
-    margin-bottom: 0.25rem;
-  }
-
-  .card-breadcrumbs {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 0.4rem;
-    font-size: 0.6875rem;
-    color: var(--color-text-muted);
-  }
-
-  .breadcrumb-item {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-  }
-
-  .breadcrumb-item + .breadcrumb-item::before {
-    content: '•';
-    color: var(--color-text-muted);
-  }
-
-  .card-category {
-    display: inline-flex;
-    align-items: center;
-    gap: 0.4rem;
-    font-size: 0.75rem;
-    font-weight: 500;
-    color: var(--color-text-secondary);
-  }
-
-  .card-category-icon {
-    width: 0.9rem;
-    height: 0.9rem;
-    flex-shrink: 0;
-    opacity: 0.8;
-  }
-
-  .card-media-overlay .card-breadcrumbs {
-    color: rgba(255, 255, 255, 0.72);
-  }
-
-  .card-media-overlay .breadcrumb-item + .breadcrumb-item::before {
-    color: rgba(255, 255, 255, 0.6);
-  }
-
-  .card-media-overlay .card-category {
-    color: rgba(255, 255, 255, 0.92);
-  }
-
-  .card-media-overlay .card-category-icon {
-    opacity: 0.9;
-  }
-
   /* Badges */
   .card-badges {
     display: flex;
@@ -1337,62 +1206,22 @@ const keyTopics = items.map(i => getCardTitle(i)).slice(0, 10).join(', ');
     color: var(--color-text-secondary);
   }
 
-  .badge-category {
+  .badge-section {
     background: var(--color-primary-5);
     color: var(--color-primary);
     border-color: var(--color-primary-20);
   }
 
-  :global(.dark) .badge-category {
-    background: var(--color-accent-10);
-    color: var(--color-accent-light);
-  }
+  :global(.dark) .badge-section {
+     background: var(--color-accent-10);
+     color: var(--color-accent-light);
+   }
 
-  .badge-featured {
-    background: rgba(251, 191, 36, 0.18);
-    color: rgb(161, 98, 7);
-    border-color: rgba(251, 191, 36, 0.35);
-  }
-
-  .badge-difficulty {
-    color: var(--color-text-secondary);
-  }
-
-  .badge-difficulty-beginner,
-  .badge-difficulty-easy {
-    background: rgb(220 252 231);
-    color: rgb(22 101 52);
-  }
-
-  .badge-difficulty-intermediate,
-  .badge-difficulty-medium {
-    background: rgb(254 249 195);
-    color: rgb(133 77 14);
-  }
-
-  .badge-difficulty-advanced,
-  .badge-difficulty-hard {
-    background: rgb(254 226 226);
-    color: rgb(153 27 27);
-  }
-
-  :global(.dark) .badge-difficulty-beginner,
-  :global(.dark) .badge-difficulty-easy {
-    background: rgb(22 101 52 / 0.3);
-    color: rgb(134 239 172);
-  }
-
-  :global(.dark) .badge-difficulty-intermediate,
-  :global(.dark) .badge-difficulty-medium {
-    background: rgb(133 77 14 / 0.3);
-    color: rgb(253 224 71);
-  }
-
-  :global(.dark) .badge-difficulty-advanced,
-  :global(.dark) .badge-difficulty-hard {
-    background: rgb(127 29 29 / 0.3);
-    color: rgb(252 165 165);
-  }
+   .badge-featured {
+     background: rgba(251, 191, 36, 0.18);
+     color: rgb(161, 98, 7);
+     border-color: rgba(251, 191, 36, 0.35);
+   }
 
   /* Card Title */
   .card-title {

@@ -12,6 +12,7 @@
 
 import type { APIRoute } from 'astro';
 import { getDocuments, getFolderSettings, type Document, type FolderSettingsMap } from '../../lib/cms';
+import { isIndexFile } from '../../lib/doc-helpers';
 
 interface FolderItem {
   type: 'folder' | 'file';
@@ -50,9 +51,8 @@ function buildFolderTree(
     if (doc.visible === false || doc.visible === 0) continue;
     if (!doc.path) continue;
 
-    // Skip index files - they are archive pages, not menu items
-    const filename = doc.path.split('/').pop() || '';
-    if (/^index\.mdx?$/i.test(filename)) continue;
+    // Skip index/archive files - they are folder pages, not menu items
+    if (isIndexFile(doc)) continue;
     if (doc.type === 'archive') continue;
 
     // Extract path relative to the base folder
@@ -79,6 +79,12 @@ function buildFolderTree(
         .replace(/^docs\//, '')
         .replace(/^\/+/, '')
         .toLowerCase();
+      // Strip duplicate trailing segment for folder-named files (ipados/ipados → ipados)
+      const hrefParts = href.split('/');
+      if (hrefParts.length >= 2 && hrefParts[hrefParts.length - 1] === hrefParts[hrefParts.length - 2]) {
+        hrefParts.pop();
+        href = hrefParts.join('/');
+      }
       href = `/${locale}/${href}`;
     } else {
       // Fallback to relative parts

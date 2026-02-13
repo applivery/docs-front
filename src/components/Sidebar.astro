@@ -15,6 +15,10 @@ import {
 } from '../lib/i18n';
 import Icon from './Icon';
 import { iconMap, type IconName } from '../lib/icons';
+import {
+  isIndexFile as isDocIndexFile,
+  extractSlugFromPath as extractDocSlug,
+} from '../lib/doc-helpers';
 
 interface Props {
   documents: Document[];
@@ -138,6 +142,8 @@ const tabsJson = JSON.stringify(tabs);
 interface NavGroup {
   title: string;
   icon?: string;
+  href?: string;
+  active?: boolean;
   items: NavItem[];
   subgroups?: NavGroup[];
 }
@@ -193,25 +199,35 @@ function buildNavigation(docs: Document[]): NavGroup[] {
     items: NavItem[];
     children: Record<string, TreeNode>;
     icon?: string;
+    href?: string;
+    active?: boolean;
   }
 
   const root: Record<string, TreeNode> = {};
 
+  // First pass: collect index/archive docs so we can link folder headings
+  const indexDocsByFolder = new Map<string, Document>();
+  for (const doc of sortedDocs) {
+    if (doc.visible === false || doc.visible === 0) continue;
+    if (!doc.path) continue;
+    if (isDocIndexFile(doc) || doc.type === 'archive') {
+      // Get the folder key: e.g. "device-management/ipados" from the slug
+      const slug = extractDocSlug(doc.path, true);
+      indexDocsByFolder.set(slug, doc);
+    }
+  }
+
   for (const doc of sortedDocs) {
     if (doc.visible === false || doc.visible === 0) continue;
 
-    // Skip index files - they are archive pages, not menu items
-    if (doc.path) {
-      const filename = doc.path.split('/').pop() || '';
-      if (/^index\.mdx?$/i.test(filename)) continue;
-    }
+    // Skip index/archive files - they are folder pages, not menu items
+    if (isDocIndexFile(doc)) continue;
     if (doc.type === 'archive') continue;
 
-    // Build href with locale prefix
-    // Always derive from path to preserve folder hierarchy
+    // Build href with locale prefix using shared slug logic (handles folder-named files)
     let href: string;
     if (doc.path) {
-      href = `/${currentLocale}/${extractSlugFromPath(doc.path).toLowerCase()}`;
+      href = `/${currentLocale}/${extractDocSlug(doc.path, false).toLowerCase()}`;
     } else if (doc.slug) {
       const cleanSlug = doc.slug.replace(/^docs\//, '');
       href = `/${currentLocale}/${cleanSlug.toLowerCase()}`;
@@ -228,7 +244,7 @@ function buildNavigation(docs: Document[]): NavGroup[] {
 
     // Extract path parts (skip collection, get folder structure)
     // e.g., docs/platform/workspaces/Overview.md -> [platform, workspaces]
-    const pathParts = doc.path ? extractSlugFromPath(doc.path).split('/') : [];
+    const pathParts = doc.path ? extractDocSlug(doc.path, false).split('/') : [];
 
     // Skip collection (first part) and filename (last part) to get folders
     const folders = pathParts.slice(1, -1);
@@ -281,11 +297,33 @@ function buildNavigation(docs: Document[]): NavGroup[] {
     }
   }
 
+  // Apply index doc info (href, active, title) to matching tree nodes
+  function applyIndexDocs(tree: Record<string, TreeNode>, parentSlug: string) {
+    for (const [key, node] of Object.entries(tree)) {
+      const folderSlug = parentSlug ? `${parentSlug}/${key}` : key;
+      const indexDoc = indexDocsByFolder.get(folderSlug);
+      if (indexDoc) {
+        const href = `/${currentLocale}/${folderSlug.toLowerCase()}`;
+        node.href = href;
+        node.active = currentPath === href || currentPath.startsWith(href + '/');
+        if (indexDoc.item_name) node.title = indexDoc.item_name;
+        else if (indexDoc.title) node.title = indexDoc.title;
+        if (indexDoc.sidebar_icon || indexDoc.icon) node.icon = indexDoc.sidebar_icon || indexDoc.icon;
+      }
+      if (Object.keys(node.children).length > 0) {
+        applyIndexDocs(node.children, folderSlug);
+      }
+    }
+  }
+  applyIndexDocs(root, '');
+
   // Convert tree to NavGroup array with proper nesting
   function treeToGroups(tree: Record<string, TreeNode>): NavGroup[] {
     return Object.values(tree).map(node => ({
       title: node.title,
       icon: node.icon,
+      href: node.href,
+      active: node.active,
       items: node.items,
       subgroups: Object.keys(node.children).length > 0 ? treeToGroups(node.children) : undefined,
     }));
@@ -906,9 +944,31 @@ const cmsUrl = import.meta.env.PUBLIC_CMS_URL || import.meta.env.CMS_URL || '';
 
               {/* Nested subgroups */}
               {group.subgroups && group.subgroups.map((subgroup) => {
-                const subHasActive = subgroup.items.some(item => item.active);
+                const subHasActive = subgroup.active || subgroup.items.some(item => item.active);
                 return (
                   <div class="sidebar-nav-subgroup" data-nav-group>
+                    {subgroup.href ? (
+                      <a
+                        href={subgroup.href}
+                        class:list={['sidebar-nav-subgroup-title', 'sidebar-nav-subgroup-link', { active: subgroup.active }]}
+                        data-nav-toggle
+                        aria-expanded={subHasActive ? 'true' : 'false'}
+                      >
+                        <span class="group-title-content">
+                          {subgroup.icon && (
+                            <Icon name={getIconName(subgroup.icon)} className="group-title-icon" aria-hidden={true} client:only="react" />
+                          )}
+                          <span class="truncate">{subgroup.title}</span>
+                        </span>
+                        <Icon
+                          name="chevronDown"
+                          className="nav-chevron-sub"
+                          style={subHasActive ? { transform: 'rotate(180deg)' } : undefined}
+                          aria-hidden={true}
+                          client:only="react"
+                        />
+                      </a>
+                    ) : (
                     <button
                       type="button"
                       class="sidebar-nav-subgroup-title"
@@ -929,6 +989,7 @@ const cmsUrl = import.meta.env.PUBLIC_CMS_URL || import.meta.env.CMS_URL || '';
                         client:only="react"
                       />
                     </button>
+                    )}
                     <ul
                       class="nav-subgroup-content"
                       data-nav-content
@@ -2158,6 +2219,20 @@ const cmsUrl = import.meta.env.PUBLIC_CMS_URL || import.meta.env.CMS_URL || '';
   .sidebar-nav-subgroup-title:hover {
     color: var(--color-menu-item-hover-text);
     background-color: var(--color-menu-item-hover-bg);
+  }
+
+  .sidebar-nav-subgroup-link {
+    text-decoration: none;
+    color: inherit;
+  }
+
+  .sidebar-nav-subgroup-title.active {
+    color: var(--color-menu-item-active-text, var(--color-primary));
+    font-weight: 500;
+  }
+
+  :global(.dark) .sidebar-nav-subgroup-title.active {
+    color: var(--color-menu-item-active-text, var(--color-accent-light));
   }
 
   .nav-chevron-sub {

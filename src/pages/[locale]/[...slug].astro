@@ -93,7 +93,7 @@ export async function getStaticPaths() {
       if (resolveDocLocale(d) !== docLocale) return false;
       if (isIndexFile(d)) return false;
       const docFolder = d.path.replace(/\/[^/]+\.mdx?$/, '');
-      return docFolder === folderPath;
+      return docFolder === folderPath || docFolder.startsWith(folderPath + '/');
     });
 
     return hasChildren;
@@ -118,7 +118,23 @@ export async function getStaticPaths() {
 
     fullSlug = fullSlug.replace(/\/+/g, '/').replace(/^\/|\/$/g, '');
 
-    if (!fullSlug || !fullSlug.includes('/')) {
+    // Allow top-level slugs (e.g., /en/device-management) if they are in the allowed collections
+    const isTopLevelAllowed = fullSlug && !fullSlug.includes('/') && [
+      'device-management',
+      'app-distribution',
+      'platform',
+      'academy',
+      'insights',
+      'roadmap',
+      'glossary',
+      'answers',
+      'product-updates',
+      'about',
+      'mdm',
+      'api'
+    ].includes(fullSlug);
+
+    if (!fullSlug || (!fullSlug.includes('/') && !isTopLevelAllowed)) {
       continue;
     }
 

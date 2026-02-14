@@ -4,9 +4,26 @@
  * Keyboard shortcut: Cmd/Ctrl + K
  * Uses AutoRAG chat-rag endpoint for intelligent doc search
  */
+import type { SideMenuConfig } from '../lib/cms';
 import Icon from './Icon';
+
+interface Props {
+  sideMenu?: SideMenuConfig;
+}
+
+const { sideMenu } = Astro.props;
 const CMS_URL = import.meta.env.CMS_URL || 'http://localhost:3000';
 const CMS_API_KEY = import.meta.env.CMS_API_KEY || '';
+
+// Extract icon mapping from sideMenu
+const collectionIcons: Record<string, string> = {};
+if (sideMenu?.items) {
+  sideMenu.items.forEach(item => {
+    if (item.collection && item.icon) {
+      collectionIcons[item.collection] = item.icon;
+    }
+  });
+}
 ---
 
 <button
@@ -29,6 +46,7 @@ const CMS_API_KEY = import.meta.env.CMS_API_KEY || '';
   aria-modal="true"
   data-cms-url={CMS_URL}
   data-cms-api-key={CMS_API_KEY}
+  data-collection-icons={JSON.stringify(collectionIcons)}
 >
   <!-- Backdrop - covers entire screen including sidebar -->
   <div class="search-modal-backdrop" id="search-backdrop"></div>
@@ -113,6 +131,37 @@ const CMS_API_KEY = import.meta.env.CMS_API_KEY || '';
     const results = searchResults;
     const CMS_URL = modal.dataset.cmsUrl || '';
     const CMS_API_KEY = modal.dataset.cmsApiKey || '';
+    const collectionIcons = JSON.parse(modal.dataset.collectionIcons || '{}');
+
+    function getCollectionIcon(collection: string): string {
+      // Check if CMS provided an icon for this collection
+      const cmsIconName = collectionIcons[collection];
+      
+      // Common Solar SVGs
+      const svgs: Record<string, string> = {
+        guides: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M19 3H5C3.89543 3 3 3.89543 3 5V19C3 20.1046 3.89543 21 5 21H19C20.1046 21 21 20.1046 21 19V5C21 3.89543 20.1046 3 19 3Z"/><path d="M7 3V21M3 7H7M3 12H7M3 17H7" stroke-linecap="round"/></svg>',
+        api: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.5 6L10 18.5M6.5 8.5L3 12L6.5 15.5M17.5 8.5L21 12L17.5 15.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+        reference: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 10C3 6.22876 3 4.34315 4.17157 3.17157C5.34315 2 7.22876 2 11 2H13C16.7712 2 18.6569 2 19.8284 3.17157C21 4.34315 21 6.22876 21 10V14C21 17.7712 21 19.6569 19.8284 20.8284C18.6569 22 16.7712 22 13 22H11C7.22876 22 5.34315 22 4.17157 20.8284C3 19.6569 3 17.7712 3 14V10Z"/><path d="M8 7H16M8 12H16M8 17H12" stroke-linecap="round"/></svg>',
+        scroll: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 10C3 6.22876 3 4.34315 4.17157 3.17157C5.34315 2 7.22876 2 11 2H13C16.7712 2 18.6569 2 19.8284 3.17157C21 4.34315 21 6.22876 21 10V14C21 17.7712 21 19.6569 19.8284 20.8284C18.6569 22 16.7712 22 13 22H11C7.22876 22 5.34315 22 4.17157 20.8284C3 19.6569 3 17.7712 3 14V10Z"/><path d="M8 7H16M8 12H16M8 17H12" stroke-linecap="round"/></svg>',
+        fileText: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 10C3 6.22876 3 4.34315 4.17157 3.17157C5.34315 2 7.22876 2 11 2H13C16.7712 2 18.6569 2 19.8284 3.17157C21 4.34315 21 6.22876 21 10V14C21 17.7712 21 19.6569 19.8284 20.8284C18.6569 22 16.7712 22 13 22H11C7.22876 22 5.34315 22 4.17157 20.8284C3 19.6569 3 17.7712 3 14V10Z"/><path d="M8 7H16M8 12H16M8 17H12" stroke-linecap="round"/></svg>',
+        fileCode: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M13.5 6L10 18.5M6.5 8.5L3 12L6.5 15.5M17.5 8.5L21 12L17.5 15.5" stroke-linecap="round" stroke-linejoin="round"/></svg>',
+        folder: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 10C3 7.17157 3 5.75736 3.87868 4.87868C4.75736 4 6.17157 4 9 4H10C10.5304 4 10.7956 4 11.0405 4.06189C11.2854 4.12377 11.511 4.24757 11.962 4.49515L12.538 4.81165C12.989 5.05923 13.2146 5.18301 13.4595 5.2449C13.7044 5.30678 13.9696 5.30678 14.5 5.30678H15C17.8284 5.30678 19.2426 5.30678 20.1213 6.18546C21 7.06414 21 8.47835 21 11.3068V14C21 16.8284 21 18.2426 20.1213 19.1213C19.2426 20 17.8284 20 15 20H9C6.17157 20 4.75736 20 3.87868 19.1213C3 18.2426 3 16.8284 3 14V10Z"/></svg>',
+        document: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M3 10C3 6.22876 3 4.34315 4.17157 3.17157C5.34315 2 7.22876 2 11 2H13C16.7712 2 18.6569 2 19.8284 3.17157C21 4.34315 21 6.22876 21 10V14C21 17.7712 21 19.6569 19.8284 20.8284C18.6569 22 16.7712 22 13 22H11C7.22876 22 5.34315 22 4.17157 20.8284C3 19.6569 3 17.7712 3 14V10Z"/><path d="M8 7H16M8 12H16M8 17H12" stroke-linecap="round"/></svg>',
+      };
+
+      // Use CMS icon name if it exists in our SVG map
+      if (cmsIconName && svgs[cmsIconName]) {
+        return svgs[cmsIconName];
+      }
+
+      // Fallback to collection name based mapping
+      if (svgs[collection]) {
+        return svgs[collection];
+      }
+
+      // Default to fileText icon as requested
+      return svgs.fileText;
+    }
 
     let debounceTimer: ReturnType<typeof setTimeout> | null = null;
     let currentRequest: AbortController | null = null;
@@ -691,39 +740,40 @@ const CMS_API_KEY = import.meta.env.CMS_API_KEY || '';
   // e.g. "src/content/en/docs/device-management/android/agent-features/overview.md"
   //   → ["Device Management", "Android", "Agent Features"]
   function getBreadcrumb(path?: string, collection?: string): string {
-    if (!path) return escapeHtml(collection || 'docs');
+    if (!path) return '';
 
-    // Remove prefix like "src/content/en/docs/" and file extension
-    const cleaned = path
-      .replace(/^src\/content\/\w+\/\w+\//, '')  // strip src/content/{locale}/{collection}/
-      .replace(/\.mdx?$/, '')                     // strip extension
-      .replace(/\/index$/, '');                    // strip trailing /index
+    // Remove prefix and handle segments like page logic
+    const segments = path
+      .replace(/^src\/content\//, '')
+      .replace(/\.mdx?$/, '')
+      .replace(/\/index$/, '')
+      .split('/')
+      .filter(Boolean);
 
-    if (!cleaned) return escapeHtml(collection || 'docs');
+    // Filter out locale and docs (hidden segments)
+    const localesList = ['en', 'es', 'pt', 'it', 'fr', 'de'];
+    const hiddenSegments = ['docs', 'content', ...localesList];
 
-    // Split into path segments, humanize each
-    const segments = cleaned.split('/').map(seg =>
-      seg.replace(/[-_]/g, ' ').replace(/\b\w/g, c => c.toUpperCase())
+    const filteredSegments = segments.filter(seg => !hiddenSegments.includes(seg.toLowerCase()));
+
+    // Format segments
+    const formattedCrumbs = filteredSegments.map(seg =>
+      seg.replace(/[-_]/g, ' ')
+        .replace(/([a-z])([A-Z])/g, '$1 $2')
+        .replace(/\b\w/g, c => c.toUpperCase())
+        .replace(/\bApi\b/g, 'API')
+        .replace(/\bIos\b/g, 'iOS')
+        .replace(/\bIpados\b/g, 'iPadOS')
+        .replace(/\bMacos\b/g, 'macOS')
     );
 
-    // Don't include the last segment if it matches the title (it's the doc itself)
-    // Show parent folders as breadcrumb
-    const crumbs = segments.slice(0, -1); // exclude filename
-    if (crumbs.length === 0) {
-      // Top-level doc, just show collection
-      return escapeHtml(collection || 'docs');
+    if (formattedCrumbs.length === 0) {
+      return '';
     }
 
-    return crumbs.map(c => escapeHtml(c)).join(' <span class="search-breadcrumb-sep">›</span> ');
-  }
-
-  function getCollectionIcon(collection: string): string {
-    const icons: Record<string, string> = {
-      guides: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25"/></svg>',
-      api: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5"/></svg>',
-      reference: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m0 12.75h7.5m-7.5 3H12M10.5 2.25H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>',
-    };
-    return icons[collection] || '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path stroke-linecap="round" stroke-linejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z"/></svg>';
+    const separator = '<svg class="search-breadcrumb-sep" width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><path d="M9 5l7 7-7 7"></path></svg>';
+    
+    return formattedCrumbs.map(c => `<span class="search-breadcrumb-item">${escapeHtml(c)}</span>`).join(separator);
   }
 
   // Highlight search keywords in text
@@ -1118,19 +1168,33 @@ const CMS_API_KEY = import.meta.env.CMS_API_KEY || '';
   }
 
   .search-source-breadcrumb {
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    gap: 0;
+    justify-content: flex-start;
+    gap: 0.125rem;
     font-size: 0.6875rem;
     color: var(--color-text-muted);
+    margin-bottom: 0.125rem;
+    opacity: 0.9;
     white-space: nowrap;
     overflow: hidden;
-    text-overflow: ellipsis;
+  }
+
+  .search-breadcrumb-item {
+    flex-shrink: 0;
   }
 
   :global(.search-breadcrumb-sep) {
-    margin: 0 0.25rem;
-    opacity: 0.5;
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    min-width: 8px;
+    min-height: 8px;
+    color: var(--color-text-muted);
+    opacity: 0.8;
+    flex-shrink: 0;
+    margin: 0 0.125rem;
+    vertical-align: middle;
   }
 
   .search-source-card-snippet {

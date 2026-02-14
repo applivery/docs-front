@@ -25,6 +25,8 @@ interface Props {
   title: string;
   description?: string;
   breadcrumbTitle?: string;
+  icon?: string;
+  sidebarIcon?: string;
 
   // SEO
   ogTitle?: string;
@@ -65,6 +67,8 @@ const {
   title,
   description,
   breadcrumbTitle,
+  icon,
+  sidebarIcon,
   ogTitle,
   ogDescription,
   ogImage,
@@ -149,6 +153,7 @@ function buildBreadcrumbItems() {
     ? segments.slice(1)
     : segments;
   const folderLabels = new Map<string, string>();
+  const folderIcons = new Map<string, string>();
 
   // 1. Collect labels from manual sidebar configuration (highest priority)
   const sideMenu = settings?.navigation?.sideMenu;
@@ -163,6 +168,7 @@ function buildBreadcrumbItems() {
             .replace(/^\/+|\/+$/g, "")
             .toLowerCase();
           folderLabels.set(slug, item.label);
+          if (item.icon) folderIcons.set(slug, item.icon);
         }
         if (item.children) {
           collectManualLabels(item.children);
@@ -180,10 +186,12 @@ function buildBreadcrumbItems() {
     const slug = extractSlugFromPath(doc.path, true);
     if (!slug) continue;
     const label = getMenuLabel(doc);
+    const icon = doc.sidebar_icon || doc.icon;
     if (label && !folderLabels.has(slug)) folderLabels.set(slug, label);
+    if (icon && !folderIcons.has(slug)) folderIcons.set(slug, icon);
   }
 
-  const items: Array<{ label: string; href: string; current?: boolean }> = [
+  const items: Array<{ label: string; href: string; current?: boolean; icon?: string }> = [
     { label: "Home", href: `/${pathLocale}/` },
   ];
   let slugAcc = "";
@@ -196,10 +204,12 @@ function buildBreadcrumbItems() {
     slugAcc = slugAcc ? `${slugAcc}/${segment}` : segment;
     hrefAcc += `/${segment}`;
     const label = isLast ? finalTitle : folderLabels.get(slugAcc) || formatSegmentLabel(segment);
+    const itemIcon = isLast ? (sidebarIcon || icon) : folderIcons.get(slugAcc);
     items.push({
       label,
       href: hrefAcc,
       current: isLast,
+      icon: itemIcon,
     });
   }
 

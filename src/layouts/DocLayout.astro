@@ -103,7 +103,7 @@ const effectiveTranslations: Locale[] =
 
 // Fetch navigation documents and settings
 let documents: Document[] = [];
-let settings = null;
+let settings: any = null;
 
 try {
   const [docsResponse, settingsResponse] = await Promise.all([
@@ -136,6 +136,8 @@ function formatSegmentLabel(segment: string): string {
 
 function getMenuLabel(doc: Document): string {
   if (doc.item_name && doc.item_name !== "null") return doc.item_name;
+  if (doc.section && Array.isArray(doc.section) && doc.section.length > 0) return doc.section[0];
+  if (doc.section && typeof doc.section === "string") return doc.section;
   return doc.title;
 }
 
@@ -143,16 +145,42 @@ function buildBreadcrumbItems() {
   const pathname = currentPath || Astro.url.pathname;
   const segments = pathname.split("/").filter(Boolean);
   const pathLocale = isValidLocale(segments[0]) ? segments[0] : defaultLocale;
-  const pathSegments = isValidLocale(segments[0]) ? segments.slice(1) : segments;
+  const pathSegments = isValidLocale(segments[0])
+    ? segments.slice(1)
+    : segments;
   const folderLabels = new Map<string, string>();
 
+  // 1. Collect labels from manual sidebar configuration (highest priority)
+  const sideMenu = settings?.navigation?.sideMenu;
+  if (sideMenu?.mode === "manual" && sideMenu.items) {
+    const collectManualLabels = (items: any[]) => {
+      for (const item of items) {
+        if (item.folder && item.label) {
+          // Clean folder path to use as slug key
+          const slug = item.folder
+            .replace(/^[a-z]{2}\//, "") // remove locale
+            .replace(/^docs\//, "") // remove docs prefix
+            .replace(/^\/+|\/+$/g, "")
+            .toLowerCase();
+          folderLabels.set(slug, item.label);
+        }
+        if (item.children) {
+          collectManualLabels(item.children);
+        }
+      }
+    };
+    collectManualLabels(sideMenu.items);
+  }
+
+  // 2. Collect labels from index files (fallback)
   for (const doc of documents) {
+    if (doc.locale !== currentLocale) continue;
     if (!doc.path) continue;
     if (!isIndexFile(doc) && doc.type !== "archive") continue;
     const slug = extractSlugFromPath(doc.path, true);
     if (!slug) continue;
     const label = getMenuLabel(doc);
-    if (label) folderLabels.set(slug, label);
+    if (label && !folderLabels.has(slug)) folderLabels.set(slug, label);
   }
 
   const items: Array<{ label: string; href: string; current?: boolean }> = [

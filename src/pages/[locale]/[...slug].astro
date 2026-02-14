@@ -10,7 +10,7 @@
 import { getCollection } from 'astro:content';
 import DocLayout from '../../layouts/DocLayout.astro';
 import ArchiveGrid from '../../components/ArchiveGrid.astro';
-import { resolveMediaUrl } from '../../lib/cms';
+import { resolveMediaUrl, getAllSettings } from '../../lib/cms';
 import { processMarkdown } from '../../lib/markdown';
 import {
   locales,
@@ -37,6 +37,29 @@ type DocData = DocEntry['data'];
 export async function getStaticPaths() {
   // ONE call to the local data store (populated by the CMS loader)
   const allDocs = await getCollection('docs');
+  const settings = await getAllSettings();
+
+  // Precompute manual labels from sidebar settings
+  const manualLabels = new Map<string, string>();
+  const sideMenu = settings?.navigation?.sideMenu;
+  if (sideMenu?.mode === 'manual' && sideMenu.items) {
+    const collectManualLabels = (items: any[]) => {
+      for (const item of items) {
+        if (item.folder && item.label) {
+          const slug = item.folder
+            .replace(/^[a-z]{2}\//, '') // remove locale
+            .replace(/^docs\//, '') // remove docs prefix
+            .replace(/^\/+|\/+$/g, '')
+            .toLowerCase();
+          manualLabels.set(slug, item.label);
+        }
+        if (item.children) {
+          collectManualLabels(item.children);
+        }
+      }
+    };
+    collectManualLabels(sideMenu.items);
+  }
 
   // Precompute translation lookup (group by translation_key)
   const translationMap = new Map<string, typeof allDocs>();
@@ -198,7 +221,7 @@ export async function getStaticPaths() {
       const key = `${docLocale}:${folderSlug}`;
       if (pathKeys.has(key)) continue;
       const segment = folderSlug.split('/').pop() || folderSlug;
-      const title = toTitle(segment);
+      const title = manualLabels.get(folderSlug) || toTitle(segment);
       const collection = folderSlug.split('/')[0] || 'docs';
       paths.push({
         params: { locale: docLocale, slug: folderSlug },
@@ -375,7 +398,7 @@ if (processedContent.includes('data-child-grid="true"')) {
 
 <DocLayout
   title={fullDocument.title}
-  breadcrumbTitle={(fullDocument.item_name && fullDocument.item_name !== 'null') ? fullDocument.item_name : fullDocument.title}
+  breadcrumbTitle={(fullDocument.item_name && fullDocument.item_name !== 'null') ? fullDocument.item_name : (section || fullDocument.title)}
   description={fullDocument.description}
   ogTitle={fullDocument.og_title || fullDocument.seo_title}
   ogDescription={fullDocument.og_description || fullDocument.description}

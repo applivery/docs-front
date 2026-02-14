@@ -10,7 +10,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import SearchButton from '../../components/SearchButton.astro';
 import Icon from '../../components/Icon';
 import type { IconName } from '../../lib/icons';
-import { getDocuments, getAllSettings, resolveMediaUrl, type Document, type HomeSettings, type LocalizedText, type ContentSettings } from '../../lib/cms';
+import { getDocuments, getAllSettings, resolveMediaUrl, type Document, type HomeSettings, type LocalizedText } from '../../lib/cms';
 import { readdir } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import {

@@ -31,7 +31,7 @@ export async function getStaticPaths() {
   // Define the allowed collections/folders
   // These match top-level folders inside content/{locale}/docs/ OR other content types
   // The actual folders in docs are: app-distribution, device-management, platform
-  const collections = [
+  const collections: string[] = [
     // These are now handled by [...slug].astro for layout consistency
     // But we keep them here as a fallback or for non-doc collections
   ];
@@ -98,32 +98,6 @@ try {
 } catch (error) {
   console.warn(`Failed to fetch ${collectionName} documents:`, error);
 }
-
-const normalizeString = (value?: string | null) => {
-  if (!value) return '';
-  const trimmed = value.trim();
-  if (!trimmed || trimmed.toLowerCase() === 'null' || trimmed.toLowerCase() === 'undefined') return '';
-  return trimmed;
-};
-
-const formatSegmentLabel = (segment: string) =>
-  segment
-    .replace(/[-_]/g, ' ')
-    .replace(/([a-z])([A-Z])/g, '$1 $2')
-    .replace(/\b\w/g, (c) => c.toUpperCase())
-    .replace(/\bApi\b/g, 'API')
-    .replace(/\bSdk\b/g, 'SDK')
-    .replace(/\bCli\b/g, 'CLI')
-    .replace(/\bUi\b/g, 'UI')
-    .replace(/\bSso\b/g, 'SSO')
-    .replace(/\bMdm\b/g, 'MDM')
-    .replace(/\bEmm\b/g, 'EMM')
-    .trim();
-
-const getMenuLabel = (doc: Document) => {
-  if (doc.item_name && doc.item_name !== 'null') return doc.item_name;
-  return doc.title;
-};
 
 const indexDocsBySlug = new Map<string, Document>();
 documents.forEach((doc) => {

@@ -14,7 +14,6 @@ import { resolveMediaUrl } from '../../lib/cms';
 import { processMarkdown } from '../../lib/markdown';
 import {
   locales,
-  defaultLocale,
   isValidLocale,
   type Locale
 } from '../../lib/i18n';
@@ -269,18 +268,6 @@ if (isIndex && showChildGrid) {
     return orderA - orderB;
   });
 }
-
-const normalizeString = (value?: string | null) => {
-  if (!value) return '';
-  const trimmed = value.trim();
-  if (!trimmed || trimmed.toLowerCase() === 'null' || trimmed.toLowerCase() === 'undefined') return '';
-  return trimmed;
-};
-
-const getMenuLabel = (doc: DocData) => {
-  if (doc.item_name && doc.item_name !== 'null') return doc.item_name;
-  return doc.title;
-};
 
 // Find available translations — from precomputed maps, zero API calls
 let availableTranslations: Locale[] = [locale];

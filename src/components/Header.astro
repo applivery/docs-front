@@ -116,7 +116,7 @@ if (topMenu && topMenu.items && topMenu.items.length > 0) {
   >
     <Icon name="menu" className="w-6 h-6" aria-hidden={true} client:only="react" />
   </button>
-  <a href={`/${locale}/`} class="mobile-favicon-link lg:hidden" aria-label="Go to home">
+  <a href={`/${locale}/`} class="mobile-favicon-link md:hidden" aria-label="Go to home">
     <img
       src={faviconUrl}
       alt="Favicon"
@@ -552,6 +552,12 @@ if (topMenu && topMenu.items && topMenu.items.length > 0) {
   .mobile-favicon-link {
     display: inline-flex;
     align-items: center;
+  }
+
+  @media (min-width: 768px) {
+    .mobile-favicon-link {
+      display: none !important;
+    }
   }
 
   @media (min-width: 640px) {

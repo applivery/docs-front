@@ -470,7 +470,7 @@ const faqSchema = isFaq
       siteName={settings?.seo?.siteName}
       supportedLocales={settings?.content?.supportedLocales}
       defaultLocale={settings?.content?.defaultLocale}
-      sideMenu={settings?.navigation?.sideMenu}
+      sideMenu={collection === 'api' ? undefined : settings?.navigation?.sideMenu}
       locale={currentLocale}
       availableTranslations={effectiveTranslations}
       translationSlugs={translationSlugs}

@@ -108,6 +108,10 @@ export async function getStaticPaths() {
     if (!folderPath) return false;
     const docLocale = resolveDocLocale(doc);
 
+    // API collection archives represent user-created folders in the CMS —
+    // always generate their routes even if empty (entities may be added later).
+    if (doc.collection === 'api') return true;
+
     const hasChildren = allDocs.some((other) => {
       const d = other.data;
       if (!d.path || other.id === entry.id) return false;
@@ -279,9 +283,11 @@ const content = fullDocument.content || entry?.rendered?.html || '';
 // The show_child_grid flag (default true) controls whether the grid renders
 const showChildGrid = fullDocument.show_child_grid !== false;
 let childDocuments: typeof allDocs = [];
+let childFolders: Array<{ id: string; title: string; description: string; href: string; icon?: string; order: number; endpointCount: number }> = [];
 const entryId = entry?.id;
 if (isIndex && showChildGrid) {
   const folderPath = getIndexFolderPath(fullDocument);
+  // Collect direct child endpoints (articles, non-index files)
   childDocuments = allDocs.filter((other) => {
     const d = other.data;
     if (!d.path || (entryId && other.id === entryId)) return false;
@@ -289,12 +295,56 @@ if (isIndex && showChildGrid) {
     if (d.locale !== locale) return false;
     if (isIndexFile(d)) return false;
     const docFolder = d.path.replace(/\/[^/]+\.mdx?$/, '');
-    return docFolder === folderPath || docFolder.startsWith(folderPath + '/');
+    return docFolder === folderPath;
   }).sort((a, b) => {
     const orderA = a.data.sidebar_position ?? a.data.order_num ?? a.data.weight ?? 999;
     const orderB = b.data.sidebar_position ?? b.data.order_num ?? b.data.weight ?? 999;
     return orderA - orderB;
   });
+
+  // For API pages, also collect direct child sub-folders (archive/index pages)
+  const isApiCollection = fullDocument.collection === 'api' || fullDocument.schema_type === 'WebAPI';
+  if (isApiCollection) {
+    // Find archive pages that are direct children of this folder
+    const directChildArchives = allDocs.filter((other) => {
+      const d = other.data;
+      if (!d.path || (entryId && other.id === entryId)) return false;
+      if (d.visible === false) return false;
+      if (d.locale !== locale) return false;
+      if (!isIndexFile(d) && d.type !== 'archive') return false;
+      // Check if this archive is a DIRECT child folder (one level deeper)
+      const otherFolderPath = getIndexFolderPath(d);
+      if (!otherFolderPath || !otherFolderPath.startsWith(folderPath + '/')) return false;
+      // Ensure it's only one level deeper
+      const relative = otherFolderPath.slice(folderPath.length + 1);
+      return relative.length > 0 && !relative.includes('/');
+    });
+
+    // Count endpoints per sub-folder
+    for (const archive of directChildArchives) {
+      const archiveFolderPath = getIndexFolderPath(archive.data);
+      if (!archiveFolderPath) continue;
+      const endpointCount = allDocs.filter((other) => {
+        const d = other.data;
+        if (!d.path || d.visible === false || d.locale !== locale) return false;
+        if (isIndexFile(d)) return false;
+        const docFolder = d.path.replace(/\/[^/]+\.mdx?$/, '');
+        return docFolder === archiveFolderPath || docFolder.startsWith(archiveFolderPath + '/');
+      }).length;
+
+      childFolders.push({
+        id: archive.id,
+        title: archive.data.item_name || archive.data.title || 'Untitled',
+        description: archive.data.description || '',
+        href: getDocUrl({ ...archive.data, id: archive.id }, locale),
+        icon: archive.data.sidebar_icon || archive.data.icon,
+        order: archive.data.sidebar_position ?? archive.data.order_num ?? archive.data.weight ?? 999,
+        endpointCount,
+      });
+    }
+
+    childFolders.sort((a, b) => a.order - b.order);
+  }
 }
 
 // Find available translations — from precomputed maps, zero API calls
@@ -328,12 +378,44 @@ if (availableTranslations.length <= 1) {
   }
 }
 
-// Extract headings for TOC
-const headings = content ? extractHeadings(content) : [];
-
 // Extract section and category
 const section = Array.isArray(fullDocument.section) ? fullDocument.section[0] : fullDocument.section;
 const category = Array.isArray(fullDocument.category) ? fullDocument.category[0] : fullDocument.category;
+
+// Build JSON-LD for API reference pages (WebAPI + TechArticle schema)
+const isApiPage = fullDocument.collection === 'api' || fullDocument.schema_type === 'WebAPI';
+let apiJsonLd: Record<string, any> | null = null;
+if (isApiPage) {
+  const siteUrl = Astro.site?.href || Astro.url.origin;
+  const pageUrl = new URL(Astro.url.pathname, siteUrl).href;
+  const headline = fullDocument.headline || fullDocument.title;
+
+  apiJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "TechArticle",
+    "name": fullDocument.title,
+    "headline": headline,
+    "description": fullDocument.description || '',
+    "url": pageUrl,
+    "datePublished": fullDocument.pub_date || fullDocument.created_at,
+    "dateModified": fullDocument.updated_date || fullDocument.updated_at,
+    "articleSection": "API Reference",
+    "proficiencyLevel": "Advanced",
+    "about": {
+      "@type": "WebAPI",
+      "name": headline,
+      "description": fullDocument.description || '',
+      "url": pageUrl,
+      "documentation": pageUrl,
+    },
+    "isPartOf": {
+      "@type": "APIReference",
+      "name": "Applivery API Reference",
+      "url": `${siteUrl}/${locale}/api/`,
+    },
+    "inLanguage": locale,
+  };
+}
 
 // Process markdown content
 let processedContent = content ? processMarkdown(content) : '';
@@ -399,6 +481,35 @@ if (processedContent.includes('data-child-grid="true"')) {
     }
   }
 }
+
+// Extract headings for TOC
+// For API pages, extract from processed HTML (since API components generate headings)
+// For regular pages, extract from raw markdown
+let headings: Array<{ depth: number; slug: string; text: string }> = [];
+if (isApiPage && processedContent) {
+  // Parse headings from rendered HTML: <h2 id="...">...</h2>
+  const htmlHeadingRegex = /<h([23])\s+id="([^"]*)"[^>]*>(.*?)<\/h[23]>/gi;
+  let hm;
+  while ((hm = htmlHeadingRegex.exec(processedContent)) !== null) {
+    const text = hm[3].replace(/<[^>]+>/g, '').trim();
+    if (text) {
+      headings.push({ depth: parseInt(hm[1]), slug: hm[2], text });
+    }
+  }
+  // If no id-based headings, fall back to section titles from API components
+  if (headings.length === 0) {
+    const sectionTitleRegex = /<h([23])[^>]*>(.*?)<\/h[23]>/gi;
+    while ((hm = sectionTitleRegex.exec(processedContent)) !== null) {
+      const text = hm[2].replace(/<[^>]+>/g, '').trim();
+      const slug = text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '');
+      if (text) {
+        headings.push({ depth: parseInt(hm[1]), slug, text });
+      }
+    }
+  }
+} else {
+  headings = content ? extractHeadings(content) : [];
+}
 ---
 
 <DocLayout
@@ -430,6 +541,11 @@ if (processedContent.includes('data-child-grid="true"')) {
   availableTranslations={availableTranslations}
   translationSlugs={translationSlugs}
 >
+  {/* API Reference JSON-LD for SEO / LLM indexing */}
+  {apiJsonLd && (
+    <script type="application/ld+json" set:html={JSON.stringify(apiJsonLd)} />
+  )}
+
   {/* Render document content */}
   {processedContent ? (
     <Fragment set:html={processedContent} />
@@ -437,8 +553,47 @@ if (processedContent.includes('data-child-grid="true"')) {
     <p class="text-[var(--color-text-muted)]">No content available</p>
   )}
 
-  {/* For index/archive pages, show child documents in grid (controlled by show_child_grid flag) */}
-  {isIndex && showChildGrid && childDocuments.length > 0 && (
+  {/* For API archive pages, render sub-folder cards + endpoint cards */}
+  {isIndex && isApiPage && showChildGrid && (childFolders.length > 0 || childDocuments.length > 0) && (
+    <div class="api-endpoint-grid">
+      {/* Sub-folder cards first */}
+      {childFolders.map(folder => (
+        <a href={folder.href} class="api-folder-card">
+          <div class="api-folder-card-header">
+            <svg class="api-folder-icon" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
+              <path opacity="0.5" d="M2 6.5C2 4.37868 2 3.31802 2.65901 2.65901C3.31802 2 4.37868 2 6.5 2C8.62132 2 9.68198 2 10.341 2.65901C11 3.31802 11 4.37868 11 6.5V8H6.5C4.37868 8 3.31802 8 2.65901 8.65901C2.29289 9.02513 2.12602 9.50062 2.05654 10.2H2V6.5Z" />
+              <path d="M2 14C2 11.1716 2 9.75736 2.87868 8.87868C3.75736 8 5.17157 8 8 8H13H16C18.8284 8 20.2426 8 21.1213 8.87868C22 9.75736 22 11.1716 22 14V16C22 18.8284 22 20.2426 21.1213 21.1213C20.2426 22 18.8284 22 16 22H8C5.17157 22 3.75736 22 2.87868 21.1213C2 20.2426 2 18.8284 2 16V14Z" />
+            </svg>
+            <span class="api-folder-card-title">{folder.title}</span>
+          </div>
+          <p class="api-folder-card-count">{folder.endpointCount} endpoint{folder.endpointCount !== 1 ? 's' : ''}</p>
+        </a>
+      ))}
+      {/* Endpoint cards */}
+      {childDocuments.map(d => {
+        const href = getDocUrl({ ...d.data, id: d.id }, locale);
+        const headline = d.data.headline || '';
+        // headline is "GET /path/here" — extract method
+        const headlineParts = headline.match(/^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+(.+)$/i);
+        const method = headlineParts ? headlineParts[1].toUpperCase() : '';
+        // Build clean description (strip "METHOD /path — " prefix from description)
+        const rawDesc = d.data.description || '';
+        const cleanDesc = rawDesc.replace(/^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+\S+\s*[—–-]\s*/i, '');
+        return (
+          <a href={href} class="api-endpoint-card">
+            <div class="api-endpoint-card-header">
+              {method && <span class={`api-method-badge method-${method.toLowerCase()}`}>{method}</span>}
+              <span class="api-endpoint-card-title">{d.data.title}</span>
+            </div>
+            {cleanDesc && <p class="api-endpoint-card-desc">{cleanDesc}</p>}
+          </a>
+        );
+      })}
+    </div>
+  )}
+
+  {/* For non-API index/archive pages, show standard card grid */}
+  {isIndex && !isApiPage && showChildGrid && childDocuments.length > 0 && (
     <ArchiveGrid
       items={childDocuments.map(d => {
         return ({
@@ -468,7 +623,7 @@ if (processedContent.includes('data-child-grid="true"')) {
   )}
 
   {/* Empty state for index with no children and no content */}
-  {isIndex && childDocuments.length === 0 && !processedContent && (
+  {isIndex && childDocuments.length === 0 && childFolders.length === 0 && !processedContent && (
     <div class="archive-empty">
       <p class="text-[var(--color-text-muted)]">No articles in this section yet.</p>
     </div>
@@ -486,5 +641,96 @@ if (processedContent.includes('data-child-grid="true"')) {
     margin-top: 2rem;
     text-align: center;
     padding: 2rem;
+  }
+
+  /* API Folder Cards */
+  .api-folder-card {
+    display: block;
+    padding: 1rem 1.125rem;
+    border: 1px solid var(--color-border);
+    border-radius: 0.5rem;
+    text-decoration: none;
+    color: inherit;
+    background: var(--color-bg-subtle, var(--color-bg-secondary, rgba(0,0,0,0.02)));
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  }
+
+  .api-folder-card:hover {
+    border-color: var(--color-primary);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    text-decoration: none;
+  }
+
+  .api-folder-card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .api-folder-icon {
+    width: 1.125rem;
+    height: 1.125rem;
+    color: var(--color-primary, #3b82f6);
+    flex-shrink: 0;
+  }
+
+  .api-folder-card-title {
+    font-weight: 600;
+    font-size: 0.9375rem;
+    color: var(--color-text-primary);
+  }
+
+  .api-folder-card-count {
+    margin: 0.25rem 0 0 1.625rem;
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+    line-height: 1.4;
+  }
+
+  /* API Endpoint Card Grid */
+  .api-endpoint-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    margin-top: 1.5rem;
+  }
+
+  .api-endpoint-card {
+    display: block;
+    padding: 0.875rem 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: 0.5rem;
+    text-decoration: none;
+    color: inherit;
+    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+  }
+
+  .api-endpoint-card:hover {
+    border-color: var(--color-primary);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    text-decoration: none;
+  }
+
+  .api-endpoint-card-header {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .api-endpoint-card-title {
+    font-weight: 600;
+    font-size: 0.875rem;
+    color: var(--color-text-primary);
+  }
+
+  .api-endpoint-card-desc {
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+    margin: 0;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 </style>

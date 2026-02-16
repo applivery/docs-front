@@ -89,7 +89,7 @@ function generateBreadcrumbsFromPath(path: string): BreadcrumbItem[] {
  * Handles: kebab-case, snake_case, camelCase
  */
 function formatSegmentLabel(segment: string): string {
-  return segment
+  return decodeURIComponent(segment)
     // Replace hyphens and underscores with spaces
     .replace(/[-_]/g, ' ')
     // Add space before uppercase letters (camelCase)
@@ -104,6 +104,7 @@ function formatSegmentLabel(segment: string): string {
     .replace(/\bSso\b/g, 'SSO')
     .replace(/\bMdm\b/g, 'MDM')
     .replace(/\bEmm\b/g, 'EMM')
+    .replace(/\bAdm\b/g, 'ADM')
     .trim();
 }
 

@@ -153,6 +153,7 @@ interface NavItem {
   href: string;
   icon?: string;
   active: boolean;
+  method?: string; // HTTP method for API endpoints (GET, POST, etc.)
 }
 
 /**
@@ -201,6 +202,7 @@ function buildNavigation(docs: Document[]): NavGroup[] {
     icon?: string;
     href?: string;
     active?: boolean;
+    order?: number;
   }
 
   const root: Record<string, TreeNode> = {};
@@ -235,11 +237,15 @@ function buildNavigation(docs: Document[]): NavGroup[] {
       href = `/${currentLocale}/${doc.id}`;
     }
 
+    // Extract HTTP method from headline (e.g. "GET /v1/devices" → "GET")
+    const headlineMethod = doc.headline?.match(/^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+/i)?.[1]?.toUpperCase();
+
     const navItem: NavItem = {
       label: (doc.item_name && doc.item_name !== 'null') ? doc.item_name : doc.title,
       href,
       icon: doc.sidebar_icon || doc.icon,
       active: currentPath === href || currentPath.startsWith(href + '/'),
+      method: headlineMethod,
     };
 
     // Extract path parts (skip collection, get folder structure)
@@ -342,6 +348,7 @@ function buildNavigation(docs: Document[]): NavGroup[] {
         if (indexDoc.item_name && indexDoc.item_name !== 'null') node.title = indexDoc.item_name;
         else if (indexDoc.title) node.title = indexDoc.title;
         if (indexDoc.sidebar_icon || indexDoc.icon) node.icon = indexDoc.sidebar_icon || indexDoc.icon;
+        if (indexDoc.sidebar_position != null) node.order = indexDoc.sidebar_position;
       }
       if (Object.keys(node.children).length > 0) {
         applyIndexDocs(node.children, folderSlug);
@@ -350,16 +357,23 @@ function buildNavigation(docs: Document[]): NavGroup[] {
   }
   applyIndexDocs(root, '');
 
-  // Convert tree to NavGroup array with proper nesting
+  // Convert tree to NavGroup array with proper nesting, sorted by order
   function treeToGroups(tree: Record<string, TreeNode>): NavGroup[] {
-    return Object.values(tree).map(node => ({
-      title: node.title,
-      icon: node.icon,
-      href: node.href,
-      active: node.active,
-      items: node.items,
-      subgroups: Object.keys(node.children).length > 0 ? treeToGroups(node.children) : undefined,
-    }));
+    return Object.values(tree)
+      .sort((a, b) => {
+        const orderA = a.order ?? 999;
+        const orderB = b.order ?? 999;
+        if (orderA !== orderB) return orderA - orderB;
+        return a.title.localeCompare(b.title);
+      })
+      .map(node => ({
+        title: node.title,
+        icon: node.icon,
+        href: node.href,
+        active: node.active,
+        items: node.items,
+        subgroups: Object.keys(node.children).length > 0 ? treeToGroups(node.children) : undefined,
+      }));
   }
 
   return treeToGroups(root);
@@ -370,8 +384,8 @@ function buildNavigation(docs: Document[]): NavGroup[] {
  * Handles trailing slashes and nested paths
  */
 function isPathActive(path: string, currentPath: string): boolean {
-  const normPath = path.replace(/\/+$/, '') || '/';
-  const normCurrent = currentPath.replace(/\/+$/, '') || '/';
+  const normPath = decodeURIComponent(path).replace(/\/+$/, '') || '/';
+  const normCurrent = decodeURIComponent(currentPath).replace(/\/+$/, '') || '/';
   return normCurrent === normPath || normCurrent.startsWith(normPath + '/');
 }
 
@@ -946,26 +960,36 @@ const cmsUrl = import.meta.env.PUBLIC_CMS_URL || import.meta.env.CMS_URL || '';
 
         return (
           <div class="sidebar-nav-group" data-nav-group>
-            <button
-              type="button"
-              class="sidebar-nav-group-title"
+            <div
+              class:list={['sidebar-nav-group-title', { active: group.href && (isPathActive(group.href, currentPath) || group.active) }]}
               data-nav-toggle
               aria-expanded={isExpanded ? 'true' : 'false'}
             >
-              <span class="group-title-content">
-                    {group.icon && (
-                      <Icon name={getIconName(group.icon)} className="group-title-icon" aria-hidden={true} client:only="react" />
-                    )}
-                <span class="truncate">{group.title}</span>
-              </span>
-              <Icon
-                name="chevronDown"
-                className="nav-chevron"
-                style={isExpanded ? { transform: 'rotate(180deg)' } : undefined}
-                aria-hidden={true}
-                client:only="react"
-              />
-            </button>
+              {group.href ? (
+                <a href={group.href} class="nav-toggle-link sidebar-nav-group-link">
+                  <span class="group-title-content">
+                    <Icon name={getIconName(group.icon || 'folder')} className="group-title-icon" aria-hidden={true} client:only="react" />
+                    <span class="truncate">{group.title}</span>
+                  </span>
+                </a>
+              ) : (
+                <span class="nav-toggle-link">
+                  <span class="group-title-content">
+                    <Icon name={getIconName(group.icon || 'folder')} className="group-title-icon" aria-hidden={true} client:only="react" />
+                    <span class="truncate">{group.title}</span>
+                  </span>
+                </span>
+              )}
+              <button type="button" class="nav-chevron-btn" data-nav-chevron aria-label="Toggle expand">
+                <Icon
+                  name="chevronDown"
+                  className="nav-chevron"
+                  style={isExpanded ? { transform: 'rotate(180deg)' } : undefined}
+                  aria-hidden={true}
+                  client:only="react"
+                />
+              </button>
+            </div>
             <div
               class="nav-group-content"
               data-nav-content
@@ -980,8 +1004,11 @@ const cmsUrl = import.meta.env.PUBLIC_CMS_URL || import.meta.env.CMS_URL || '';
                         href={item.href}
                         class:list={['sidebar-nav-item', { active: isPathActive(item.href, currentPath) || item.active }]}
                       >
-                        {item.icon && (
-                          <Icon name={getIconName(item.icon)} className="nav-item-icon" aria-hidden={true} client:only="react" />
+                        {item.method && (
+                          <span class={`sidebar-method-badge method-${item.method.toLowerCase()}`}>{item.method}</span>
+                        )}
+                        {!item.method && (
+                          <Icon name={getIconName(item.icon || 'document')} className="nav-item-icon" aria-hidden={true} client:only="react" />
                         )}
                         <span class="nav-item-label">{item.label}</span>
                       </a>
@@ -996,19 +1023,27 @@ const cmsUrl = import.meta.env.PUBLIC_CMS_URL || import.meta.env.CMS_URL || '';
                 const hasChildren = subgroup.items.length > 0 || (subgroup.subgroups && subgroup.subgroups.length > 0);
                 return hasChildren ? (
                   <div class="sidebar-nav-subgroup" data-nav-group>
-                    {subgroup.href ? (
-                      <a
-                        href={subgroup.href}
-                        class:list={['sidebar-nav-subgroup-title', 'sidebar-nav-subgroup-link', { active: isPathActive(subgroup.href, currentPath) || subgroup.active }]}
-                        data-nav-toggle
-                        aria-expanded={subHasActive ? 'true' : 'false'}
-                      >
-                        <span class="group-title-content">
-                          {subgroup.icon && (
-                            <Icon name={getIconName(subgroup.icon)} className="group-title-icon" aria-hidden={true} client:only="react" />
-                          )}
-                          <span class="truncate">{subgroup.title}</span>
+                    <div
+                      class:list={['sidebar-nav-subgroup-title', { active: subgroup.href && (isPathActive(subgroup.href, currentPath) || subgroup.active) }]}
+                      data-nav-toggle
+                      aria-expanded={subHasActive ? 'true' : 'false'}
+                    >
+                      {subgroup.href ? (
+                        <a href={subgroup.href} class="nav-toggle-link sidebar-nav-subgroup-link">
+                          <span class="group-title-content">
+                            <Icon name={getIconName(subgroup.icon || 'folder')} className="group-title-icon" aria-hidden={true} client:only="react" />
+                            <span class="truncate">{subgroup.title}</span>
+                          </span>
+                        </a>
+                      ) : (
+                        <span class="nav-toggle-link">
+                          <span class="group-title-content">
+                            <Icon name={getIconName(subgroup.icon || 'folder')} className="group-title-icon" aria-hidden={true} client:only="react" />
+                            <span class="truncate">{subgroup.title}</span>
+                          </span>
                         </span>
+                      )}
+                      <button type="button" class="nav-chevron-btn" data-nav-chevron aria-label="Toggle expand">
                         <Icon
                           name="chevronDown"
                           className="nav-chevron-sub"
@@ -1016,42 +1051,98 @@ const cmsUrl = import.meta.env.PUBLIC_CMS_URL || import.meta.env.CMS_URL || '';
                           aria-hidden={true}
                           client:only="react"
                         />
-                      </a>
-                    ) : (
-                    <button
-                      type="button"
-                      class="sidebar-nav-subgroup-title"
-                      data-nav-toggle
-                      aria-expanded={subHasActive ? 'true' : 'false'}
-                    >
-                      <span class="group-title-content">
-                        {subgroup.icon && (
-                          <Icon name={getIconName(subgroup.icon)} className="group-title-icon" aria-hidden={true} client:only="react" />
-                        )}
-                        <span class="truncate">{subgroup.title}</span>
-                      </span>
-                      <Icon
-                        name="chevronDown"
-                        className="nav-chevron-sub"
-                        style={subHasActive ? { transform: 'rotate(180deg)' } : undefined}
-                        aria-hidden={true}
-                        client:only="react"
-                      />
-                    </button>
-                    )}
+                      </button>
+                    </div>
                     <ul
                       class="nav-subgroup-content"
                       data-nav-content
                       style={subHasActive ? '' : 'display: none;'}
                     >
+                      {/* Render nested sub-folders first */}
+                      {subgroup.subgroups && subgroup.subgroups.map((nested) => {
+                        const nestedHasActive = isGroupActive(nested, currentPath);
+                        const nestedHasChildren = nested.items.length > 0 || (nested.subgroups && nested.subgroups.length > 0);
+                        return nestedHasChildren ? (
+                          <li>
+                            <div class="sidebar-nav-subgroup" data-nav-group>
+                              <div
+                                class:list={['sidebar-nav-subgroup-title', { active: nested.href && (isPathActive(nested.href, currentPath) || nested.active) }]}
+                                data-nav-toggle
+                                aria-expanded={nestedHasActive ? 'true' : 'false'}
+                              >
+                                {nested.href ? (
+                                  <a href={nested.href} class="nav-toggle-link sidebar-nav-subgroup-link">
+                                    <span class="group-title-content">
+                                      <Icon name={getIconName(nested.icon || 'folder')} className="group-title-icon" aria-hidden={true} client:only="react" />
+                                      <span class="truncate">{nested.title}</span>
+                                    </span>
+                                  </a>
+                                ) : (
+                                  <span class="nav-toggle-link">
+                                    <span class="group-title-content">
+                                      <Icon name={getIconName(nested.icon || 'folder')} className="group-title-icon" aria-hidden={true} client:only="react" />
+                                      <span class="truncate">{nested.title}</span>
+                                    </span>
+                                  </span>
+                                )}
+                                <button type="button" class="nav-chevron-btn" data-nav-chevron aria-label="Toggle expand">
+                                  <Icon
+                                    name="chevronDown"
+                                    className="nav-chevron-sub"
+                                    style={nestedHasActive ? { transform: 'rotate(180deg)' } : undefined}
+                                    aria-hidden={true}
+                                    client:only="react"
+                                  />
+                                </button>
+                              </div>
+                              <ul
+                                class="nav-subgroup-content"
+                                data-nav-content
+                                style={nestedHasActive ? '' : 'display: none;'}
+                              >
+                                {nested.items.map((nItem) => (
+                                  <li>
+                                    <a
+                                      href={nItem.href}
+                                      class:list={['sidebar-nav-item sidebar-nav-item-nested', { active: isPathActive(nItem.href, currentPath) || nItem.active }]}
+                                    >
+                                      {nItem.method && (
+                                        <span class={`sidebar-method-badge method-${nItem.method.toLowerCase()}`}>{nItem.method}</span>
+                                      )}
+                                      {!nItem.method && (
+                                        <Icon name={getIconName(nItem.icon || 'document')} className="nav-item-icon" aria-hidden={true} client:only="react" />
+                                      )}
+                                      <span class="nav-item-label">{nItem.label}</span>
+                                    </a>
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          </li>
+                        ) : nested.href ? (
+                          <li>
+                            <a
+                              href={nested.href}
+                              class:list={['sidebar-nav-item', { active: isPathActive(nested.href, currentPath) || nested.active }]}
+                            >
+                              <Icon name={getIconName(nested.icon || 'document')} className="nav-item-icon" aria-hidden={true} client:only="react" />
+                              <span class="nav-item-label">{nested.title}</span>
+                            </a>
+                          </li>
+                        ) : null;
+                      })}
+                      {/* Render leaf items */}
                       {subgroup.items.map((item) => (
                         <li>
                           <a
                             href={item.href}
                             class:list={['sidebar-nav-item sidebar-nav-item-nested', { active: isPathActive(item.href, currentPath) || item.active }]}
                           >
-                            {item.icon && (
-                              <Icon name={getIconName(item.icon)} className="nav-item-icon" aria-hidden={true} client:only="react" />
+                            {item.method && (
+                              <span class={`sidebar-method-badge method-${item.method.toLowerCase()}`}>{item.method}</span>
+                            )}
+                            {!item.method && (
+                              <Icon name={getIconName(item.icon || 'document')} className="nav-item-icon" aria-hidden={true} client:only="react" />
                             )}
                             <span class="nav-item-label">{item.label}</span>
                           </a>
@@ -1066,9 +1157,7 @@ const cmsUrl = import.meta.env.PUBLIC_CMS_URL || import.meta.env.CMS_URL || '';
                       href={subgroup.href}
                       class:list={['sidebar-nav-item', { active: isPathActive(subgroup.href, currentPath) || subgroup.active }]}
                     >
-                      {subgroup.icon && (
-                        <Icon name={getIconName(subgroup.icon)} className="nav-item-icon" aria-hidden={true} client:only="react" />
-                      )}
+                      <Icon name={getIconName(subgroup.icon || 'document')} className="nav-item-icon" aria-hidden={true} client:only="react" />
                       <span class="nav-item-label">{subgroup.title}</span>
                     </a>
                   </li>
@@ -1457,36 +1546,43 @@ const cmsUrl = import.meta.env.PUBLIC_CMS_URL || import.meta.env.CMS_URL || '';
       if (isFolder && item.children) {
         // Check recursively for active items in all descendants OR if the folder itself is active
         const hasActiveChild = hasActiveDescendant(item.children, currentPath);
+        const isSelfActive = normCurrent === normItem;
         const shouldExpand = isActive || hasActiveChild;
         const chevronStyle = shouldExpand ? 'transform: rotate(180deg)' : '';
         const chevronIcon = iconifyMap.get('chevronDown') || '';
 
         return `
           <div class="folder-group" data-folder-group>
-            <button
-              type="button"
+            <div
               class="folder-toggle ${shouldExpand ? 'has-active' : ''}"
               data-folder-toggle
               aria-expanded="${shouldExpand ? 'true' : 'false'}"
               style="padding-left: ${paddingLeft}rem"
             >
-              ${renderIcon(item.icon, 'folder-icon', true)}
-              <span class="folder-label">${item.title || formatTitle(item.name)}</span>
-              ${renderIconByName(chevronIcon, 'folder-chevron', chevronStyle)}
-            </button>
+              <a href="${item.href || '#'}" class="folder-toggle-link ${isSelfActive ? 'active' : ''}">
+                ${renderIcon(item.icon, 'folder-icon', true)}
+                <span class="folder-label">${item.title || formatTitle(item.name)}</span>
+              </a>
+              <button type="button" class="folder-chevron-btn" data-folder-chevron aria-label="Toggle expand">
+                ${renderIconByName(chevronIcon, 'folder-chevron', chevronStyle)}
+              </button>
+            </div>
             <div class="folder-content" data-folder-content style="${shouldExpand ? '' : 'display: none'}">
               ${renderFolderTree(item.children, currentPath, depth + 1)}
             </div>
           </div>
         `;
       } else {
+        const methodBadge = item.method
+          ? `<span class="sidebar-method-badge method-${item.method.toLowerCase()}">${item.method}</span>`
+          : renderIcon(item.icon, 'folder-item-icon', false);
         return `
           <a
             href="${item.href}"
             class="folder-item ${isActive ? 'active' : ''}"
             style="padding-left: ${paddingLeft}rem"
           >
-            ${renderIcon(item.icon, 'folder-item-icon', false)}
+            ${methodBadge}
             <span class="folder-item-label">${item.title || formatTitle(item.name)}</span>
           </a>
         `;
@@ -1496,22 +1592,60 @@ const cmsUrl = import.meta.env.PUBLIC_CMS_URL || import.meta.env.CMS_URL || '';
 
   // Initialize folder toggle handlers
   function initFolderToggles(container) {
+    const EXPAND_KEY = 'sidebar_expanded';
+    function getExpandedSet() {
+      try {
+        return new Set(JSON.parse(sessionStorage.getItem(EXPAND_KEY) || '[]'));
+      } catch { return new Set(); }
+    }
+    function saveExpandedSet(set) {
+      sessionStorage.setItem(EXPAND_KEY, JSON.stringify([...set]));
+    }
+
+    const expandedSet = getExpandedSet();
     const folderGroups = container.querySelectorAll('[data-folder-group]');
     folderGroups.forEach(group => {
       const toggle = group.querySelector('[data-folder-toggle]');
       const content = group.querySelector('[data-folder-content]');
+      const chevronBtn = toggle?.querySelector('[data-folder-chevron]');
       const chevron = toggle?.querySelector('.folder-chevron');
 
       if (!toggle || !content) return;
 
-      toggle.addEventListener('click', () => {
-        const isExpanded = toggle.getAttribute('aria-expanded') === 'true';
-        toggle.setAttribute('aria-expanded', (!isExpanded).toString());
-        if (chevron) {
-          chevron.style.transform = isExpanded ? 'rotate(0deg)' : 'rotate(180deg)';
+      // Get key from link href or label text
+      const link = toggle.querySelector('a');
+      const key = link?.getAttribute('href') || toggle.textContent.trim();
+
+      // Restore persisted expand state
+      if (key && expandedSet.has(key)) {
+        const serverExpanded = toggle.getAttribute('aria-expanded') === 'true';
+        if (!serverExpanded) {
+          toggle.setAttribute('aria-expanded', 'true');
+          if (chevron) chevron.style.transform = 'rotate(180deg)';
+          content.style.display = 'block';
         }
-        content.style.display = isExpanded ? 'none' : 'block';
-      });
+      }
+
+      // Chevron button toggles expand/collapse
+      if (chevronBtn) {
+        chevronBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const isExpanded = toggle.getAttribute('aria-expanded') === 'true';
+          const nowExpanded = !isExpanded;
+          toggle.setAttribute('aria-expanded', nowExpanded.toString());
+          if (chevron) {
+            chevron.style.transform = isExpanded ? 'rotate(0deg)' : 'rotate(180deg)';
+          }
+          content.style.display = isExpanded ? 'none' : 'block';
+
+          // Persist state
+          const current = getExpandedSet();
+          if (nowExpanded) current.add(key);
+          else current.delete(key);
+          saveExpandedSet(current);
+        });
+      }
     });
   }
 
@@ -1694,23 +1828,63 @@ const cmsUrl = import.meta.env.PUBLIC_CMS_URL || import.meta.env.CMS_URL || '';
       });
     }
 
+    // Sidebar expand state persistence
+    const EXPAND_KEY = 'sidebar_expanded';
+    function getExpandedSet() {
+      try {
+        return new Set(JSON.parse(sessionStorage.getItem(EXPAND_KEY) || '[]'));
+      } catch { return new Set(); }
+    }
+    function saveExpandedSet(set) {
+      sessionStorage.setItem(EXPAND_KEY, JSON.stringify([...set]));
+    }
+    function getToggleKey(toggle) {
+      const link = toggle.querySelector('a');
+      return link?.getAttribute('href') || toggle.textContent.trim();
+    }
+
     // Navigation toggle (for static navigation)
+    const expandedSet = getExpandedSet();
     const groups = document.querySelectorAll('[data-nav-group]');
     groups.forEach(group => {
       const toggle = group.querySelector('[data-nav-toggle]');
-    const content = group.querySelector('[data-nav-content]');
-    const chevron = toggle?.querySelector('.nav-chevron, .nav-chevron-sub');
+      const content = group.querySelector('[data-nav-content]');
+      const chevronBtn = toggle?.querySelector('[data-nav-chevron]');
+      const chevron = toggle?.querySelector('.nav-chevron, .nav-chevron-sub');
 
       if (!toggle || !content) return;
 
-      toggle.addEventListener('click', () => {
-        const isExpanded = toggle.getAttribute('aria-expanded') === 'true';
-        toggle.setAttribute('aria-expanded', (!isExpanded).toString());
-        if (chevron) {
-          chevron.style.transform = isExpanded ? 'rotate(0deg)' : 'rotate(180deg)';
+      // Restore persisted expand state
+      const key = getToggleKey(toggle);
+      if (key && expandedSet.has(key)) {
+        const serverExpanded = toggle.getAttribute('aria-expanded') === 'true';
+        if (!serverExpanded) {
+          toggle.setAttribute('aria-expanded', 'true');
+          if (chevron) chevron.style.transform = 'rotate(180deg)';
+          content.style.display = 'block';
         }
-        content.style.display = isExpanded ? 'none' : 'block';
-      });
+      }
+
+      // Chevron button toggles expand/collapse
+      if (chevronBtn) {
+        chevronBtn.addEventListener('click', (e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          const isExpanded = toggle.getAttribute('aria-expanded') === 'true';
+          const nowExpanded = !isExpanded;
+          toggle.setAttribute('aria-expanded', nowExpanded.toString());
+          if (chevron) {
+            chevron.style.transform = isExpanded ? 'rotate(0deg)' : 'rotate(180deg)';
+          }
+          content.style.display = isExpanded ? 'none' : 'block';
+
+          // Persist state
+          const current = getExpandedSet();
+          if (nowExpanded) current.add(key);
+          else current.delete(key);
+          saveExpandedSet(current);
+        });
+      }
     });
 
     // Language selector
@@ -1953,29 +2127,55 @@ const cmsUrl = import.meta.env.PUBLIC_CMS_URL || import.meta.env.CMS_URL || '';
   :global(.folder-toggle) {
     display: flex;
     align-items: center;
-    gap: 0.5rem;
     width: 100%;
-    padding-top: 0.5rem;
-    padding-bottom: 0.5rem;
-    padding-right: 0.75rem;
     font-size: 0.8125rem;
     font-weight: 500;
     color: var(--color-text-secondary);
     background: transparent;
     border: none;
     border-radius: 0.375rem;
-    cursor: pointer;
-    text-align: left;
     transition: all 0.15s ease;
   }
 
   :global(.folder-toggle:hover) {
-    color: var(--color-menu-item-hover-text);
     background: var(--color-menu-item-hover-bg);
   }
 
   :global(.folder-toggle.has-active) {
     color: var(--color-text-primary);
+  }
+
+  :global(.folder-toggle-link) {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex: 1;
+    min-width: 0;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+    color: inherit;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  :global(.folder-toggle-link:hover) {
+    color: var(--color-menu-item-hover-text);
+  }
+
+  :global(.folder-chevron-btn) {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 0.75rem;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    border-radius: 0 0.375rem 0.375rem 0;
+    transition: all 0.15s ease;
+  }
+
+  :global(.folder-chevron-btn:hover) {
+    background: var(--color-background-tertiary);
   }
 
   :global(.folder-icon) {
@@ -1985,9 +2185,19 @@ const cmsUrl = import.meta.env.PUBLIC_CMS_URL || import.meta.env.CMS_URL || '';
     color: var(--color-text-muted);
   }
 
-  :global(.folder-toggle:hover .folder-icon),
-  :global(.folder-toggle.has-active .folder-icon) {
+  :global(.folder-toggle-link:hover .folder-icon),
+  :global(.folder-toggle.has-active .folder-icon),
+  :global(.folder-toggle-link.active .folder-icon) {
     color: var(--color-primary);
+  }
+
+  :global(.folder-toggle-link.active) {
+    color: var(--color-menu-item-active-text, var(--color-primary));
+    font-weight: 600;
+  }
+
+  :global(.dark .folder-toggle-link.active) {
+    color: var(--color-menu-item-active-text, var(--color-accent-light));
   }
 
   :global(.folder-label) {
@@ -2005,7 +2215,7 @@ const cmsUrl = import.meta.env.PUBLIC_CMS_URL || import.meta.env.CMS_URL || '';
     flex-shrink: 0;
   }
 
-  :global(.folder-toggle:hover .folder-chevron) {
+  :global(.folder-chevron-btn:hover .folder-chevron) {
     opacity: 0.7;
   }
 
@@ -2147,9 +2357,7 @@ const cmsUrl = import.meta.env.PUBLIC_CMS_URL || import.meta.env.CMS_URL || '';
   .sidebar-nav-group-title {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     width: 100%;
-    padding: 0.5rem 0.75rem;
     font-size: 0.6875rem;
     font-weight: 600;
     text-transform: uppercase;
@@ -2157,14 +2365,61 @@ const cmsUrl = import.meta.env.PUBLIC_CMS_URL || import.meta.env.CMS_URL || '';
     color: var(--color-text-muted);
     background: transparent;
     border: none;
-    cursor: pointer;
     border-radius: 0.375rem;
     transition: all 0.15s ease;
   }
 
   .sidebar-nav-group-title:hover {
-    color: var(--color-menu-item-hover-text);
     background-color: var(--color-menu-item-hover-bg);
+  }
+
+  .sidebar-nav-group-link {
+    text-decoration: none;
+    color: inherit;
+  }
+
+  /* Shared styles for nav toggle link/chevron split */
+  .nav-toggle-link {
+    display: flex;
+    align-items: center;
+    flex: 1;
+    min-width: 0;
+    padding: 0.5rem 0 0.5rem 0.75rem;
+    color: inherit;
+    text-decoration: none;
+    cursor: pointer;
+  }
+
+  .nav-toggle-link:hover {
+    color: var(--color-menu-item-hover-text);
+  }
+
+  .sidebar-nav-group-title.active .nav-toggle-link {
+    color: var(--color-menu-item-active-text, var(--color-primary));
+  }
+
+  :global(.dark) .sidebar-nav-group-title.active .nav-toggle-link {
+    color: var(--color-menu-item-active-text, var(--color-accent-light));
+  }
+
+  .sidebar-nav-group-title.active .group-title-icon {
+    opacity: 1;
+  }
+
+  .nav-chevron-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.5rem 0.75rem;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    border-radius: 0 0.375rem 0.375rem 0;
+    transition: all 0.15s ease;
+  }
+
+  .nav-chevron-btn:hover {
+    background: var(--color-background-tertiary);
   }
 
   .group-title-content {
@@ -2181,7 +2436,7 @@ const cmsUrl = import.meta.env.PUBLIC_CMS_URL || import.meta.env.CMS_URL || '';
     opacity: 0.6;
   }
 
-  .sidebar-nav-group-title:hover .group-title-icon {
+  .nav-toggle-link:hover .group-title-icon {
     opacity: 1;
   }
 
@@ -2192,7 +2447,7 @@ const cmsUrl = import.meta.env.PUBLIC_CMS_URL || import.meta.env.CMS_URL || '';
     transition: transform 0.2s ease, opacity 0.15s ease;
   }
 
-  .sidebar-nav-group-title:hover .nav-chevron {
+  .nav-chevron-btn:hover .nav-chevron {
     opacity: 0.7;
   }
 
@@ -2270,22 +2525,27 @@ const cmsUrl = import.meta.env.PUBLIC_CMS_URL || import.meta.env.CMS_URL || '';
   .sidebar-nav-subgroup-title {
     display: flex;
     align-items: center;
-    justify-content: space-between;
     width: 100%;
-    padding: 0.375rem 0.625rem;
     font-size: 0.75rem;
     font-weight: 500;
     color: var(--color-text-tertiary);
     background: transparent;
     border: none;
-    cursor: pointer;
     border-radius: 0.25rem;
     transition: all 0.15s ease;
   }
 
   .sidebar-nav-subgroup-title:hover {
-    color: var(--color-menu-item-hover-text);
     background-color: var(--color-menu-item-hover-bg);
+  }
+
+  .sidebar-nav-subgroup-title .nav-toggle-link {
+    padding: 0.375rem 0 0.375rem 0.625rem;
+  }
+
+  .sidebar-nav-subgroup-title .nav-chevron-btn {
+    padding: 0.375rem 0.625rem;
+    border-radius: 0 0.25rem 0.25rem 0;
   }
 
   .sidebar-nav-subgroup-link {
@@ -2293,13 +2553,17 @@ const cmsUrl = import.meta.env.PUBLIC_CMS_URL || import.meta.env.CMS_URL || '';
     color: inherit;
   }
 
-  .sidebar-nav-subgroup-title.active {
+  .sidebar-nav-subgroup-title.active .nav-toggle-link {
     color: var(--color-menu-item-active-text, var(--color-primary));
     font-weight: 500;
   }
 
-  :global(.dark) .sidebar-nav-subgroup-title.active {
+  :global(.dark) .sidebar-nav-subgroup-title.active .nav-toggle-link {
     color: var(--color-menu-item-active-text, var(--color-accent-light));
+  }
+
+  .sidebar-nav-subgroup-title.active .group-title-icon {
+    opacity: 1;
   }
 
   .nav-chevron-sub {
@@ -2309,7 +2573,7 @@ const cmsUrl = import.meta.env.PUBLIC_CMS_URL || import.meta.env.CMS_URL || '';
     transition: transform 0.2s ease;
   }
 
-  .sidebar-nav-subgroup-title:hover .nav-chevron-sub {
+  .nav-chevron-btn:hover .nav-chevron-sub {
     opacity: 0.7;
   }
 
@@ -2333,6 +2597,24 @@ const cmsUrl = import.meta.env.PUBLIC_CMS_URL || import.meta.env.CMS_URL || '';
 
   :global(.dark) .sidebar-nav-item-nested.active {
     background-color: var(--color-menu-item-active-bg, var(--color-accent-10));
+  }
+
+  /* Sidebar method badges for API endpoints */
+  .sidebar-method-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.0625rem 0.3rem;
+    border-radius: 0.25rem;
+    font-size: 0.5625rem;
+    font-weight: 700;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    text-transform: uppercase;
+    letter-spacing: 0.02em;
+    line-height: 1.2;
+    flex-shrink: 0;
+    min-width: 2rem;
+    text-align: center;
   }
 
   /* Footer — fixed at bottom */

@@ -13,6 +13,7 @@ import Footer from "../components/Footer.astro";
 import AIChat from "../components/AIChat.astro";
 import { getDocuments, getAllSettings, type Document } from "../lib/cms";
 import { extractSlugFromPath, isIndexFile } from "../lib/doc-helpers";
+import { getCollection } from "astro:content";
 import {
   localeHrefLang,
   defaultLocale,
@@ -110,12 +111,39 @@ let documents: Document[] = [];
 let settings: any = null;
 
 try {
-  const [docsResponse, settingsResponse] = await Promise.all([
-    getDocuments({ collection, visible: true, limit: 2000 }),
-    getAllSettings(),
-  ]);
-  documents = docsResponse.documents;
-  settings = settingsResponse;
+  if (collection === 'api') {
+    // For API pages, build sidebar from Astro content collection (api_entities)
+    // since API docs aren't in the regular documents table
+    const allDocs = await getCollection('docs');
+    const apiDocs = allDocs.filter(d => d.data.collection === 'api' && d.data.visible !== false);
+    documents = apiDocs.map(d => ({
+      id: d.id,
+      title: d.data.title,
+      description: d.data.description || '',
+      content: '',
+      collection: 'api',
+      locale: d.data.locale || 'en',
+      type: d.data.type || 'article',
+      path: d.data.path || '',
+      slug: d.data.slug || '',
+      visible: d.data.visible !== false ? true : false,
+      sidebar_position: d.data.sidebar_position,
+      order_num: d.data.order_num,
+      weight: d.data.weight,
+      item_name: d.data.item_name || d.data.title,
+      icon: d.data.icon,
+      sidebar_icon: d.data.sidebar_icon,
+      headline: d.data.headline,
+    })) as Document[];
+    settings = (await getAllSettings()) || null;
+  } else {
+    const [docsResponse, settingsResponse] = await Promise.all([
+      getDocuments({ collection, visible: true, limit: 2000 }),
+      getAllSettings(),
+    ]);
+    documents = docsResponse.documents;
+    settings = settingsResponse;
+  }
 } catch (error) {
   console.warn("Failed to fetch CMS data for navigation");
 }
@@ -124,7 +152,7 @@ try {
 const tocHeadings = headings.filter((h) => h.depth === 2 || h.depth === 3);
 
 function formatSegmentLabel(segment: string): string {
-  return segment
+  return decodeURIComponent(segment)
     .replace(/[-_]/g, " ")
     .replace(/([a-z])([A-Z])/g, "$1 $2")
     .replace(/\b\w/g, (c) => c.toUpperCase())
@@ -135,6 +163,7 @@ function formatSegmentLabel(segment: string): string {
     .replace(/\bSso\b/g, "SSO")
     .replace(/\bMdm\b/g, "MDM")
     .replace(/\bEmm\b/g, "EMM")
+    .replace(/\bAdm\b/g, "ADM")
     .trim();
 }
 
@@ -200,8 +229,9 @@ function buildBreadcrumbItems() {
 
   for (let i = 0; i < pathSegments.length; i += 1) {
     const segment = pathSegments[i];
+    const decodedSegment = decodeURIComponent(segment);
     const isLast = i === pathSegments.length - 1;
-    slugAcc = slugAcc ? `${slugAcc}/${segment}` : segment;
+    slugAcc = slugAcc ? `${slugAcc}/${decodedSegment}` : decodedSegment;
     hrefAcc += `/${segment}`;
     const label = isLast ? finalTitle : folderLabels.get(slugAcc) || formatSegmentLabel(segment);
     const itemIcon = isLast ? (sidebarIcon || icon) : folderIcons.get(slugAcc);
@@ -285,14 +315,14 @@ function flattenNavigation(docs: Document[], sideMenu: any, currentLocale: Local
 }
 
 const flatNav = flattenNavigation(documents, settings?.navigation?.sideMenu, currentLocale, currentPath || Astro.url.pathname);
-const currentNormalizedPath = (currentPath || Astro.url.pathname).replace(/\/+$/, '');
-const currentIndex = flatNav.findIndex(item => item.href.replace(/\/+$/, '') === currentNormalizedPath);
+const currentNormalizedPath = decodeURIComponent((currentPath || Astro.url.pathname)).replace(/\/+$/, '');
+const currentIndex = flatNav.findIndex(item => decodeURIComponent(item.href).replace(/\/+$/, '') === currentNormalizedPath);
 
 const prevPage = currentIndex > 0 ? flatNav[currentIndex - 1] : undefined;
 const nextPage = currentIndex >= 0 && currentIndex < flatNav.length - 1 ? flatNav[currentIndex + 1] : undefined;
 
 const editUrl = settings?.navigation?.footer?.editUrl;
-const hasFooter = !!(prevPage || nextPage || editUrl || dateModified);
+const hasFooter = !!(prevPage || nextPage || editUrl);
 
 // Build Article Schema for SEO/LLM optimization
 const siteUrl = settings?.seo?.siteUrl || Astro.url.origin;
@@ -530,14 +560,16 @@ const faqSchema = isFaq
             }
 
             <!-- Footer Navigation -->
-            <div class="mt-auto">
-              <Footer 
-                prevPage={prevPage ? { title: prevPage.label, href: prevPage.href } : undefined}
-                nextPage={nextPage ? { title: nextPage.label, href: nextPage.href } : undefined}
-                editUrl={editUrl}
-                lastUpdated={dateModified}
-              />
-            </div>
+            {hasFooter && (
+              <div class="mt-auto">
+                <Footer
+                  prevPage={prevPage ? { title: prevPage.label, href: prevPage.href } : undefined}
+                  nextPage={nextPage ? { title: nextPage.label, href: nextPage.href } : undefined}
+                  editUrl={editUrl}
+                  lastUpdated={dateModified}
+                />
+              </div>
+            )}
           </main>
 
           <!-- Table of Contents (Right Sidebar) -->
@@ -660,6 +692,126 @@ const faqSchema = isFaq
 
     initCodeCopy();
     document.addEventListener('astro:after-swap', initCodeCopy);
+  </script>
+
+  <!-- Accordion toggle script (doc accordions + API response accordions) -->
+  <script is:inline>
+    function initAccordions() {
+      document.querySelectorAll('[data-accordion-trigger]').forEach(function(trigger) {
+        if (trigger.dataset.accordionBound) return;
+        trigger.dataset.accordionBound = 'true';
+
+        trigger.addEventListener('click', function() {
+          var accordion = trigger.closest('[data-accordion]');
+          if (!accordion) return;
+          var isOpen = accordion.classList.contains('open');
+          accordion.classList.toggle('open', !isOpen);
+          trigger.setAttribute('aria-expanded', (!isOpen).toString());
+        });
+      });
+
+      document.querySelectorAll('[data-tabs]').forEach(function(tabGroup) {
+        if (tabGroup.dataset.tabsBound) return;
+        tabGroup.dataset.tabsBound = 'true';
+
+        var buttons = tabGroup.querySelectorAll('[data-tab-btn]');
+        var panels = tabGroup.querySelectorAll('[data-tab-panel]');
+
+        buttons.forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var target = btn.dataset.tabBtn;
+            buttons.forEach(function(b) { b.classList.remove('active'); });
+            panels.forEach(function(p) { p.style.display = p.dataset.tabPanel === target ? 'block' : 'none'; });
+            btn.classList.add('active');
+          });
+        });
+      });
+    }
+
+    initAccordions();
+    document.addEventListener('astro:after-swap', initAccordions);
+
+    // Copy API endpoint path on click
+    function initPathCopy() {
+      document.querySelectorAll('[data-copy-path]').forEach(function(el) {
+        if (el.dataset.pathCopyBound) return;
+        el.dataset.pathCopyBound = 'true';
+
+        el.addEventListener('click', function() {
+          var text = el.dataset.copyPath;
+          if (!text) return;
+
+          navigator.clipboard.writeText(text).then(function() {
+            el.classList.add('copied');
+            var orig = el.getAttribute('title');
+            el.setAttribute('title', 'Copied!');
+            setTimeout(function() {
+              el.classList.remove('copied');
+              el.setAttribute('title', orig || 'Click to copy');
+            }, 1500);
+          });
+        });
+      });
+    }
+
+    initPathCopy();
+    document.addEventListener('astro:after-swap', initPathCopy);
+
+    // Collapsible cards (Authorization section)
+    function initCollapsibles() {
+      document.querySelectorAll('[data-collapsible]').forEach(function(card) {
+        if (card.dataset.collapsibleBound) return;
+        card.dataset.collapsibleBound = 'true';
+        var trigger = card.querySelector('[data-collapsible-trigger]');
+        if (!trigger) return;
+        trigger.addEventListener('click', function() {
+          card.classList.toggle('collapsed');
+          var expanded = !card.classList.contains('collapsed');
+          trigger.setAttribute('aria-expanded', String(expanded));
+        });
+      });
+    }
+    initCollapsibles();
+    document.addEventListener('astro:after-swap', initCollapsibles);
+
+    // Body params tabs (Params / Example)
+    function initBpTabs() {
+      document.querySelectorAll('[data-bp-tabs]').forEach(function(tabGroup) {
+        if (tabGroup.dataset.bpTabsBound) return;
+        tabGroup.dataset.bpTabsBound = 'true';
+        var tabs = tabGroup.querySelectorAll('[data-bp-tab]');
+        var panels = tabGroup.querySelectorAll('[data-bp-panel]');
+        tabs.forEach(function(tab) {
+          tab.addEventListener('click', function() {
+            var idx = tab.dataset.bpTabIndex;
+            tabs.forEach(function(t) { t.classList.remove('active'); });
+            panels.forEach(function(p) { p.classList.remove('active'); });
+            tab.classList.add('active');
+            var target = tabGroup.querySelector('[data-bp-panel][data-bp-tab-index="' + idx + '"]');
+            if (target) target.classList.add('active');
+          });
+        });
+      });
+    }
+    initBpTabs();
+    document.addEventListener('astro:after-swap', initBpTabs);
+
+    // Collapsible nested body params (objects/arrays)
+    function initBpCollapsibles() {
+      document.querySelectorAll('[data-bp-collapsible]').forEach(function(row) {
+        if (row.dataset.bpBound) return;
+        row.dataset.bpBound = 'true';
+        var trigger = row.querySelector('[data-bp-trigger]');
+        if (!trigger) return;
+        trigger.addEventListener('click', function() {
+          row.classList.toggle('bp-collapsed');
+          var expanded = !row.classList.contains('bp-collapsed');
+          trigger.setAttribute('aria-expanded', String(expanded));
+        });
+      });
+    }
+    initBpCollapsibles();
+    document.addEventListener('astro:after-swap', initBpCollapsibles);
   </script>
 </BaseLayout>
 

@@ -58,7 +58,7 @@ function convertTopMenuToNav(config: TopMenuConfig): NavigationItem[] {
 
   function resolveChildHref(child: { type?: string; folder?: string; href?: string; external?: boolean }) {
     if (child.type === 'link' && child.href) {
-      return { href: child.href, external: child.external ?? child.href.startsWith('http') };
+      return { href: child.href, external: !!child.external };
     }
     let href = child.folder ? `/${locale}/${child.folder}` : '#';
     if (child.folder && collectionIndexes.includes(child.folder.toLowerCase()) && !href.endsWith('/')) {
@@ -69,12 +69,11 @@ function convertTopMenuToNav(config: TopMenuConfig): NavigationItem[] {
 
   return config.items.map(item => {
     if (item.type === 'link') {
-      const isExternal = item.external ?? (item.href?.startsWith('http') || false);
       return {
         label: item.label,
         href: item.href || '#',
         icon: undefined,
-        external: isExternal,
+        external: !!item.external,
       };
     }
     if (item.type === 'folder') {

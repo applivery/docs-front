@@ -188,21 +188,15 @@ export function processMarkdown(content: string): string {
     }
   );
 
-  // Process Accordion
+  // Process Accordion (stash to prevent marked from injecting <br> tags)
   processed = processed.replace(
     /<Accordion\s+title="([^"]+)">([\s\S]*?)<\/Accordion>/g,
     (_, title, accordionContent) => {
-      return `<div class="doc-accordion" data-accordion>
-        <button class="doc-accordion-header" data-accordion-trigger>
-          <span>${title}</span>
-          <svg class="doc-accordion-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
-        </button>
-        <div class="doc-accordion-content" data-accordion-content>${accordionContent.trim()}</div>
-      </div>`;
+      return stashHtml(`<div class="doc-accordion" data-accordion><button class="doc-accordion-header" data-accordion-trigger><span>${title}</span><svg class="doc-accordion-icon" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg></button><div class="doc-accordion-content" data-accordion-content>${marked.parse(accordionContent.trim()) as string}</div></div>`);
     }
   );
 
-  // Process Tabs
+  // Process Tabs (stash to prevent marked from injecting <br> tags)
   processed = processed.replace(
     /<Tabs>([\s\S]*?)<\/Tabs>/g,
     (_, tabsContent) => {
@@ -216,17 +210,14 @@ export function processMarkdown(content: string): string {
       ).join('');
 
       const tabPanels = tabMatches.map((m, i) =>
-        `<div class="doc-tab-panel${i === 0 ? ' active' : ''}" data-tab-panel data-tab-index="${i}">${m[2].trim()}</div>`
+        `<div class="doc-tab-panel${i === 0 ? ' active' : ''}" data-tab-panel data-tab-index="${i}">${marked.parse(m[2].trim()) as string}</div>`
       ).join('');
 
-      return `<div class="doc-tabs" data-tabs id="${tabId}">
-        <div class="doc-tabs-header">${tabButtons}</div>
-        <div class="doc-tabs-content">${tabPanels}</div>
-      </div>`;
+      return stashHtml(`<div class="doc-tabs" data-tabs id="${tabId}"><div class="doc-tabs-header">${tabButtons}</div><div class="doc-tabs-content">${tabPanels}</div></div>`);
     }
   );
 
-  // Process Steps
+  // Process Steps (stash to prevent marked from injecting <br> tags)
   processed = processed.replace(
     /<Steps>([\s\S]*?)<\/Steps>/g,
     (_, stepsContent) => {
@@ -234,16 +225,10 @@ export function processMarkdown(content: string): string {
       if (stepMatches.length === 0) return stepsContent;
 
       const steps = stepMatches.map((m, i) =>
-        `<div class="doc-step">
-          <div class="doc-step-number">${i + 1}</div>
-          <div class="doc-step-content">
-            <div class="doc-step-title">${m[1]}</div>
-            <div class="doc-step-body">${m[2].trim()}</div>
-          </div>
-        </div>`
+        `<div class="doc-step"><div class="doc-step-number">${i + 1}</div><div class="doc-step-content"><div class="doc-step-title">${m[1]}</div><div class="doc-step-body">${marked.parse(m[2].trim()) as string}</div></div></div>`
       ).join('');
 
-      return `<div class="doc-steps">${steps}</div>`;
+      return stashHtml(`<div class="doc-steps">${steps}</div>`);
     }
   );
 
@@ -256,7 +241,7 @@ export function processMarkdown(content: string): string {
     }
   );
 
-  // Process Card
+  // Process Card (stash to prevent marked from injecting <br> tags)
   processed = processed.replace(
     /<Card\s+title="([^"]+)"(?:\s+icon="([^"]+)")?(?:\s+href="([^"]+)")?>([\s\S]*?)<\/Card>/g,
     (_, title, icon, href, cardContent) => {
@@ -265,28 +250,15 @@ export function processMarkdown(content: string): string {
       const hrefAttr = href ? `href="${href}"` : '';
       const arrowSvg = href ? '<svg class="doc-card-arrow" xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>' : '';
 
-      return `<${tag} class="doc-card" ${hrefAttr}>
-        <div class="doc-card-icon">${iconSvg}</div>
-        <div class="doc-card-body">
-          <div class="doc-card-title">${title}</div>
-          <div class="doc-card-description">${cardContent.trim()}</div>
-        </div>
-        ${arrowSvg}
-      </${tag}>`;
+      return stashHtml(`<${tag} class="doc-card" ${hrefAttr}><div class="doc-card-icon">${iconSvg}</div><div class="doc-card-body"><div class="doc-card-title">${title}</div><div class="doc-card-description">${cardContent.trim()}</div></div>${arrowSvg}</${tag}>`);
     }
   );
 
-  // Process APIEndpoint
+  // Process APIEndpoint (stash to prevent marked from injecting <br> tags)
   processed = processed.replace(
     /<APIEndpoint\s+method="([^"]+)"\s+path="([^"]+)">([\s\S]*?)<\/APIEndpoint>/g,
     (_, method, path, apiContent) => {
-      return `<div class="doc-api-endpoint">
-        <div class="doc-api-header">
-          <span class="doc-api-method method-${method.toLowerCase()}">${method}</span>
-          <code class="doc-api-path">${path}</code>
-        </div>
-        <div class="doc-api-content">${apiContent.trim()}</div>
-      </div>`;
+      return stashHtml(`<div class="doc-api-endpoint"><div class="doc-api-header"><span class="doc-api-method method-${method.toLowerCase()}">${method}</span><code class="doc-api-path">${path}</code></div><div class="doc-api-content">${marked.parse(apiContent.trim()) as string}</div></div>`);
     }
   );
 

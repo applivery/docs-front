@@ -85,6 +85,12 @@ function buildFolderTree(
         hrefParts.pop();
         href = hrefParts.join('/');
       }
+      // If a custom slug is set, replace the filename portion with it
+      if (doc.slug && doc.slug.trim() && doc.slug !== 'null') {
+        const slugParts = href.split('/');
+        slugParts[slugParts.length - 1] = doc.slug.toLowerCase();
+        href = slugParts.join('/');
+      }
       href = `/${locale}/${href}`;
     } else {
       // Fallback to relative parts

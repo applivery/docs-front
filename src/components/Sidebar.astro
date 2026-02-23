@@ -229,7 +229,14 @@ function buildNavigation(docs: Document[]): NavGroup[] {
     // Build href with locale prefix using shared slug logic (handles folder-named files)
     let href: string;
     if (doc.path) {
-      href = `/${currentLocale}/${extractDocSlug(doc.path, false).toLowerCase()}`;
+      let pathSlug = extractDocSlug(doc.path, false).toLowerCase();
+      // If a custom slug is set, replace the filename portion with it
+      if (doc.slug && doc.slug.trim() && doc.slug !== 'null') {
+        const parts = pathSlug.split('/');
+        parts[parts.length - 1] = doc.slug.toLowerCase();
+        pathSlug = parts.join('/');
+      }
+      href = `/${currentLocale}/${pathSlug}`;
     } else if (doc.slug) {
       const cleanSlug = doc.slug.replace(/^docs\//, '');
       href = `/${currentLocale}/${cleanSlug.toLowerCase()}`;

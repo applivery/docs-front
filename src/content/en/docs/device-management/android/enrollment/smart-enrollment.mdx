@@ -1,0 +1,199 @@
+---
+title: Android Smart Enrollment
+description: >-
+  Automate Android device enrollment with Smart Enrollments. Define rules,
+  assign policies based on user/device data (IMEI, serial number, SSO).
+slug: smart-enrollment
+keywords:
+  - android
+  - mdm
+  - enrollment
+  - smart enrollment
+  - zero-touch enrollment
+  - android device management
+  - policy management
+  - sso
+  - imei
+  - serial number
+type: article
+author: Applivery
+date: 2023-09-03T19:41:08.000Z
+updatedDate: 2026-02-06T09:25:02.000Z
+canonical: >-
+  https://docs.applivery.com/en/device-management/android-mdm/enrollment/smart-enrollment/
+collection: docs
+locale: en
+visible: true
+category: Mobile Device Management
+section: Android MDM
+platform: Android
+audience: administrators
+difficulty: intermediate
+item_name: Smart Enrollment
+schema_type: TechArticle
+language: en
+domain: device-management
+capability: enrollment
+headline: Automate Android Device Enrollment with Smart Enrollments
+target_keyword: android smart enrollment
+secondary_keywords:
+  - android mdm
+  - zero-touch enrollment
+  - conditional policy assignment
+intent: informational
+reading_time: 8
+prerequisites:
+  - Basic understanding of Android MDM
+  - Familiarity with device enrollment processes
+  - Knowledge of SSO integrations (optional)
+faq_items: []
+how_to_steps: []
+featured: false
+noindex: false
+evergreen: false
+pillar_content: false
+og_title: 'Android Smart Enrollment: Automate Your Device Management'
+og_description: >-
+  Automate Android device enrollment with Smart Enrollments. Define rules and
+  assign policies based on user and device data.
+og_type: article
+og_template: gradient-modern
+twitter_card: summary_large_image
+summary: >-
+  Smart enrollments automate the Android device enrollment process by defining
+  rules and conditions based on user or device data. This allows for conditional
+  policy assignment and unattended zero-touch enrollment experiences.
+  Administrators can configure smart enrollments to limit device enrollment
+  based on user authentication or device information and assign different
+  policies based on defined rules.
+tldr: >-
+  Android Smart Enrollments automate device enrollment and policy assignment
+  based on predefined rules and conditions, enabling zero-touch experiences.
+answer_target: >-
+  Smart enrollments automate Android device enrollment by allowing
+  administrators to define rules and conditions that must be met for a device to
+  be enrolled. This includes limiting enrollment based on user authentication
+  (SSO) or device information (IMEI, Serial Number) and conditionally assigning
+  policies based on these rules. This enables unattended zero-touch enrollment
+  experiences.
+key_takeaways:
+  - Smart enrollments automate Android device enrollment.
+  - Conditions and rules allow for granular control over enrollment.
+  - Auxiliary fields enable flexible enrollment structures.
+  - Smart enrollments can limit enrollment based on user and device data.
+main_topics:
+  - Smart enrollment configuration
+  - Applying conditions and rules
+  - Deploying smart enrollments
+  - Auxiliary fields
+entities:
+  - Android
+  - MDM
+  - SSO
+  - IMEI
+  - Serial Number
+  - Applivery
+related_queries:
+  - How to automate Android device enrollment?
+  - What are the benefits of smart enrollment?
+  - How to configure smart enrollment in Android MDM?
+  - How to assign policies based on device information?
+  - How to limit device enrollment based on user authentication?
+  - What are auxiliary fields in smart enrollment?
+  - How to deploy smart enrollments to Android devices?
+related_topics:
+  - android-mdm
+  - device-policy-management
+  - sso-integration
+content_scope: comprehensive
+confidence_level: well-established
+limitations: This guide provides comprehensive coverage of the topic.
+update_frequency: occasionally
+word_count: 782
+sources: []
+organization: Applivery
+related_articles: []
+see_also: []
+translations: {}
+---
+
+If you have ever dreamed of automating 100% of device enrollment process and conditional policy assignment based on user data (name, email, user groups) or the device data (IMEI, Serial Number, etc), **Smart enrollments** are the tool you were looking for.
+
+## Introduction
+
+Smart enrollments are the most efficient way to manage device enrollments in an unattended manner since they will allow you to **define a set of rules and conditions that must be met for a device to be enrolled** and, in addition, will allow you to **conditionally assign policies** based on these rule sets.
+
+Smart enrollments are useful for:
+
+-   Limit device enrollment:
+    -   Based on user authentication through [SSO integrations](https://www.applivery.com/docs/platform/sso/) (user groups or email patterns).
+    -   Based on device information (IMEI, Serial Number).
+-   Conditionally assign different policies based on rules.
+-   Automate Android enrollments to enable unattended zero-touch experiences.
+
+## Smart enrollment configuration
+
+Let’s get started configuring your first Smart enrollment. First, go to **Device Management > Configuration** (1) and choose **Smart enrollments** (2) from the Android left menu. Then click the \+ Create Smart enrollment (3) button.
+
+![android-smart-enrollment-1](https://www.applivery.com/wp-content/uploads/2023/09/Screenshot-2025-04-24-at-025903-1024x667.png "android-smart-enrollment-1 | Applivery")
+
+1.  **Name:** Choose a friendly name for your new smart enrollment.
+2.  **Description:** Choose a friendly description for your new smart enrollment.
+3.  **Management mode**: Specify the device management method to be applied during this smart enrollment process.
+4.  **Login providers**: The SSO providers configured at the workspace level will be displayed. However, you can also configure the specific integration at the smart enrollment level by clicking **Override**.
+5.  **Policy:** Choose the policy that will be applied to the device from the policies library. If you still don’t have any pre-defined policies, just type a name, and a new empty policy will be created.
+6.  **Tags**: Used for filtering and grouping.
+
+Note When the login provider is configured as **Anonymous**, you can enable the **Auto-continue** option, which allows devices to continue enrollment automatically when no user interaction is required.
+
+![android-smart-enrollment-2](https://www.applivery.com/wp-content/uploads/2023/09/Screenshot-2026-01-15-at-154532-1024x670.png "android-smart-enrollment-2 | Applivery")
+
+7.  **Auxiliary fields**: By filling out this form, you will be able to configure device tags during the enrollment.
+
+![android-smart-enrollment-3](https://www.applivery.com/wp-content/uploads/2023/09/Screenshot-2025-04-24-at-030644-1024x667.png "android-smart-enrollment-3 | Applivery")
+
+8.  **Display name pattern**: Assign a display name by combining device properties.
+
+![android-smart-enrollment-4](https://www.applivery.com/wp-content/uploads/2023/09/Screenshot-2025-04-24-at-030704-1024x667.png "android-smart-enrollment-4 | Applivery")
+
+If you click Save at this point, you will have finished setting up your basic Smart enrollment and will be able to start enrolling devices.
+
+### Auxiliary fields
+
+By using Auxiliary fields, you can define a **flexible enrollment structure** that adapts to the organizational characteristics of your company. This allows users to enroll their devices **according to specific requirements**, while enabling administrators to apply different configurations based on these selections.
+
+These Auxiliary fields can be used to generate device tags during enrollment, which function as conditional parameters. You can create as many fields as needed and later associate them with the corresponding policies for each scenario.
+
+After continuing, the user will be presented with the dropdown menus defined in the Auxiliary fields, based on the organization’s requirements. 
+
+Once the required fields are selected, the user will authenticate using the method enabled by the organization, and the appropriate policies will be applied according to the assigned tags.
+
+The device will then complete the enrollment and apply the configurations in the background.
+
+## Applying conditions and rules
+
+Now that you have your basic Smart enrollment configured, you can add **Conditions** (3) and **Rules** (4) that will make it smarter.
+
+![android-smart-enrollment-5](https://www.applivery.com/wp-content/uploads/2023/09/Screenshot-2024-07-16-at-210606-1024x651.png "android-smart-enrollment-5 | Applivery")
+
+Use the **Add condition** option to enable enrollment limits based on user information (such as email patterns or groups) and device information (IMEI, Serial number, and auxiliary fields).
+
+You can use conditional operators to make it as complex as you need.
+
+![android-smart-enrollment-5](https://www.applivery.com/wp-content/uploads/2023/09/Screenshot-2024-07-16-at-210941-1024x651.png "android-smart-enrollment-6 | Applivery")
+
+You can also use the **Add additional rule** option to create groups of conditions, each of them with a target policy. As you will see, each group of conditions will also have as many **Conditions** as you need.
+
+![android-smart-enrollment-7](https://www.applivery.com/wp-content/uploads/2023/09/Screenshot-2024-07-16-at-211135-1024x651.png "android-smart-enrollment-7 | Applivery")
+
+Once done, click Save.
+
+## Deploying Smart enrollments
+
+To complete the process, you will need to assign Smart enrollments to your Android devices.
+
+Simply click on the vertical dots next to any of your Smart enrollments and select **View instructions**.
+
+This action will grant you access to the instructions side panel, where you can easily follow the provided steps.
+
+![android-smart-enrollment-8](https://www.applivery.com/wp-content/uploads/2023/09/Screenshot-2025-04-24-at-030937-1024x667.png "android-smart-enrollment-8 | Applivery")

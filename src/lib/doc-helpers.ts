@@ -93,14 +93,22 @@ const withCollectionPrefix = (slug: string, collection?: string): string => {
 
 export function getDocSlug(doc: { path?: string; slug?: string; id: string; collection?: string }): string {
   if (doc.path) {
-    let slug = doc.path
+    let pathSlug = doc.path
       .replace(/\.mdx?$/, '')
       .replace(/^src\/content\//, '')
       .replace(/^content\//, '')
       .replace(/^[a-z]{2}\//, '')
       .replace(/^docs\//, '')
       .toLowerCase();
-    return stripFolderNamedFile(slug);
+    pathSlug = stripFolderNamedFile(pathSlug);
+
+    // If a custom slug is set, replace the filename portion with it
+    if (doc.slug && doc.slug.trim() && doc.slug !== 'null') {
+      const parts = pathSlug.split('/');
+      parts[parts.length - 1] = doc.slug.toLowerCase();
+      return parts.join('/');
+    }
+    return pathSlug;
   }
   if (doc.slug) {
     return stripFolderNamedFile(withCollectionPrefix(doc.slug.replace(/^docs\//, '').toLowerCase(), doc.collection));
@@ -118,8 +126,15 @@ export function getDocUrl(doc: { path?: string; slug?: string; id: string; colle
       .replace(/^docs\//, '')
       .replace(/\/index$/i, '')
       .toLowerCase();
-    // Strip duplicate trailing segment for folder-named files (ipados/ipados → ipados)
     url = stripFolderNamedFile(url);
+
+    // If a custom slug is set, replace the filename portion with it
+    if (doc.slug && doc.slug.trim() && doc.slug !== 'null') {
+      const parts = url.split('/');
+      parts[parts.length - 1] = doc.slug.toLowerCase();
+      url = parts.join('/');
+    }
+
     if (!url.startsWith('/')) url = '/' + url;
     return `/${docLocale}${url}`;
   }

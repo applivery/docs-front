@@ -1,0 +1,485 @@
+---
+title: Device Audiences
+description: >-
+  Learn how to create dynamic device audiences in Applivery MDM using Smart
+  Attributes. Target devices with precision and automate policy assignments.
+heroImage: >-
+  https://www.applivery.com/wp-content/uploads/2024/07/empty-office-workplace-with-electronic-devices-2023-11-27-05-24-47-utc-scaled.jpg
+imageAlt: >-
+  Applivery MDM dashboard showing Device Audiences configuration with Smart
+  Attributes filters for dynamic device grouping and segmentation
+keywords:
+  - Device Audiences
+  - Smart Attributes
+  - device segmentation
+  - dynamic device groups
+  - Applivery MDM
+  - MDM automation
+  - conditional policies
+  - device targeting
+pubDate: 2025-02-12T00:00:00.000Z
+updatedDate: 2025-02-12T00:00:00.000Z
+author: Paulo Lima
+category: Automation
+section: Device Audiences
+type: article
+canonical: 'https://learn.applivery.com/automation/device-audiences-smart-attributes/'
+tags:
+  - Device Audiences
+  - Smart Attributes
+  - device segmentation
+  - Applivery
+audience: administrators
+difficulty: intermediate
+platform: Cross-platform
+schema_type: HowTo
+slug: device-audiences
+item_name: Device Audience
+language: en
+domain: device-management
+capability: device-grouping
+headline: How to Create Dynamic Device Audiences Using Smart Attributes
+target_keyword: Device Audiences
+secondary_keywords:
+  - Smart Attributes
+  - device segmentation
+  - Applivery MDM
+intent: informational
+reading_time: 8
+prerequisites:
+  - Basic understanding of MDM
+  - Familiarity with Applivery MDM
+  - Knowledge of device attributes
+faq_items: []
+how_to_steps: []
+featured: false
+noindex: false
+evergreen: false
+pillar_content: false
+og_title: Create Dynamic Device Audiences with Smart Attributes
+og_description: >-
+  Learn how to create dynamic device audiences in Applivery MDM using Smart
+  Attributes for precise device targeting and automated policy assignments.
+og_type: article
+og_template: gradient-modern
+twitter_card: summary_large_image
+summary: >-
+  This guide explains how to create dynamic device audiences in Applivery MDM
+  using Smart Attributes. Device audiences are dynamic groups of devices that
+  automatically update based on defined criteria, enabling precise targeting and
+  automated policy assignment. The process involves configuring audience basics,
+  building filter criteria using device tags, employee tags, serial numbers, and
+  Smart Attributes, and understanding the AND/OR logic between different filter
+  types.
+tldr: >-
+  Create dynamic device audiences in Applivery MDM using Smart Attributes to
+  automate device grouping and policy assignment based on specific criteria.
+answer_target: >-
+  Device Audiences are dynamic groups of devices that automatically include or
+  exclude devices based on specific criteria. By using Smart Attributes, you can
+  create audiences based on standard device properties, device tags, employee
+  tags, and custom attributes defined by your organization. This allows for
+  sophisticated targeting and automated policy assignment within Applivery MDM.
+key_takeaways:
+  - >-
+    Device Audiences enable dynamic device segmentation based on defined
+    criteria.
+  - >-
+    Smart Attributes enhance Device Audiences with custom device properties and
+    conditional logic.
+  - >-
+    Understanding AND/OR logic is crucial for creating accurate device
+    audiences.
+  - >-
+    Combining Smart Attributes with traditional filters provides maximum
+    flexibility.
+  - Monitor audience membership changes to track device compliance and security.
+main_topics:
+  - Device Audiences
+  - Smart Attributes
+  - Device Segmentation
+  - Filter Logic
+  - Applivery MDM
+entities:
+  - Applivery MDM
+  - Smart Attributes
+  - iOS
+  - Windows
+  - macOS
+related_queries:
+  - How to create device audiences in Applivery?
+  - What are Smart Attributes in Applivery MDM?
+  - How does device segmentation work?
+  - How to automate policy assignment with device audiences?
+  - What are the best practices for creating device audiences?
+  - How to use AND/OR logic in device audience filters?
+  - How to combine Smart Attributes with device tags?
+related_topics:
+  - device-segmentation
+  - policy-management
+  - smart-attributes
+content_scope: comprehensive
+confidence_level: well-established
+limitations: >-
+  This guide focuses on creating device audiences within Applivery MDM using
+  Smart Attributes. It does not cover advanced scripting or integration with
+  third-party systems.
+update_frequency: occasionally
+word_count: 1545
+sources: []
+organization: Applivery
+related_articles: []
+see_also: []
+translations: {}
+---
+## What Are Device Audiences and How Do Smart Attributes Enhance Them?
+
+Device Audiences are dynamic groups of devices that automatically include or exclude devices based on specific criteria. With Smart Attributes integration, Device Audiences become significantly more powerful, enabling sophisticated targeting based on custom device properties, scripts, and conditional logic.
+
+Device Audiences automatically update as devices meet or fail to meet the defined criteria, ensuring your device groups always reflect current device states without manual intervention. When combined with Smart Attributes, you can create audiences based on:
+
+-   **Standard device properties**: Serial number, OS version, model, manufacturer
+    
+-   **Device tags**: Location tags, department tags, custom classification tags
+    
+-   **Employee tags**: User department, role, location
+    
+-   **Smart Attributes**: Custom attributes defined by your organization (compliance scores, security tiers, custom configurations)
+    
+
+Access Device Audiences via **Dashboard → Automation → Device Audiences**.
+
+> **Note:** Device Audiences are segment-scoped. You can create global audiences or segment-specific audiences based on your organizational structure.
+
+## How Do I Create a Device Audience with Smart Attributes?
+
+Creating Device Audiences follows a three-step process with a streamlined modal interface.
+
+<Steps>
+<Step title="Step 1: Configuration - Define Audience Basics">
+Click **+ New Device Audience** to open the creation modal.
+
+**Required fields:**
+
+-   **Name**: Descriptive audience name (e.g., "High-Security iOS Devices", "Sales Department Windows Laptops")
+    
+
+**Optional fields:**
+
+-   **Description**: Detailed explanation of the audience purpose and membership criteria
+    
+
+The configuration step establishes the basic audience identity before defining device selection criteria.
+</Step>
+<Step title="Step 2: Device Selection - Build Filter Criteria">
+The Device Selection step is where you define which devices belong to this audience. The interface starts empty, allowing you to build exactly the filters you need without overwhelming default fields.
+
+#### Adding Your First Filter
+
+Click **+ Add Filter** to reveal available filter types:
+
+-   **Device Tag**: Organization-defined device tags
+    
+-   **Employee Tag**: User and employee classification tags
+    
+-   **Serial Number**: Device hardware serial number
+    
+-   **Smart Attributes**: All configured Smart Attributes in your segment
+</Step>
+</Steps>
+
+#### Filter Structure
+
+Every filter follows the pattern: **Attribute → Operator → Value**
+
+**Example 1: Device Tag Filter**
+
+-   **Attribute**: Device Tag
+    
+-   **Operator**: Includes (has all)
+    
+-   **Value**: Madrid, Barcelona
+    
+
+This creates a filter that matches devices with both Madrid AND Barcelona tags.
+
+**Example 2: Smart Attribute Filter**
+
+-   **Attribute**: OS Version (Smart Attribute)
+    
+-   **Operator**: Greater than
+    
+-   **Value**: 14.0
+    
+
+**Example 3: Serial Number Filter**
+
+-   **Attribute**: Serial Number
+    
+-   **Operator**: Starts with
+    
+-   **Value**: APPL
+    
+
+#### Understanding Operators by Data Type
+
+The available operators change based on the selected attribute's data type:
+
+Attribute Data Type
+
+Available Operators
+
+**Text/String**
+
+Equals, Not equals, Contains, Not contains, Starts with, Ends with, In list, Not in list
+
+**Number**
+
+Equals, Not equals, Greater than, Less than, Greater than or equal, Less than or equal, Between
+
+**Boolean**
+
+Equals (True/False), Not equals
+
+**Date/Time**
+
+Equals, Not equals, Before, After, Between, Within last (days)
+
+**Enum**
+
+Equals, Not equals, In list, Not in list
+
+**Tags**
+
+Includes (has all), Excludes (has none)
+
+> **Note:** The system automatically shows only relevant operators based on the selected attribute type, preventing configuration errors.
+
+### Step 3: Understanding Filter Logic - AND vs OR
+
+Device Audience filters use intelligent logic that differs based on filter type. Understanding this logic is critical for creating accurate audiences.
+
+#### AND Logic (Same Filter Type)
+
+When you add multiple filters of the **same type**, they use **AND logic** - devices must meet ALL conditions.
+
+**Example:**
+
+```
+Smart Attribute: OS Version > 14.0
+AND
+Smart Attribute: FileVault Enabled = True
+AND
+Smart Attribute: Security Score > 80
+```
+
+A device must have OS version greater than 14.0 **AND** FileVault enabled **AND** security score above 80 to match.
+
+#### OR Logic (Different Filter Types)
+
+Filters of **different types** use **OR logic** - devices must meet criteria from ANY filter type.
+
+**Example:**
+
+```
+Device Tag: Includes "Madrid" OR "Barcelona"
+OR
+Employee Tag: Includes "Sales Department"
+```
+
+A device matches if it has Madrid/Barcelona device tags **OR** if the assigned employee is in Sales Department.
+
+#### Special Case: Device Tags Internal OR
+
+Device Tags have internal OR logic for multiple values:
+
+```
+Device Tag: Includes "Madrid", "Barcelona", "Lisbon"
+```
+
+This matches devices that have **ANY** of these tags (Madrid OR Barcelona OR Lisbon), not devices that must have all three.
+
+### Visual Filter Logic Display
+
+Below your filter configuration, Applivery displays a formula showing the exact logical evaluation:
+
+```
+(device_tag includes "Madrid" OR device_tag includes "Barcelona") 
+OR 
+(employee_tag includes "Sales")
+AND
+(smart_attribute.os_version > 14.0 AND smart_attribute.filevault = true)
+```
+
+This formula updates in real-time as you add, modify, or remove filters, ensuring you understand exactly how devices will be evaluated.
+
+> **Note:** The formula display helps administrators validate their filter logic before saving, reducing configuration errors and unexpected audience memberships.
+
+## How Do I Use Multiple Smart Attributes in One Audience?
+
+Combining multiple Smart Attributes creates sophisticated targeting rules for complex use cases.
+
+### Example 1: High-Security Compliance Audience
+
+**Audience Name**: "High-Security Compliance Devices"
+
+**Filters:**
+
+1.  Smart Attribute: Security Score ≥ 90
+    
+2.  Smart Attribute: Last Scan Date > (Today - 7 days)
+    
+3.  Smart Attribute: Encryption Enabled = True
+    
+4.  Smart Attribute: OS Version ≥ Latest Security Patch
+    
+
+**Logic**: Devices must meet ALL four conditions (AND logic between Smart Attributes)
+
+**Use Case**: Automatically assign highest-privilege policies only to fully compliant devices
+
+### Example 2: Multi-Platform Executive Devices
+
+**Audience Name**: "Executive Device Fleet"
+
+**Filters:**
+
+1.  Employee Tag: Includes "Executive"
+    
+2.  Smart Attribute: Device Tier = "Premium"
+    
+3.  Device Tag: Includes "Corporate Owned"
+    
+
+**Logic**:
+
+-   Employee must be tagged as Executive (filter 1)
+    
+-   OR device must be Premium tier (filter 2)
+    
+-   OR device must be corporate owned (filter 3)
+    
+
+**Use Case**: Ensure all executive devices receive premium support and enhanced security regardless of platform
+
+### Example 3: Conditional Policy Application
+
+**Audience Name**: "Development Machines - macOS Only"
+
+**Filters:**
+
+1.  Smart Attribute: OS Type = "macOS"
+    
+2.  Smart Attribute: Department Code = "ENG" OR "DEV"
+    
+3.  Smart Attribute: RAM > 16GB
+    
+
+**Logic**:
+
+-   Must be macOS (filter 1) AND
+    
+-   Must be Engineering or Development department (filter 2) AND
+    
+-   Must have more than 16GB RAM (filter 3)
+    
+
+**Use Case**: Deploy development tools and configurations only to qualifying machines
+
+## What Are Device Audience Best Practices?
+
+### Start Simple, Add Complexity Gradually
+
+Begin with 1-2 filters and validate the audience membership before adding additional criteria. This approach prevents over-filtering that results in empty or unexpectedly small audiences.
+
+### Use Descriptive Naming Conventions
+
+Include the filter criteria in the audience name:
+
+-   ✅ Good: "iOS Devices - Security Tier 1 - Corporate Owned"
+    
+-   ❌ Avoid: "Device Group 3"
+    
+
+### Validate Filter Logic with the Formula Display
+
+Always review the generated formula before saving to ensure AND/OR logic matches your intent.
+
+### Combine Smart Attributes with Traditional Filters
+
+Leverage both Smart Attributes and standard device properties for maximum flexibility:
+
+```
+Smart Attribute: Compliance Score > 75
+AND
+Device Tag: Includes "Production"
+OR
+Employee Tag: Includes "Finance Department"
+```
+
+### Create Hierarchical Audiences for Complex Organizations
+
+Build multiple audiences with increasing specificity rather than one massive filter set:
+
+-   **Tier 1 Audience**: All Corporate Devices
+    
+-   **Tier 2 Audience**: Corporate Devices - Finance Department
+    
+-   **Tier 3 Audience**: Corporate Devices - Finance - High Security
+    
+
+### Monitor Audience Membership Changes
+
+Device Audiences update automatically as device attributes change. Set up monitoring for critical audiences to track membership fluctuations:
+
+-   Devices added/removed from high-security audiences
+    
+-   Compliance audience membership drops
+    
+-   Geographic audience shifts
+    
+
+### Document Complex Filter Logic
+
+For audiences with 5+ filters or complex AND/OR combinations, add detailed descriptions explaining the business logic and intent.
+
+## How Do Device Audiences Integrate with Automation?
+
+Device Audiences serve as targeting mechanisms for multiple Applivery automation features:
+
+### Policy Assignment
+
+Automatically assign policies (Android, iOS, Windows, macOS) to devices based on audience membership. When a device enters an audience, it receives the associated policy immediately.
+
+### Automation Rules
+
+Trigger automation rules when devices enter or exit specific audiences:
+
+-   Send alerts when devices leave compliance audiences
+    
+-   Deploy configurations when devices join new department audiences
+    
+-   Revoke access when devices exit security audiences
+    
+
+### Smart Enrollment
+
+Pre-configure audience assignment during device enrollment based on enrollment attributes, ensuring devices receive correct configurations from first boot.
+
+### Remediation Workflows
+
+Launch remediation workflows automatically when devices enter non-compliance audiences, bringing devices back into compliance without manual intervention.
+
+<hr style="border-bottom: 1px solid var(--color-border);" />
+
+**Related Documentation:**
+
+-   [Smart Attributes Overview](/automation/smart-attributes/)
+    
+-   [Automation Rules](/automation/automation-rules/)
+    
+-   [Policy Composition](/automation/policy-composition/)
+    
+-   [Smart Enrollment](/automation/smart-enrollment/)
+    
+-   [Remediation Workflows](/automation/remediation/)

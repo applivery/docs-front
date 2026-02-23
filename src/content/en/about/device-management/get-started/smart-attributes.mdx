@@ -1,0 +1,353 @@
+---
+title: 'Applivery MDM Smart Attributes: A Complete Guide'
+description: >-
+  Explore Smart Attributes in Applivery MDM: dynamic device properties for
+  automation, segmentation, and advanced device management. Learn about
+  attribute types and use cases.
+heroImage: >-
+  https://www.applivery.com/wp-content/uploads/2024/07/empty-office-workplace-with-electronic-devices-2023-11-27-05-24-47-utc-scaled.jpg
+imageAlt: >-
+  Enterprise device management dashboard showing Smart Attributes configuration
+  for automated device property management in Applivery MDM
+keywords:
+  - Smart Attributes
+  - Applivery MDM
+  - device management automation
+  - dynamic device properties
+  - device segmentation
+  - MDM automation
+  - remote device management
+  - attribute types
+pubDate: 2025-02-12T00:00:00.000Z
+updatedDate: 2025-02-12T00:00:00.000Z
+author: Paulo Lima
+category: Automation
+section: Smart Attributes
+type: article
+canonical: 'https://learn.applivery.com/automation/smart-attributes/'
+tags:
+  - Smart Attributes
+  - automation
+  - device management
+  - Applivery
+audience: administrators
+difficulty: intermediate
+platform: Cross-platform
+schema_type: TechArticle
+slug: applivery-mdm-smart-attributes
+item_name: Smart Attributes
+language: en
+domain: device-management
+capability: automation
+headline: Understanding and Using Smart Attributes in Applivery MDM
+target_keyword: Smart Attributes
+secondary_keywords:
+  - Applivery MDM
+  - device management automation
+  - dynamic device properties
+intent: informational
+reading_time: 10
+prerequisites:
+  - Basic understanding of Mobile Device Management (MDM)
+  - Familiarity with Applivery MDM dashboard
+  - Knowledge of device properties and configuration
+faq_items: []
+how_to_steps: []
+featured: false
+noindex: false
+evergreen: false
+pillar_content: false
+og_title: Unlock Automation with Applivery MDM Smart Attributes
+og_description: >-
+  Discover how Smart Attributes in Applivery MDM enable dynamic device
+  management, automation, and precise device segmentation. Learn about different
+  attribute types and their use cases.
+og_type: article
+og_template: gradient-modern
+twitter_card: summary_large_image
+summary: >-
+  Smart Attributes in Applivery MDM are dynamic device properties that enable
+  advanced automation, segmentation, and device management. They allow
+  administrators to define custom attributes that can be assigned to devices
+  based on specific conditions. Applivery MDM offers five distinct Smart
+  Attribute types: Custom Text, Script, Constant, Enum, and Selector, each
+  designed for specific use cases.
+tldr: >-
+  Smart Attributes in Applivery MDM enable dynamic device management through
+  customizable attributes, allowing for advanced automation and device
+  segmentation.
+answer_target: >-
+  Smart Attributes in Applivery MDM are dynamic device properties that allow
+  administrators to define custom attributes for devices based on specific
+  conditions. These attributes enable advanced automation, segmentation, and
+  device management. Applivery MDM offers five types of Smart Attributes: Custom
+  Text, Script, Constant, Enum, and Selector, each designed for different use
+  cases.
+key_takeaways:
+  - >-
+    Smart Attributes enable dynamic device management and automation in
+    Applivery MDM.
+  - >-
+    There are five types of Smart Attributes: Custom Text, Script, Constant,
+    Enum, and Selector.
+  - >-
+    Smart Attributes integrate with Device Audiences for precise device
+    segmentation.
+  - Smart Attributes can be OS-specific or cross-platform.
+  - Smart Attributes support both manual and automatic device assignment.
+main_topics:
+  - Smart Attribute types
+  - Configuration of Smart Attributes
+  - Integration with Device Audiences
+  - Use cases for Smart Attributes
+  - Automation in Applivery MDM
+entities:
+  - Applivery MDM
+  - Android
+  - iOS
+  - macOS
+  - Windows
+  - Paulo Lima
+related_queries:
+  - What are Smart Attributes in Applivery MDM?
+  - How do I create Smart Attributes in Applivery MDM?
+  - What are the different types of Smart Attributes?
+  - How do Smart Attributes work with Device Audiences?
+  - What are some use cases for Smart Attributes?
+  - How do I configure OS-specific Smart Attributes?
+  - How do I use Script attributes in Applivery MDM?
+related_topics:
+  - device-audiences
+  - automation-rules
+  - remediation
+content_scope: comprehensive
+confidence_level: well-established
+limitations: This guide provides comprehensive coverage of the topic.
+update_frequency: occasionally
+word_count: 1410
+sources: []
+organization: Applivery
+related_articles: []
+see_also: []
+translations: {}
+---
+
+## What Are Smart Attributes and How Do They Work?
+
+Smart Attributes are dynamic device properties that enable advanced automation, segmentation, and device management in Applivery MDM. They allow administrators to define custom attributes that can be assigned to devices based on specific conditions, enabling sophisticated automation workflows and precise device targeting.
+
+Smart Attributes are located in the **Automation** section of the Applivery dashboard, organized in the following order:
+
+1. **Smart Enrollment**
+2. **Device Audiences**
+3. **Automation Rules**
+4. **Smart Attributes**
+5. **Remediation**
+
+Smart Attributes can be **OS-specific** (separate values for Android, iOS/macOS, and Windows) or **cross-platform** (single value applied across all platforms). They integrate directly with Device Audiences, allowing you to create dynamic device groups based on attribute values.
+
+> **Note:** Smart Attributes are segment-scoped, meaning they can be configured at the workspace level (global segment) or within specific organizational segments.
+
+## What Types of Smart Attributes Are Available?
+
+Applivery MDM offers five distinct Smart Attribute types, each designed for specific use cases:
+
+| Attribute Type | Description | Use Case | Target Options |
+|----------------|-------------|----------|----------------|
+| **Custom Text** | User-defined text field | Store custom identifiers, department codes, location names | IT, User |
+| **Script** | Execute custom scripts to retrieve dynamic values | Gather system information, run compliance checks, collect custom data | IT only |
+| **Constant** | Fixed value assigned to devices | Set standard configurations, define baseline settings | IT only |
+| **Enum** | Predefined list of options (dropdown) | Standardize selections like device tiers, compliance levels | IT, User |
+| **Selector** | Advanced attribute using interpolators and functions | Dynamic value selection based on device properties or other attributes | IT only |
+
+### Target Assignment
+
+Smart Attributes support two target assignment methods:
+
+- **IT Target** (Available now): Managed exclusively through the Applivery dashboard by IT administrators
+- **User Target** (Future release): Allows end-users to set attribute values through the device agent
+
+> **Note:** The initial release supports IT target only. User target will enable end-users to fill in attributes like department selection or device purpose directly from their devices.
+
+### Selector Type Details
+
+The **Selector** type uses interpolators to reference other device properties or Smart Attributes:
+
+- **Initial version**: Supports interpolators and string operations
+- **Future versions**: Will support advanced functions including:
+  - String manipulation (split, substring, concatenation)
+  - Conditional logic
+  - Mathematical operations on numeric values
+  - Date/time calculations
+
+## How Do I Create and Configure Smart Attributes?
+
+Creating Smart Attributes involves defining the attribute type, scope, and values. Access Smart Attributes via **Dashboard → Automation → Smart Attributes**.
+
+### Step 1: View and Manage Existing Smart Attributes
+
+The Smart Attributes table displays:
+
+- **Name**: Attribute identifier
+- **Type**: Custom Text, Script, Constant, Enum, or Selector
+- **Segment**: Organizational segment where the attribute applies
+- **Scope**: OS-specific or Cross-platform
+- **Devices Affected**: Number of devices with this attribute assigned
+- **Updated**: Last modification timestamp
+- **Actions**: Edit, delete, or view attribute details
+
+Click **+ Add Smart Attribute** to create a new attribute.
+
+### Step 2: Select Attribute Type and Scope
+
+1. Choose the **Smart Attribute type** from the five available options
+2. Read the information message explaining the selected type
+3. Select the **scope**:
+   - **OS-specific**: Define separate values for Android, iOS/macOS, and Windows
+   - **Cross-platform**: Define a single value that applies to all platforms
+
+> **Note:** For OS-specific attributes, the system automatically hydrates values for each platform in the backend while presenting a unified interface.
+
+### Step 3: Configure Attribute Properties
+
+Required fields:
+
+- **Name/Label**: Display name for the attribute (used in UI)
+- **Variable Name**: Technical identifier (no spaces, used for API/database storage)
+
+Optional fields:
+
+- **Description**: Explanation of the attribute's purpose and usage
+
+For **OS-specific** attributes, provide values for each platform:
+- Android
+- iOS/macOS
+- Windows
+
+For **Cross-platform** attributes, provide a single value that applies universally.
+
+### Step 4: Configure Type-Specific Settings
+
+#### Enum Attributes
+Add multiple predefined options that administrators or users can select from.
+
+#### Script Attributes
+- Write or paste the script code
+- Use AI assistance to generate scripts (available in the script editor)
+- Follow the documentation format for script output (last line must return the value in the specified format)
+- Test scripts before deployment
+
+#### Selector Attributes
+Define interpolators using the syntax: `{{device.property}}` or `{{smart_attribute.name}}`
+
+Examples:
+- `{{device.serial_number}}-{{device.model}}`
+- `{{smart_attribute.department}}-{{device.os_version}}`
+
+### Step 5: Define Device Assignment (Optional)
+
+Configure which devices receive this Smart Attribute automatically:
+
+- **Manual assignment**: Assign directly to specific devices through device details
+- **Automatic assignment**: Define a Device Audience that determines which devices receive the attribute based on conditions
+
+> **Note:** Smart Attributes can be assigned manually through device management or automatically through Device Audiences when certain conditions are met.
+
+## How Do Smart Attributes Work with Device Audiences?
+
+Smart Attributes integrate seamlessly with Device Audiences, enabling dynamic device segmentation based on attribute values. When creating or editing a Device Audience, you can add Smart Attributes as filter criteria.
+
+### Device Audience Filter Structure
+
+Device Audience filters follow this structure:
+
+**Attribute → Operator → Value**
+
+Example configurations:
+
+1. **Device Tag** filter:
+   - Attribute: Device Tag
+   - Operator: Includes (has all)
+   - Value: Madrid, Barcelona
+
+2. **Smart Attribute** filter:
+   - Attribute: OS Version (Smart Attribute)
+   - Operator: Greater than
+   - Value: 26.2
+
+3. **Combined filters**:
+   - Smart Attribute: File Vault Enabled = True **AND**
+   - Smart Attribute: OS Version > 26.2 **OR**
+   - Device Tag: Includes Madrid
+
+### Logical Operators Between Filters
+
+- **AND logic**: Applies between filters of the **same type**
+  - Multiple Smart Attribute filters use AND (device must meet all conditions)
+  - Example: OS Version > 26.2 **AND** File Vault = True
+
+- **OR logic**: Applies between filters of **different types**
+  - Device Tags use OR internally (device can have any of the specified tags)
+  - Different filter types use OR (device meets criteria from any filter type)
+
+### Available Operators by Attribute Type
+
+Operators vary based on the Smart Attribute data type:
+
+| Data Type | Available Operators |
+|-----------|---------------------|
+| **Text/String** | Equals, Not equals, Contains, Not contains, Starts with, Ends with |
+| **Number** | Equals, Not equals, Greater than, Less than, Greater than or equal, Less than or equal, Between |
+| **Boolean** | Equals, Not equals |
+| **Date** | Equals, Not equals, Before, After, Between |
+| **Enum** | Equals, Not equals, In list, Not in list |
+
+> **Note:** Device Tags use "Includes" (has all) operator, meaning devices must have all specified tags to match.
+
+### Viewing Filter Logic
+
+The Device Audience interface displays a formula beneath your filter configuration showing the exact logical evaluation:
+
+```
+(device_tag includes "Madrid" OR device_tag includes "Barcelona") 
+AND 
+(smart_attribute.os_version > 26.2 AND smart_attribute.filevault = true)
+```
+
+This visual representation helps administrators understand exactly how devices will be evaluated against the audience criteria.
+
+## What Are Common Use Cases for Smart Attributes?
+
+Smart Attributes enable sophisticated device management scenarios:
+
+### Compliance and Security
+- Track security baseline compliance with Script attributes
+- Define security tiers using Enum attributes
+- Monitor certificate expiration with Selector attributes
+- Enforce encryption requirements with Boolean Custom Text attributes
+
+### Organizational Management
+- Assign department codes with Enum attributes
+- Define cost centers with Custom Text attributes
+- Track device ownership with Constant attributes
+- Identify device location with Custom Text attributes
+
+### Automation Workflows
+- Trigger policy updates based on attribute changes
+- Route devices to appropriate configuration groups
+- Automate software deployment based on device tiers
+- Generate dynamic device identifiers with Selector attributes
+
+### Inventory and Reporting
+- Categorize devices by business unit
+- Track device lifecycle stages
+- Monitor custom compliance requirements
+- Generate detailed inventory reports with custom properties
+
+---
+
+**Related Documentation:**
+- [Device Audiences](/device-audiences/)
+- [Automation Rules](/automation-rules/)
+- [Remediation Workflows](/remediation/)
+- [Smart Enrollment](/smart-enrollment/)

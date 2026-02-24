@@ -1,0 +1,64 @@
+---
+title: Gestionar los permisos de las aplicaciones de Android
+description: >-
+  Aprenda a gestionar los permisos de las aplicaciones de Android utilizando las
+  propiedades gestionadas de Applivery para mejorar la seguridad, el
+  cumplimiento y el control de los dispositivos corporativos.
+slug: how-to-manage-app-permissions
+keywords: >-
+  permisos de aplicaciones, android, mdm, gestión de dispositivos móviles,
+  applivery, propiedades gestionadas, seguridad, cumplimiento
+type: guide
+author: Applivery
+date: 2025-11-27T21:25:07.000Z
+updatedDate: 2025-11-27T21:36:31.000Z
+canonical: >-
+  https://www.applivery.com/docs/mobile-device-management/android-mdm/android-app-management/how-to-manage-app-permissions/
+collection: docs
+locale: es
+visible: true
+---
+
+La gestión de los permisos de las aplicaciones en los dispositivos Android es una parte fundamental de la movilidad empresarial, ya que garantiza la seguridad, el cumplimiento y un comportamiento predecible en todas las flotas corporativas.
+
+Con Applivery, las organizaciones pueden configurar de forma centralizada los permisos para cualquier aplicación gestionada utilizando las propiedades gestionadas, aplicando un control granular alineado con las necesidades empresariales, de seguridad y normativas.
+
+## Acceso a la configuración de los permisos de la aplicación
+
+Una vez en el [Panel de control de Applivery](https://dashboard.applivery.io), vaya a cualquiera de sus **Políticas** (1) (en **Gestión de dispositivos > Políticas**). En el menú lateral izquierdo, vaya a **Aplicaciones** (2) y seleccione la aplicación cuyos permisos desea gestionar.
+
+Se abrirá un panel lateral que muestra las propiedades gestionadas de la aplicación, incluida la sección **Permisos** (3).
+
+![app-permissions](https://www.applivery.com/wp-content/uploads/2025/11/Screenshot-2025-11-27-at-222510-1024x667.png "app-permissions | Applivery")
+
+Applivery ofrece dos formas complementarias de controlar los permisos.
+
+### Política de permisos predeterminada
+
+Esta opción establece el comportamiento global para todos los permisos requeridos por la aplicación:
+
+-   **Preguntar**: Se le pregunta al usuario si desea permitir o denegar cada permiso.
+-   **Conceder**: Todos los permisos necesarios se conceden automáticamente.
+-   **Denegar**: Todos los permisos necesarios se deniegan automáticamente.
+
+Utilice esta opción cuando desee aplicar una regla simple y uniforme en toda la aplicación.
+
+### Concesiones de permisos (control granular)
+
+Para casos más avanzados, puede configurar permisos específicos individualmente:
+
+1.  Haga clic en **+ Añadir elemento** para añadir una nueva regla de permiso.
+2.  Elija el permiso de la lista desplegable (por ejemplo, cámara, ubicación, contactos).
+3.  Establezca la política para ese permiso específico:
+    -   **Preguntar**: El usuario decide si permite o deniega.
+    -   **Conceder**: El permiso se concede automáticamente.
+    -   **Denegar**: El permiso se deniega automáticamente.
+
+Puede añadir tantos permisos granulares como necesite, lo que resulta ideal para aplicaciones complejas que requieren un acceso diferenciado.
+
+## ¿Por qué utilizar la gestión granular de permisos?
+
+Con Applivery, las organizaciones obtienen:
+
+-   Mayor seguridad, al bloquear permisos innecesarios o arriesgados.
+-   Mejor cumplimiento, garantizando que las aplicaciones se comporten dentro

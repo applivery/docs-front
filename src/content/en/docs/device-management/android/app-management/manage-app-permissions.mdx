@@ -1,0 +1,169 @@
+---
+title: Manage Android App Permissions
+description: >-
+  Learn how to manage Android app permissions using Applivery's Managed
+  Properties for enhanced security, compliance, and control over corporate
+  devices.
+slug: manage-android-app-permissions
+keywords:
+  - app permissions
+  - android
+  - mdm
+  - mobile device management
+  - applivery
+  - managed properties
+  - android security
+  - android compliance
+type: article
+author: Applivery
+date: 2025-11-27T21:25:07.000Z
+updatedDate: 2025-11-27T21:36:31.000Z
+canonical: >-
+  https://www.applivery.com/docs/mobile-device-management/android-mdm/android-app-management/how-to-manage-app-permissions/
+collection: docs
+locale: en
+visible: true
+category: Mobile Device Management
+section: Android MDM
+platform: Android
+audience: administrators
+difficulty: intermediate
+item_name: App Permissions
+schema_type: TechArticle
+language: en
+domain: device-management
+capability: app-management
+headline: How to Manage App Permissions on Android Devices
+target_keyword: android app permissions
+secondary_keywords:
+  - applivery mdm
+  - managed properties
+  - android security
+intent: informational
+reading_time: 5
+prerequisites:
+  - Basic understanding of Android MDM
+  - Familiarity with the Applivery platform
+  - Knowledge of app permissions
+faq_items: []
+how_to_steps: []
+show_child_grid: true
+featured: false
+noindex: false
+evergreen: false
+pillar_content: false
+og_title: Manage Android App Permissions with Applivery
+og_description: >-
+  Learn how to manage Android app permissions using Applivery's Managed
+  Properties for enhanced security and control.
+og_type: article
+og_template: gradient-modern
+twitter_card: summary_large_image
+summary: >-
+  This guide explains how to manage Android app permissions using Applivery's
+  Managed Properties. It covers setting default permission policies and
+  configuring granular permission grants for individual apps. Applivery provides
+  stronger security, better compliance, and a more predictable deployment
+  through centralized app permission management.
+tldr: >-
+  Manage Android app permissions with Applivery's Managed Properties for
+  enhanced security and control over app behavior on corporate devices.
+answer_target: >-
+  Applivery allows you to manage Android app permissions through Managed
+  Properties. You can set a default permission policy (Prompt, Grant, or Deny)
+  for all permissions or configure individual permissions with granular control.
+  This ensures apps behave securely and in compliance with organizational
+  requirements.
+key_takeaways:
+  - >-
+    Applivery's Managed Properties provide centralized control over Android app
+    permissions.
+  - >-
+    You can set default permission policies or configure granular permission
+    grants.
+  - >-
+    Managing app permissions enhances security, compliance, and control over
+    corporate devices.
+main_topics:
+  - Applivery Managed Properties
+  - Android app permissions
+  - MDM security
+  - Granular permission control
+entities:
+  - Android
+  - Applivery
+  - Managed Properties
+related_queries:
+  - How to manage app permissions on Android?
+  - How to use Applivery to manage app permissions?
+  - What are Managed Properties in Applivery?
+  - How to grant or deny app permissions on Android devices?
+  - How to improve Android security with MDM?
+  - How to configure granular app permissions on Android?
+related_topics:
+  - android-mdm
+  - mobile-security
+  - device-compliance
+content_scope: introductory
+confidence_level: well-established
+limitations: >-
+  This guide focuses on managing app permissions using Applivery. It does not
+  cover other MDM solutions or general Android security practices beyond app
+  permissions.
+update_frequency: occasionally
+word_count: 402
+sources: []
+organization: Applivery
+related_articles: []
+see_also: []
+translations: {}
+---
+
+Managing app permissions on Android devices is a critical part of enterprise mobility, ensuring security, compliance, and predictable behavior across corporate fleets.
+
+With Applivery, organizations can centrally configure permissions for any managed app using Managed Properties, applying granular control aligned with business, security, and regulatory needs.
+
+## Accessing App permission settings
+
+Once in the [Applivery Dashboard](https://dashboard.applivery.io), go to any of your **Policies** (1) (under **Device Management > Policies**). From the left side menu, go to **Apps** (2) and select the app whose permissions you want to manage.
+
+A side panel will open showing the app’s Managed Properties, including the **Permissions** (3) section.
+
+![app-permissions](https://www.applivery.com/wp-content/uploads/2025/11/Screenshot-2025-11-27-at-222510-1024x667.png "app-permissions | Applivery")
+
+Applivery provides two complementary ways to control permissions.
+
+### Default Permission Policy
+
+This option sets the global behavior for all permissions required by the app:
+
+-   **Prompt**: The user is asked whether to allow or deny each permission.
+-   **Grant**: All required permissions are automatically granted.
+-   **Deny**: All required permissions are automatically denied.
+
+Use this option when you want a simple, uniform rule applied across the entire app.
+
+### Permission Grants (Granular Control)
+
+For more advanced cases, you can configure specific permissions individually:
+
+1.  Click **+ Add element** to add a new permission rule.
+2.  Choose the Permission from the dropdown list (e.g., camera, location, contacts).
+3.  Set the policy for that specific permission:
+    -   **Prompt**: User decides whether to allow or deny.
+    -   **Grant**: The permission is automatically granted.
+    -   **Deny**: The permission is automatically denied.
+
+You can add as many granular permissions as needed—ideal for complex apps that require differentiated access.
+
+## Why use granular permission management?
+
+With Applivery, organizations gain:
+
+-   Stronger security, by blocking unnecessary or risky permissions.
+-   Better compliance, ensuring apps behave within policy limits.
+-   A more predictable and controlled deployment.
+-   Reduced user intervention, thanks to automated permission handling.
+-   Flexible adaptation to any app’s operational needs.
+
+Configuring app permissions with Managed Properties in Applivery provides precise control and minimizes risk, ensuring that apps on corporate devices operate securely and in full alignment with organizational requirements.

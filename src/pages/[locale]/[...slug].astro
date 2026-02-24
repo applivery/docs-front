@@ -259,19 +259,19 @@ export async function getStaticPaths() {
 // ─── Page rendering — all data from props, zero API calls ────────────
 
 const { entry, isIndex, locale, allDocs, translationMap, pathPatternMap, virtual } = Astro.props;
-const fullDocument: DocData = entry?.data || {
+const fullDocument = (entry?.data || {
   title: virtual?.title || 'Untitled',
   description: virtual ? `Explore our comprehensive documentation for ${virtual.title}.` : undefined,
-  content: '',
   collection: virtual?.collection || 'docs',
   locale,
-  type: 'archive',
+  type: 'archive' as const,
   path: virtual?.path,
   slug: undefined,
   visible: true,
   item_name: virtual?.title,
   show_child_grid: true,
-};
+  draft: false,
+}) as DocData;
 
 if (!isValidLocale(locale)) {
   return Astro.redirect(`/${defaultLocale}/`, 301);
@@ -283,7 +283,7 @@ if (Astro.url.pathname.endsWith('/roadmap')) {
 }
 
 // Content is already in the data store — no API call needed
-const content = fullDocument.content || entry?.rendered?.html || '';
+const content = entry?.rendered?.html || '';
 
 // For index/archive pages, find child documents from the local store
 // The show_child_grid flag (default true) controls whether the grid renders
@@ -537,8 +537,8 @@ if (isApiPage && processedContent) {
   keyTakeaways={fullDocument.key_takeaways}
   author={fullDocument.author}
   authorUrl={fullDocument.author_url}
-  datePublished={fullDocument.pub_date || fullDocument.date}
-  dateModified={fullDocument.updated_date}
+  datePublished={(fullDocument.pub_date || fullDocument.date)?.toISOString()}
+  dateModified={fullDocument.updated_date?.toISOString()}
   heroImage={resolveMediaUrl(fullDocument.hero_image)}
   imageAlt={fullDocument.image_alt}
   headings={headings}

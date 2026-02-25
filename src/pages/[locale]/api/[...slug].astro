@@ -58,7 +58,7 @@ try {
       // @ts-ignore — Cloudflare Workers cf property
       cf: { cacheTtl: 60, cacheEverything: true },
     }),
-    fetch(`${cmsUrl}/api/documents/api-navigation?locale=${locale}&slim=1`, {
+    fetch(`${cmsUrl}/api/documents/api-navigation?locale=${locale}`, {
       headers,
       // @ts-ignore — Cloudflare Workers cf property
       cf: { cacheTtl: 300, cacheEverything: true },

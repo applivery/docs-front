@@ -152,8 +152,19 @@ function getAvailableLocalesFromSettings(home: HomeSettings | null | undefined):
 const availableLocales = getAvailableLocalesFromSettings(homeSettings);
 
 // Get featured docs (limited by CMS settings)
+// Falls back to most recent articles when none are explicitly marked as featured
 const maxFeatured = homeSettings?.featuredArticles?.maxItems || 6;
-const featuredDocs = documents.filter(doc => doc.featured).slice(0, maxFeatured);
+const explicitlyFeatured = documents.filter(doc => doc.featured);
+const featuredDocs = explicitlyFeatured.length > 0
+  ? explicitlyFeatured.slice(0, maxFeatured)
+  : documents
+      .filter(doc => doc.title && doc.collection !== 'api')
+      .sort((a, b) => {
+        const dateA = a.updated_at || a.created_at || '';
+        const dateB = b.updated_at || b.created_at || '';
+        return dateB.localeCompare(dateA);
+      })
+      .slice(0, maxFeatured);
 const showFeatured = homeSettings?.featuredArticles?.enabled !== false;
 
 // Hero content from CMS with fallbacks

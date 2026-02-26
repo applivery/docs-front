@@ -789,13 +789,30 @@ const iconNameMap: Record<string, IconName> = {
   'unplug': 'unplug',
   'zap-off': 'zapOff',
 
+  // Operating Systems & Brands (custom icons)
+  'apple-logo': 'appleLogo',
+  'apple-finder': 'appleFinder',
+  'windows-logo': 'windowsLogo',
+  'android-robot': 'androidRobot',
+  'macos': 'macos',
+
+  // Extra device aliases
+  'devices': 'devices',
+  'display': 'display',
+
   // Aliases
   'boxes': 'boxes',
 };
 
 function getIconName(iconName?: string): IconName {
   if (!iconName) return 'document';
-  return iconNameMap[iconName.toLowerCase()] || 'document';
+  const lower = iconName.toLowerCase();
+  // 1. Check the explicit kebab→camelCase mapping
+  if (iconNameMap[lower]) return iconNameMap[lower];
+  // 2. Check if the name is already a valid key in iconMap (covers kebab-case keys like 'apple-logo')
+  if (lower in iconMap) return lower as IconName;
+  // 3. Fallback
+  return 'document';
 }
 
 function isFolderIcon(iconName?: string): boolean {

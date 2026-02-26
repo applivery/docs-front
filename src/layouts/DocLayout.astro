@@ -58,11 +58,6 @@ interface Props {
   // Navigation
   currentPath?: string;
 
-  /** Override sidebar documents (used by SSR pages that fetch from CMS API) */
-  sidebarDocuments?: Document[];
-
-  /** Pre-fetched settings (used by SSR pages to avoid redundant getAllSettings call) */
-  settings?: any;
 
   // i18n
   locale?: Locale;
@@ -95,8 +90,6 @@ const {
   imageAlt,
   headings = [],
   currentPath,
-  sidebarDocuments: propSidebarDocuments,
-  settings: propSettings,
   locale: propLocale,
   availableTranslations = [],
   translationSlugs = {},
@@ -119,12 +112,9 @@ let documents: Document[] = [];
 let settings: any = null;
 
 try {
-  if (propSidebarDocuments && propSidebarDocuments.length > 0) {
-    // SSR pages pass their own sidebar documents and settings (pre-fetched)
-    documents = propSidebarDocuments;
-    settings = propSettings || (await getAllSettings()) || null;
-  } else if (collection === 'api') {
-    // For static API pages, build sidebar from Astro content collection
+  if (collection === 'api') {
+    // For API pages, build sidebar from Astro content collection (api_entities)
+    // since API docs aren't in the regular documents table
     const allDocs = await getCollection('docs');
     const apiDocs = allDocs.filter(d => d.data.collection === 'api' && d.data.visible !== false);
     documents = apiDocs.map(d => ({

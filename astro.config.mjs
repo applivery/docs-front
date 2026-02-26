@@ -1,6 +1,5 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
-import cloudflare from '@astrojs/cloudflare';
 import mdx from '@astrojs/mdx';
 import react from '@astrojs/react';
 import sitemap from '@astrojs/sitemap';
@@ -90,12 +89,8 @@ export default defineConfig({
     },
   },
 
-  // Static by default + Cloudflare adapter for SSR pages (prerender = false)
-  // In Astro 5, output: 'static' with an adapter supports per-page SSR
+  // Output configuration - static for SSG
   output: 'static',
-  adapter: cloudflare({
-    platformProxy: { enabled: true },
-  }),
 
   // Note: Middleware only runs during dev server.
   // For production, redirects are handled by:

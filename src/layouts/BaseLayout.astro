@@ -29,6 +29,9 @@ interface Props {
   canonical?: string;
   noindex?: boolean;
   robots?: string;
+  // OG image generation context
+  section?: string;
+  category?: string;
   // i18n props
   locale?: Locale;
   availableTranslations?: Locale[];
@@ -45,6 +48,8 @@ const {
   canonical,
   noindex = false,
   robots,
+  section,
+  category,
   locale: propLocale,
   availableTranslations = [],
 } = Astro.props;
@@ -95,8 +100,22 @@ const siteUrl = extendedSeo?.siteUrl || Astro.url.origin;
 const metaDescription = description || extendedSeo?.siteName || '';
 const metaOgTitle = ogTitle || title;
 const metaOgDescription = ogDescription || description;
-const metaOgImage = ogImage || extendedSeo?.defaultOgImage || '/og-image.png';
 const metaCanonical = canonical || Astro.url.href;
+
+// OG Image: prefer explicit → CMS default → dynamic generator → static fallback
+const CMS_URL = import.meta.env.CMS_URL || '';
+let metaOgImage = ogImage || extendedSeo?.defaultOgImage || '';
+if (!metaOgImage && CMS_URL && title) {
+  // Build dynamic OG image using CMS generator (template/colors auto-loaded from DB)
+  const ogParams = new URLSearchParams();
+  ogParams.set('title', title);
+  if (metaOgDescription) ogParams.set('description', metaOgDescription);
+  if (category || section) ogParams.set('category', (category || section || '').toUpperCase());
+  if (siteName) ogParams.set('siteName', siteName);
+  metaOgImage = `${CMS_URL}/api/og/generate?${ogParams.toString()}`;
+} else if (!metaOgImage) {
+  metaOgImage = '/og-image.png';
+}
 
 // Organization Schema for SEO/LLM optimization
 const organizationSchema = {

@@ -76,6 +76,11 @@ const CMS_API_KEY = import.meta.env.CMS_API_KEY || '';
 </aside>
 
 <script>
+  // Chat session persistence
+  const CHAT_STORAGE_KEY = 'ai_chat_session';
+  const CHAT_SESSION_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
+  const CHAT_MAX_SIZE_BYTES = 512 * 1024; // 512 KB
+
   function initAIChat() {
     const toggleBtn = document.getElementById('ai-chat-toggle');
     const closeBtn = document.getElementById('ai-chat-close');
@@ -101,6 +106,83 @@ const CMS_API_KEY = import.meta.env.CMS_API_KEY || '';
     let isLoading = false;
     let conversationHistory: Array<{ role: 'user' | 'assistant'; content: string }> = [];
     let thinkingInterval: ReturnType<typeof setInterval> | null = null;
+    let currentSessionCreatedAt: number = Date.now();
+
+    // --- Session persistence ---
+
+    interface ChatSession {
+      createdAt: number;
+      updatedAt: number;
+      messages: Array<{ role: 'user' | 'assistant'; content: string }>;
+    }
+
+    function loadSession(): ChatSession | null {
+      try {
+        const raw = localStorage.getItem(CHAT_STORAGE_KEY);
+        if (!raw) return null;
+        const session: ChatSession = JSON.parse(raw);
+
+        if (!session.createdAt || !session.updatedAt || !Array.isArray(session.messages)) {
+          localStorage.removeItem(CHAT_STORAGE_KEY);
+          return null;
+        }
+
+        // Expire after 30 days of inactivity
+        if (Date.now() - session.updatedAt > CHAT_SESSION_MAX_AGE_MS) {
+          localStorage.removeItem(CHAT_STORAGE_KEY);
+          return null;
+        }
+
+        return session;
+      } catch {
+        try { localStorage.removeItem(CHAT_STORAGE_KEY); } catch {}
+        return null;
+      }
+    }
+
+    function saveSession() {
+      try {
+        const session: ChatSession = {
+          createdAt: currentSessionCreatedAt,
+          updatedAt: Date.now(),
+          messages: conversationHistory
+        };
+
+        let serialized = JSON.stringify(session);
+
+        // Prune oldest message pairs if exceeding size limit
+        while (new Blob([serialized]).size > CHAT_MAX_SIZE_BYTES && session.messages.length > 2) {
+          session.messages.splice(0, 2);
+          serialized = JSON.stringify(session);
+        }
+
+        localStorage.setItem(CHAT_STORAGE_KEY, serialized);
+        conversationHistory = session.messages;
+      } catch {
+        // localStorage full or blocked — silently fail
+      }
+    }
+
+    function clearSession() {
+      conversationHistory = [];
+      currentSessionCreatedAt = Date.now();
+      try { localStorage.removeItem(CHAT_STORAGE_KEY); } catch {}
+    }
+
+    function restoreMessages(messages: Array<{ role: 'user' | 'assistant'; content: string }>) {
+      if (messages.length === 0) return;
+      hideWelcome();
+      for (const msg of messages) {
+        addMessage(msg.content, msg.role, msg.role === 'assistant');
+      }
+    }
+
+    // Load persisted session
+    const savedSession = loadSession();
+    if (savedSession && savedSession.messages.length > 0) {
+      conversationHistory = savedSession.messages;
+      currentSessionCreatedAt = savedSession.createdAt;
+    }
 
     // Cycling thinking phrases
     const thinkingPhrases = [
@@ -274,6 +356,7 @@ const CMS_API_KEY = import.meta.env.CMS_API_KEY || '';
     async function sendRAGMessage(message: string) {
       addMessage(message, 'user');
       conversationHistory.push({ role: 'user', content: message });
+      saveSession();
 
       isLoading = true;
       setInputEnabled(false);
@@ -314,6 +397,7 @@ const CMS_API_KEY = import.meta.env.CMS_API_KEY || '';
 
         // Add to history
         conversationHistory.push({ role: 'assistant', content: answer });
+        saveSession();
 
         // Render answer with markdown
         addMessage(answer, 'assistant', true);
@@ -575,6 +659,11 @@ const CMS_API_KEY = import.meta.env.CMS_API_KEY || '';
 
     // Load fallback quick actions immediately (will be replaced when settings load)
     renderFallbackQuickActions();
+
+    // Restore persisted session messages into the DOM
+    if (conversationHistory.length > 0) {
+      restoreMessages(conversationHistory);
+    }
   }
 
   initAIChat();

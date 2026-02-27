@@ -1268,15 +1268,15 @@ const effectiveTranslations: Locale[] = availableTranslations.length > 0
                 const hasChildren = subgroup.items.length > 0 || (subgroup.subgroups && subgroup.subgroups.length > 0);
                 const subIsFolderIcon = isFolderIcon(subgroup.icon);
                 return hasChildren ? (
-                  <div class="sidebar-nav-subgroup" data-nav-group>
+                  <div class="sidebar-nav-group" data-nav-group>
                     <div
-                      class:list={['sidebar-nav-subgroup-title', { active: subgroup.href && (isPathActive(subgroup.href, currentPath) || subgroup.active) }]}
+                      class:list={['sidebar-nav-group-title', { active: subgroup.href && (isPathActive(subgroup.href, currentPath) || subgroup.active) }]}
                       data-nav-toggle
                       {...(subIsFolderIcon ? { 'data-subfolder-toggle': '' } : {})}
                       aria-expanded={subHasActive ? 'true' : 'false'}
                     >
                       {subgroup.href ? (
-                        <a href={subgroup.href} class="nav-toggle-link sidebar-nav-subgroup-link">
+                        <a href={subgroup.href} class="nav-toggle-link sidebar-nav-group-link">
                           <span class="group-title-content">
                             {subIsFolderIcon ? (
                               <>
@@ -1306,12 +1306,12 @@ const effectiveTranslations: Locale[] = availableTranslations.length > 0
                       )}
                       {!subIsFolderIcon && (
                         <button type="button" class="nav-chevron-btn" data-nav-chevron aria-label="Toggle expand">
-                          <Fragment set:html={iconSvg('chevronDown', 'nav-chevron-sub', subHasActive ? 'transform: rotate(180deg)' : undefined)} />
+                          <Fragment set:html={iconSvg('chevronDown', 'nav-chevron', subHasActive ? 'transform: rotate(180deg)' : undefined)} />
                         </button>
                       )}
                     </div>
-                    <ul
-                      class="nav-subgroup-content"
+                    <div
+                      class="nav-group-content"
                       data-nav-content
                       style={subHasActive ? '' : 'display: none;'}
                     >
@@ -1321,7 +1321,6 @@ const effectiveTranslations: Locale[] = availableTranslations.length > 0
                         const nestedHasChildren = nested.items.length > 0 || (nested.subgroups && nested.subgroups.length > 0);
                         const nestedIsFolderIcon = isFolderIcon(nested.icon);
                         return nestedHasChildren ? (
-                          <li>
                             <div class="sidebar-nav-subgroup" data-nav-group>
                               <div
                                 class:list={['sidebar-nav-subgroup-title', { active: nested.href && (isPathActive(nested.href, currentPath) || nested.active) }]}
@@ -1387,9 +1386,7 @@ const effectiveTranslations: Locale[] = availableTranslations.length > 0
                                 ))}
                               </ul>
                             </div>
-                          </li>
                         ) : nested.href ? (
-                          <li>
                             <a
                               href={nested.href}
                               class:list={['sidebar-nav-item', { active: isPathActive(nested.href, currentPath) || nested.active }]}
@@ -1397,27 +1394,30 @@ const effectiveTranslations: Locale[] = availableTranslations.length > 0
                               <Fragment set:html={iconSvg(getIconName(nested.icon || 'document'), 'nav-item-icon')} />
                               <span class="nav-item-label">{nested.title}</span>
                             </a>
-                          </li>
                         ) : null;
                       })}
                       {/* Render leaf items */}
-                      {subgroup.items.map((item) => (
-                        <li>
-                          <a
-                            href={item.href}
-                            class:list={['sidebar-nav-item sidebar-nav-item-nested', { active: isPathActive(item.href, currentPath) || item.active }]}
-                          >
-                            {item.method && (
-                              <span class={`sidebar-method-badge method-${item.method.toLowerCase()}`}>{item.method}</span>
-                            )}
-                            {!item.method && (
-                              <Fragment set:html={iconSvg(getIconName(item.icon || 'document'), 'nav-item-icon')} />
-                            )}
-                            <span class="nav-item-label">{item.label}</span>
-                          </a>
-                        </li>
-                      ))}
-                    </ul>
+                      {subgroup.items.length > 0 && (
+                        <ul>
+                          {subgroup.items.map((item) => (
+                            <li>
+                              <a
+                                href={item.href}
+                                class:list={['sidebar-nav-item', { active: isPathActive(item.href, currentPath) || item.active }]}
+                              >
+                                {item.method && (
+                                  <span class={`sidebar-method-badge method-${item.method.toLowerCase()}`}>{item.method}</span>
+                                )}
+                                {!item.method && (
+                                  <Fragment set:html={iconSvg(getIconName(item.icon || 'document'), 'nav-item-icon')} />
+                                )}
+                                <span class="nav-item-label">{item.label}</span>
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    </div>
                   </div>
                 ) : subgroup.href ? (
                   /* Leaf subgroup — no children, just a clickable link */
@@ -1892,8 +1892,8 @@ const effectiveTranslations: Locale[] = availableTranslations.length > 0
   .sidebar-nav-section-label {
     display: flex;
     align-items: center;
-    padding: 0.625rem 0.75rem 0.25rem;
-    font-size: 0.6875rem;
+    padding: 0.25rem 0rem 1.5rem 0.2rem;
+    font-size: 0.8rem;
     font-weight: 600;
     letter-spacing: 0.05em;
     color: var(--color-text-muted);

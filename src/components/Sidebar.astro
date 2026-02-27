@@ -1385,14 +1385,14 @@ const effectiveTranslations: Locale[] = availableTranslations.length > 0
 <script>
   function initSidebar() {
     // --- Product selector (static show/hide) ---
-    const productBtns = document.querySelectorAll('.product-btn');
+    const productBtns = document.querySelectorAll<HTMLElement>('.product-btn');
     if (productBtns.length > 0) {
       productBtns.forEach(btn => {
         btn.addEventListener('click', () => {
           productBtns.forEach(b => b.classList.remove('active'));
           btn.classList.add('active');
           const productId = btn.dataset.productId;
-          document.querySelectorAll('[data-product-nav]').forEach(nav => {
+          document.querySelectorAll<HTMLElement>('[data-product-nav]').forEach(nav => {
             nav.classList.toggle('hidden', nav.dataset.productNav !== productId);
           });
         });
@@ -1408,7 +1408,7 @@ const effectiveTranslations: Locale[] = availableTranslations.length > 0
         if (storedTab) {
           const { id } = JSON.parse(storedTab);
           if (id) {
-            document.querySelectorAll('[data-tab-nav]').forEach(nav => {
+            document.querySelectorAll<HTMLElement>('[data-tab-nav]').forEach(nav => {
               nav.classList.toggle('hidden', nav.dataset.tabNav !== id);
             });
           }
@@ -1416,9 +1416,9 @@ const effectiveTranslations: Locale[] = availableTranslations.length > 0
       } catch { /* ignore */ }
 
       window.addEventListener('tabChange', (e) => {
-        const tabId = e.detail?.id;
+        const tabId = (e as CustomEvent).detail?.id;
         if (!tabId) return;
-        document.querySelectorAll('[data-tab-nav]').forEach(nav => {
+        document.querySelectorAll<HTMLElement>('[data-tab-nav]').forEach(nav => {
           nav.classList.toggle('hidden', nav.dataset.tabNav !== tabId);
         });
       });
@@ -1428,13 +1428,13 @@ const effectiveTranslations: Locale[] = availableTranslations.length > 0
     const EXPAND_KEY = 'sidebar_expanded';
     function getExpandedSet() {
       try {
-        return new Set(JSON.parse(sessionStorage.getItem(EXPAND_KEY) || '[]'));
-      } catch { return new Set(); }
+        return new Set<string>(JSON.parse(sessionStorage.getItem(EXPAND_KEY) || '[]'));
+      } catch { return new Set<string>(); }
     }
-    function saveExpandedSet(set) {
+    function saveExpandedSet(set: Set<string>) {
       sessionStorage.setItem(EXPAND_KEY, JSON.stringify([...set]));
     }
-    function getToggleKey(toggle) {
+    function getToggleKey(toggle: Element) {
       const link = toggle.querySelector('a');
       return link?.getAttribute('href') || toggle.textContent?.trim() || '';
     }
@@ -1451,24 +1451,27 @@ const effectiveTranslations: Locale[] = availableTranslations.length > 0
 
       if (!toggle || !content) return;
 
-      const key = getToggleKey(toggle);
+      const t = toggle as HTMLElement;
+      const c = content as HTMLElement;
+      const chev = chevron as HTMLElement | null;
+      const key = getToggleKey(t);
 
       // Restore persisted expand state
       if (key && expandedSet.has(key)) {
-        const serverExpanded = toggle.getAttribute('aria-expanded') === 'true';
+        const serverExpanded = t.getAttribute('aria-expanded') === 'true';
         if (!serverExpanded) {
-          toggle.setAttribute('aria-expanded', 'true');
-          if (chevron) chevron.style.transform = 'rotate(180deg)';
-          content.style.display = 'block';
+          t.setAttribute('aria-expanded', 'true');
+          if (chev) chev.style.transform = 'rotate(180deg)';
+          c.style.display = 'block';
         }
       }
 
       function doToggle() {
-        const isExpanded = toggle.getAttribute('aria-expanded') === 'true';
+        const isExpanded = t.getAttribute('aria-expanded') === 'true';
         const nowExpanded = !isExpanded;
-        toggle.setAttribute('aria-expanded', nowExpanded.toString());
-        if (chevron) chevron.style.transform = nowExpanded ? 'rotate(180deg)' : 'rotate(0deg)';
-        content.style.display = isExpanded ? 'none' : 'block';
+        t.setAttribute('aria-expanded', nowExpanded.toString());
+        if (chev) chev.style.transform = nowExpanded ? 'rotate(180deg)' : 'rotate(0deg)';
+        c.style.display = isExpanded ? 'none' : 'block';
 
         // Persist state
         const current = getExpandedSet();
@@ -1511,7 +1514,7 @@ const effectiveTranslations: Locale[] = availableTranslations.length > 0
       });
 
       document.addEventListener('click', (e) => {
-        if (e.target && !langSelector.contains(e.target)) {
+        if (e.target && !langSelector.contains(e.target as Node)) {
           langToggle.setAttribute('aria-expanded', 'false');
           langSelector.classList.remove('open');
         }

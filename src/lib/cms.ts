@@ -547,6 +547,7 @@ export interface HomeSettings {
 export interface McpSettings {
   packageName?: string;
   cmsUrl?: string;
+  remoteUrl?: string;
   title?: string;
   description?: string;
   nodeVersion?: string;

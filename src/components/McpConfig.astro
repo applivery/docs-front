@@ -29,7 +29,7 @@ try {
 // Merge: CMS settings > component props > hardcoded defaults
 const config = {
   packageName: mcpSettings?.packageName || props.packageName || '@applivery/docs-mcp-server',
-  cmsUrl: mcpSettings?.cmsUrl || props.cmsUrl || 'https://docs-cms.pages.dev/',
+  cmsUrl: mcpSettings?.cmsUrl || props.cmsUrl || import.meta.env.CMS_URL || 'http://localhost:3000',
   title: mcpSettings?.title || props.title || 'MCP',
   description: mcpSettings?.description || props.description || 'Allow AI tools to access full API docs site for AI-assisted coding.',
   nodeVersion: mcpSettings?.nodeVersion || '18',
@@ -45,11 +45,12 @@ const config = {
 
 // Editor metadata
 const editors = [
-  { id: 'cursor', name: 'Cursor', icon: 'cursor', enabled: config.editors.cursor, configPath: '~/.cursor/mcp.json', hasOneClick: true },
-  { id: 'vscode', name: 'VS Code', icon: 'vscode', enabled: config.editors.vscode, configPath: '.vscode/settings.json', hasOneClick: false },
-  { id: 'cline', name: 'Cline', icon: 'cline', enabled: config.editors.cline, configPath: '~/.cline/mcp_settings.json', hasOneClick: false },
-  { id: 'windsurf', name: 'Windsurf', icon: 'windsurf', enabled: config.editors.windsurf, configPath: '~/.windsurf/mcp.json', hasOneClick: false },
-  { id: 'claude-code', name: 'Claude Code', icon: 'claude', enabled: config.editors.claudeCode, configPath: '~/.claude/settings.json', hasOneClick: false },
+  { id: 'cursor', name: 'Cursor', icon: 'cursor', enabled: config.editors.cursor, configPath: '~/.cursor/mcp.json', hasOneClick: true, isRemote: false },
+  { id: 'vscode', name: 'VS Code', icon: 'vscode', enabled: config.editors.vscode, configPath: '.vscode/settings.json', hasOneClick: false, isRemote: false },
+  { id: 'cline', name: 'Cline', icon: 'cline', enabled: config.editors.cline, configPath: '~/.cline/mcp_settings.json', hasOneClick: false, isRemote: false },
+  { id: 'windsurf', name: 'Windsurf', icon: 'windsurf', enabled: config.editors.windsurf, configPath: '~/.windsurf/mcp.json', hasOneClick: false, isRemote: false },
+  { id: 'claude-code', name: 'Claude Code', icon: 'claude', enabled: config.editors.claudeCode, configPath: '~/.claude/settings.json', hasOneClick: false, isRemote: false },
+  { id: 'claude-ai', name: 'Claude.ai', icon: 'claude-ai', enabled: true, configPath: '', hasOneClick: false, isRemote: true },
 ].filter(e => e.enabled);
 
 // JSON configs per editor
@@ -92,12 +93,17 @@ function claudeCodeConfig(): string {
   }, null, 2);
 }
 
+// Remote MCP server URL (for Claude.ai connectors)
+const cmsBase = config.cmsUrl.replace(/\/+$/, '');
+const mcpRemoteUrl = mcpSettings?.remoteUrl || `${cmsBase}/mcp`;
+
 const configMap: Record<string, string> = {
   cursor: cursorConfig(),
   vscode: vscodeConfig(),
   cline: cursorConfig(), // same format as cursor
   windsurf: cursorConfig(), // same format as cursor
   'claude-code': claudeCodeConfig(),
+  'claude-ai': mcpRemoteUrl,
 };
 ---
 
@@ -150,23 +156,42 @@ const configMap: Record<string, string> = {
         </div>
       )}
 
-      {/* Manual configuration */}
-      <div class="mcp-manual">
-        <span class="mcp-manual-label">Manual configuration</span>
-        <div class="mcp-code-wrapper">
-          <pre class="mcp-code"><code set:text={configMap[editor.id]} /></pre>
-          <button class="mcp-copy-btn" data-config={editor.id} aria-label="Copy configuration">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
-              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
-            </svg>
-            <span class="mcp-copy-text">Copy</span>
-          </button>
+      {/* Remote MCP config (Claude.ai) */}
+      {editor.isRemote ? (
+        <div class="mcp-manual">
+          <span class="mcp-manual-label">Remote MCP server URL</span>
+          <div class="mcp-code-wrapper">
+            <pre class="mcp-code mcp-code--url"><code set:text={configMap[editor.id]} /></pre>
+            <button class="mcp-copy-btn" data-config={editor.id} aria-label="Copy URL">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+              <span class="mcp-copy-text">Copy</span>
+            </button>
+          </div>
+          <p class="mcp-config-path">
+            Paste in <strong>Settings &rarr; Connectors &rarr; Add custom connector &rarr; Remote MCP server URL</strong>
+          </p>
         </div>
-        <p class="mcp-config-path">
-          Add to <code>{editor.configPath}</code>
-        </p>
-      </div>
+      ) : (
+        <div class="mcp-manual">
+          <span class="mcp-manual-label">Manual configuration</span>
+          <div class="mcp-code-wrapper">
+            <pre class="mcp-code"><code set:text={configMap[editor.id]} /></pre>
+            <button class="mcp-copy-btn" data-config={editor.id} aria-label="Copy configuration">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+              </svg>
+              <span class="mcp-copy-text">Copy</span>
+            </button>
+          </div>
+          <p class="mcp-config-path">
+            Add to <code>{editor.configPath}</code>
+          </p>
+        </div>
+      )}
     </div>
   ))}
 
@@ -353,6 +378,15 @@ const configMap: Record<string, string> = {
 
   .mcp-code code {
     white-space: pre;
+  }
+
+  .mcp-code--url {
+    padding: 14px 48px 14px 20px;
+    word-break: break-all;
+  }
+
+  .mcp-code--url code {
+    white-space: normal;
   }
 
   .mcp-copy-btn {

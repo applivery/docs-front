@@ -44,6 +44,12 @@ interface Props {
   tldr?: string;
   keyTakeaways?: string[];
 
+  // Content classification & enrichment
+  keywords?: string[];
+  audience?: string;
+  difficulty?: string;
+  platform?: string;
+
   // Article schema metadata
   author?: string;
   authorUrl?: string;
@@ -57,7 +63,6 @@ interface Props {
 
   // Navigation
   currentPath?: string;
-
 
   // i18n
   locale?: Locale;
@@ -82,6 +87,10 @@ const {
   readingTime,
   tldr,
   keyTakeaways,
+  keywords = [],
+  audience,
+  difficulty,
+  platform,
   author,
   authorUrl,
   datePublished,
@@ -353,6 +362,17 @@ const publisherLogoUrl = publisherLogoResolved && !publisherLogoResolved.startsW
 // Prefer section/category over collection for more meaningful articleSection values
 const articleSectionValue = section || category || (collection !== 'docs' ? collection : '');
 
+// Map difficulty levels to schema.org proficiencyLevel values
+const proficiencyMap: Record<string, string> = {
+  'beginner': 'Beginner',
+  'intermediate': 'Intermediate',
+  'advanced': 'Advanced',
+  'expert': 'Expert',
+};
+const proficiencyLevel = difficulty
+  ? (proficiencyMap[difficulty.toLowerCase()] || difficulty)
+  : 'Beginner';
+
 // Build Article schema (TechArticle for docs, HowTo for guides)
 const articleSchema: Record<string, any> = {
   "@context": "https://schema.org",
@@ -362,7 +382,12 @@ const articleSchema: Record<string, any> = {
   url: pageUrl,
   inLanguage: localeHrefLang[currentLocale] || currentLocale,
   ...(articleSectionValue && { articleSection: articleSectionValue }),
-  ...(!isHowTo && { proficiencyLevel: "Beginner" }),
+  ...(!isHowTo && { proficiencyLevel }),
+  // Content classification enrichment for LLMs/SEO
+  ...(keywords.length > 0 && { keywords: keywords.join(', ') }),
+  ...(audience && { audience: { "@type": "Audience", audienceType: audience } }),
+  ...(readingTime && { timeRequired: `PT${readingTime}M` }),
+  ...(platform && { about: { "@type": "SoftwareApplication", operatingSystem: platform } }),
   isPartOf: {
     "@type": "WebSite",
     name: siteName,
@@ -435,7 +460,7 @@ if (isHowTo && headings.length > 0) {
     }));
 }
 
-// Add reading time as timeRequired for HowTo
+// Add totalTime for HowTo (separate from timeRequired which is already set globally)
 if (isHowTo && readingTime) {
   articleSchema.totalTime = `PT${readingTime}M`;
 }
@@ -471,8 +496,16 @@ const faqSchema = isFaq
   noindex={noindex}
   section={section}
   category={category}
+  collection={collection}
   datePublished={datePublished}
   dateModified={dateModified}
+  keywords={keywords}
+  author={author}
+  authorUrl={authorUrl}
+  readingTime={readingTime}
+  audience={audience}
+  difficulty={difficulty}
+  platform={platform}
   locale={currentLocale}
   availableTranslations={effectiveTranslations}
 >

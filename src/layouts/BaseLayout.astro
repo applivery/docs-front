@@ -32,9 +32,18 @@ interface Props {
   // OG image generation context
   section?: string;
   category?: string;
+  collection?: string;
   // Article metadata (for og:type article)
   datePublished?: string;
   dateModified?: string;
+  // Content classification & enrichment
+  keywords?: string[];
+  author?: string;
+  authorUrl?: string;
+  readingTime?: number;
+  audience?: string;
+  difficulty?: string;
+  platform?: string;
   // i18n props
   locale?: Locale;
   availableTranslations?: Locale[];
@@ -53,8 +62,16 @@ const {
   robots,
   section,
   category,
+  collection,
   datePublished,
   dateModified,
+  keywords = [],
+  author,
+  authorUrl,
+  readingTime,
+  audience,
+  difficulty,
+  platform,
   locale: propLocale,
   availableTranslations = [],
 } = Astro.props;
@@ -128,7 +145,9 @@ if (!metaOgImage && OG_BASE_URL && title) {
   const ogParams = new URLSearchParams();
   ogParams.set('title', title);
   if (metaOgDescription) ogParams.set('description', metaOgDescription);
-  if (category || section) ogParams.set('category', (category || section || '').toUpperCase());
+  // Category badge: prefer category → section → collection for OG image context
+  const ogCategory = category || section || (collection && collection !== 'docs' ? collection : '');
+  if (ogCategory) ogParams.set('category', ogCategory.toUpperCase());
   if (siteName) ogParams.set('siteName', siteName);
   ogParams.set('template', 'brand-custom');
   metaOgImage = `${OG_BASE_URL}/api/og/generate?${ogParams.toString()}`;
@@ -513,6 +532,14 @@ const cssVars = `
     <title>{pageTitle}</title>
     {metaDescription && <meta name="description" content={metaDescription} />}
 
+    <!-- Content classification meta (keywords, author, audience, platform) -->
+    {keywords.length > 0 && <meta name="keywords" content={keywords.join(', ')} />}
+    {author && <meta name="author" content={author} />}
+    {audience && <meta name="audience" content={audience} />}
+    {platform && <meta name="platform" content={platform} />}
+    {difficulty && <meta name="difficulty" content={difficulty} />}
+    {readingTime && <meta name="reading-time" content={`${readingTime} min`} />}
+
     <!-- Canonical -->
     <link rel="canonical" href={metaCanonical} />
 
@@ -557,7 +584,13 @@ const cssVars = `
     {/* Article-specific OG tags */}
     {ogType === 'article' && datePublished && <meta property="article:published_time" content={datePublished} />}
     {ogType === 'article' && dateModified && <meta property="article:modified_time" content={dateModified} />}
-    {ogType === 'article' && (section || category) && <meta property="article:section" content={section || category} />}
+    {ogType === 'article' && (category || section) && <meta property="article:section" content={category || section} />}
+    {ogType === 'article' && author && <meta property="article:author" content={authorUrl || author} />}
+    {/* article:tag — surface keywords + category + section for rich OG taxonomy */}
+    {ogType === 'article' && keywords.map(kw => <meta property="article:tag" content={kw} />)}
+    {ogType === 'article' && category && <meta property="article:tag" content={category} />}
+    {ogType === 'article' && section && section !== category && <meta property="article:tag" content={section} />}
+    {ogType === 'article' && platform && <meta property="article:tag" content={platform} />}
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content={twitterCard} />
@@ -566,6 +599,11 @@ const cssVars = `
     <meta name="twitter:image" content={new URL(metaOgImage, siteUrl).href} />
     <meta name="twitter:image:alt" content={metaOgDescription || metaOgTitle} />
     {twitterSite && <meta name="twitter:site" content={twitterSite} />}
+    {/* Twitter card enrichment labels (reading time + category context) */}
+    {readingTime && <meta name="twitter:label1" content="Reading time" />}
+    {readingTime && <meta name="twitter:data1" content={`${readingTime} min read`} />}
+    {(category || section) && <meta name="twitter:label2" content="Category" />}
+    {(category || section) && <meta name="twitter:data2" content={category || section || ''} />}
 
     <!-- RSS Feed -->
     <link rel="alternate" type="application/rss+xml" href="/feed.xml" title={`${siteName} Updates`} />

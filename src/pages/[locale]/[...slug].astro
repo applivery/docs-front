@@ -526,6 +526,10 @@ if (isApiPage && processedContent) {
   collection={fullDocument.collection}
   section={section}
   category={category}
+  keywords={fullDocument.keywords}
+  audience={fullDocument.audience}
+  difficulty={fullDocument.difficulty}
+  platform={fullDocument.platform}
   readingTime={isIndex ? undefined : fullDocument.reading_time}
   tldr={fullDocument.tldr}
   keyTakeaways={fullDocument.key_takeaways}

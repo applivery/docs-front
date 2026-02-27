@@ -339,14 +339,16 @@ const isHowTo =
 
 const isFaq = headings.filter((h) => h.text.includes("?")).length >= 2;
 
-// Build Article schema
+// Build Article schema (TechArticle for docs, HowTo for guides)
 const articleSchema: Record<string, any> = {
   "@context": "https://schema.org",
-  "@type": isHowTo ? "HowTo" : "Article",
+  "@type": isHowTo ? "HowTo" : "TechArticle",
   headline: title,
   description: description || "",
   url: pageUrl,
   inLanguage: localeHrefLang[currentLocale] || currentLocale,
+  ...(collection && { articleSection: collection }),
+  ...(!isHowTo && { proficiencyLevel: "Beginner" }),
   isPartOf: {
     "@type": "WebSite",
     name: siteName,
@@ -363,6 +365,18 @@ const articleSchema: Record<string, any> = {
       },
     }),
   },
+};
+
+// Build BreadcrumbList schema for Google SERPs rich results
+const breadcrumbSchema = {
+  "@context": "https://schema.org",
+  "@type": "BreadcrumbList",
+  "itemListElement": breadcrumbItems.map((item, index) => ({
+    "@type": "ListItem",
+    "position": index + 1,
+    "name": item.label,
+    "item": new URL(item.href.endsWith('/') ? item.href : item.href + '/', siteUrl).href,
+  })),
 };
 
 // Add dates if available
@@ -438,18 +452,25 @@ const faqSchema = isFaq
   ogTitle={ogTitle}
   ogDescription={ogDescription}
   ogImage={ogImage}
+  ogType="article"
   canonical={canonical}
   noindex={noindex}
   section={section}
   category={category}
+  datePublished={datePublished}
+  dateModified={dateModified}
   locale={currentLocale}
   availableTranslations={effectiveTranslations}
 >
-  <!-- Article Schema for SEO/LLM optimization -->
+  <!-- Structured Data for SEO/LLM optimization -->
   <Fragment slot="head">
     <script
       type="application/ld+json"
       set:html={JSON.stringify(articleSchema)}
+    />
+    <script
+      type="application/ld+json"
+      set:html={JSON.stringify(breadcrumbSchema)}
     />
     {
       faqSchema && (

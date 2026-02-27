@@ -75,7 +75,7 @@ export default defineConfig({
 
   // Vite configuration
   vite: {
-    envPrefix: ['PUBLIC_', 'CMS_'],
+    envPrefix: ['PUBLIC_', 'CMS_', 'OG_'],
     optimizeDeps: {
       exclude: ['@astrojs/mdx'],
     },

@@ -96,9 +96,15 @@ try {
 const cookieConsentMode = privacy?.privacySettings?.cookieConsent || 'simple';
 const cookiePosition = privacy?.privacySettings?.cookiePosition || 'bottom-right';
 
-// Build page title
+// Build page title using CMS titleTemplate with variable substitution
 const siteName = extendedSeo?.siteName || 'Documentation';
-const pageTitle = title ? `${title} | ${siteName}` : siteName;
+const titleTemplate = extendedSeo?.titleTemplate || '{title} | {siteName}';
+const pageTitle = title
+  ? titleTemplate
+      .replace('{title}', title)
+      .replace('{siteName}', siteName)
+      .replace('{category}', category || section || '')
+  : siteName;
 const siteUrl = extendedSeo?.siteUrl || Astro.url.origin;
 
 // SEO values with fallbacks

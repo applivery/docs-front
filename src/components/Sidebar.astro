@@ -496,318 +496,36 @@ const navigation = isManualMode
 // Serialize products for client-side use
 const productsJson = JSON.stringify(products);
 
-const iconNameMap: Record<string, IconName> = {
-  // Documents & Files
-  folder: 'folder',
-  'folder-open': 'folderOpen',
-  'folder-plus': 'folderPlus',
-  'folder-tree': 'folderTree',
-  document: 'document',
-  'file-text': 'fileText',
-  'file-code': 'fileCode',
-  'file-plus': 'filePlus',
-  scroll: 'scroll',
-  notebook: 'notebook',
-  clipboard: 'clipboard',
-  'clipboard-list': 'clipboardList',
-
-  // Navigation & UI
-  home: 'home',
-  compass: 'compass',
-  map: 'map',
-  'map-pin': 'mapPin',
-  bookmark: 'bookmark',
-  menu: 'menu',
-  'panel-left': 'panelLeft',
-  'layout-dashboard': 'layoutDashboard',
-  'layout-grid': 'layoutGrid',
-  'layout-list': 'layoutList',
-
-  // Settings & Config
-  settings: 'settings',
+// Aliases for icon names that DON'T follow the standard kebab→camelCase pattern.
+// All other names (e.g. 'folder-open' → 'folderOpen') are auto-converted at runtime.
+const iconAliases: Record<string, string> = {
   'settings-2': 'settings',
   cog: 'settings',
   'columns-3-cog': 'settings',
-  wrench: 'wrench',
-  sliders: 'sliders',
-  'sliders-horizontal': 'slidersHorizontal',
-
-  // Actions
-  zap: 'zap',
-  rocket: 'rocket',
-  play: 'play',
-  download: 'download',
-  upload: 'upload',
-  'refresh-cw': 'refreshCw',
-  trash: 'trash',
   'trash-2': 'trash',
-  pencil: 'pencil',
-  plus: 'plus',
-  copy: 'copy',
-  sparkles: 'sparkles',
-  lightbulb: 'lightbulb',
-
-  // Technology & Platforms
-  smartphone: 'smartphone',
   'monitor-smartphone': 'smartphone',
-  tablet: 'tablet',
   'tablet-smartphone': 'tablet',
-  monitor: 'monitor',
-  laptop: 'laptop',
-  tv: 'tv',
-  watch: 'watch',
-  'panel-top-open': 'panelTopOpen',
-
-  // Operating Systems & Brands
-  apple: 'apple',
-  android: 'android',
   iphone: 'smartphone',
   ipad: 'tablet',
-  windows: 'windows',
-  chrome: 'chrome',
-  github: 'github',
-  gitlab: 'gitlab',
-  figma: 'figma',
-  slack: 'slack',
-  trello: 'trello',
-  twitter: 'twitter',
-  youtube: 'youtube',
-  linkedin: 'linkedin',
-  facebook: 'facebook',
-  instagram: 'instagram',
-  dribbble: 'dribbble',
-
-  // Infrastructure
-  server: 'server',
-  cloud: 'cloud',
-  database: 'database',
-  cpu: 'cpu',
-  'hard-drive': 'hardDrive',
-  wifi: 'wifi',
-  bluetooth: 'bluetooth',
-
-  // Development & API
-  code: 'code',
-  terminal: 'terminal',
-  'git-branch': 'gitBranch',
-  'git-commit': 'gitCommit',
-  'git-merge': 'gitMerge',
-  'git-pull-request': 'gitPullRequest',
-  webhook: 'webhook',
-  api: 'api',
-  binary: 'binary',
-  bug: 'bug',
-
-  // Integrations & Plugins
-  plug: 'plug',
-  puzzle: 'puzzle',
-  package: 'package',
-  layers: 'layers',
-  box: 'box',
-  blocks: 'blocks',
-  component: 'component',
-
-  // Security
-  shield: 'shield',
-  'shield-check': 'shieldCheck',
-  'shield-alert': 'shieldAlert',
-  lock: 'lock',
-  'lock-open': 'lockOpen',
-  key: 'key',
-  fingerprint: 'fingerprint',
-  eye: 'eye',
-  'eye-off': 'eyeOff',
-
-  // Documentation
-  book: 'book',
-  'book-open': 'bookOpen',
-  'book-marked': 'bookMarked',
-
-  // Users & Organization
-  user: 'user',
-  'user-check': 'userCheck',
-  'user-plus': 'userPlus',
-  users: 'users',
-  building: 'building',
-  briefcase: 'briefcase',
-
-  // Communication
-  bell: 'bell',
-  mail: 'mail',
-  'message-square': 'messageSquare',
-  'message-circle': 'messageCircle',
-  phone: 'phone',
-  video: 'video',
-  'help-circle': 'helpCircle',
-
-  // Analytics & Data
-  'bar-chart': 'barChart',
   'bar-chart-2': 'barChart',
-  'line-chart': 'lineChart',
-  'pie-chart': 'pieChart',
-  'trending-up': 'trendingUp',
-  activity: 'activity',
-
-  // Search & Status
-  search: 'search',
-  check: 'check',
-  'check-circle': 'checkCircle',
-  info: 'info',
-  'alert-circle': 'alertCircle',
-  'alert-triangle': 'alertTriangle',
-  x: 'x',
-  'x-circle': 'xCircle',
-  link: 'link',
-  'link-2': 'link2',
-  'external-link': 'externalLink',
-
-  // Misc
-  star: 'star',
-  heart: 'heart',
-  flag: 'flag',
-  tag: 'tag',
-  globe: 'globe',
-  'globe-2': 'globe2',
-  image: 'image',
-  bot: 'bot',
-  palette: 'palette',
-  history: 'history',
-  'list-tree': 'listTree',
-  'list-ordered': 'listOrdered',
-  'pen-line': 'penLine',
-  'grip-vertical': 'gripVertical',
-  'more-vertical': 'moreVertical',
-  'table-properties': 'tableProperties',
-  square: 'square',
-
-  // Extended icons (synced from CMS icon picker)
-  // Devices & peripherals
-  'airbuds': 'airbuds',
-  'airbuds-case': 'airbudsCase',
-  'airbuds-charge': 'airbudsCharge',
-  'boombox': 'boombox',
-  'cassette': 'cassette',
-  'cloud-storage': 'cloudStorage',
-  'devices': 'devices',
-  'diskette': 'diskette',
-  'display': 'display',
-  'flash-drive': 'flashDrive',
-  'gameboy': 'gameboy',
-  'gamepad': 'gamepad',
-  'gamepad-minimalistic': 'gamepadMinimalistic',
-  'gamepad-old': 'gamepadOld',
-  'headphones': 'headphones',
-  'headphones-sound': 'headphonesSound',
-  'headphones-square': 'headphonesSquare',
-  'keyboard': 'keyboard',
-  'laptop-2': 'laptop2',
-  'laptop-minimalistic': 'laptopMinimalistic',
-  'lightning': 'lightning',
-  'magic-stick': 'magicStick',
-  'map-arrow-down': 'mapArrowDown',
-  'map-arrow-up': 'mapArrowUp',
-  'monitor-camera': 'monitorCamera',
-  'mouse': 'mouse',
-  'printer': 'printer',
-  'printer-minimalistic': 'printerMinimalistic',
-  'projector': 'projector',
-  'sd-card': 'sdCard',
-  'sim-card': 'simCard',
-  'slider-horizontal': 'sliderHorizontal',
-  'slider-vertical': 'sliderVertical',
-  'smart-speaker': 'smartSpeaker',
-  'smartphone-2': 'smartphone2',
-  'smartphone-rotate': 'smartphoneRotate',
-  'smartphone-update': 'smartphoneUpdate',
-  'smartphone-vibration': 'smartphoneVibration',
-  'socket': 'socket',
-  'ssd-round': 'ssdRound',
-  'ssd-square': 'ssdSquare',
-  'telescope': 'telescope',
-  'turntable': 'turntable',
-  'weigher': 'weigher',
-  'wireless-charge': 'wirelessCharge',
-
-  // Actions & editor
-  'arrow-down': 'arrowDown',
-  'arrow-up': 'arrowUp',
-  'bold': 'bold',
-  'chevron-down': 'chevronDown',
-  'chevron-left': 'chevronLeft',
-  'chevron-right': 'chevronRight',
-  'chevron-up': 'chevronUp',
-  'command': 'command',
-  'heading-1': 'heading1',
-  'heading-2': 'heading2',
-  'heading-3': 'heading3',
-  'italic': 'italic',
-  'list': 'list',
-  'list-check': 'listCheck',
-  'loader-2': 'loader2',
-  'log-out': 'logOut',
-  'minus': 'minus',
-  'more-horizontal': 'moreHorizontal',
-  'moon': 'moon',
-  'quote': 'quote',
-  'redo': 'redo',
-  'strikethrough': 'strikethrough',
-  'sun': 'sun',
-  'underline': 'underline',
-  'undo': 'undo',
-
-  // Development & integrations
-  'bar-chart-3': 'barChart3',
-  'braces': 'braces',
-  'brackets': 'brackets',
-  'bug-off': 'bugOff',
-  'circuit-board': 'circuitBoard',
-  'code-2': 'code2',
-  'file-json': 'fileJson',
-  'flask-conical': 'flaskConical',
-  'nfc': 'nfc',
-  'radio': 'radio',
-  'terminal-square': 'terminalSquare',
-  'test-tube': 'testTube',
-
-  // Security & misc
-  'bell-ring': 'bellRing',
-  'building-2': 'building2',
-  'check-circle-2': 'checkCircle2',
-  'id-card': 'idCard',
-  'key-round': 'keyRound',
-  'layers-2': 'layers2',
-  'memory-stick': 'memoryStick',
-  'package-open': 'packageOpen',
-  'plug-2': 'plug2',
-  'scan': 'scan',
-  'scan-face': 'scanFace',
-  'shield-off': 'shieldOff',
-  'tags': 'tags',
-  'toggle-left': 'toggleLeft',
-  'toggle-right': 'toggleRight',
-  'trending-down': 'trendingDown',
-  'unplug': 'unplug',
-  'zap-off': 'zapOff',
-
-  // Operating Systems & Brands (custom icons)
-  'apple-logo': 'appleLogo',
-  'apple-finder': 'appleFinder',
-  'windows-logo': 'windowsLogo',
-  'android-robot': 'androidRobot',
-  'macos': 'macos',
-
-  // Aliases
-  'boxes': 'boxes',
 };
+
+// Convert kebab-case to camelCase: 'folder-open' → 'folderOpen'
+function kebabToCamel(str: string): string {
+  return str.replace(/-([a-z0-9])/g, (_, c: string) => c.toUpperCase());
+}
 
 function getIconName(iconName?: string): IconName {
   if (!iconName) return 'document';
   const lower = iconName.toLowerCase();
-  // 1. Check the explicit kebab→camelCase mapping
-  if (iconNameMap[lower]) return iconNameMap[lower];
-  // 2. Check if the name is already a valid key in iconMap (covers kebab-case keys like 'apple-logo')
+  // 1. Check aliases (non-trivial mappings like cog → settings)
+  if (iconAliases[lower]) return iconAliases[lower] as IconName;
+  // 2. Auto-convert kebab→camelCase and check if it's a valid icon
+  const camel = kebabToCamel(lower);
+  if (camel in iconMap) return camel as IconName;
+  // 3. Check raw lowercase in iconMap (single-word keys like 'apple', 'android')
   if (lower in iconMap) return lower as IconName;
-  // 3. Fallback
+  // 4. Fallback
   return 'document';
 }
 
@@ -837,7 +555,7 @@ const cmsUrl = import.meta.env.PUBLIC_CMS_URL || import.meta.env.CMS_URL || '';
 <aside
   class="sidebar"
   data-cms-url={cmsUrl}
-  data-icon-name-map={JSON.stringify(iconNameMap)}
+  data-icon-name-map={JSON.stringify(iconAliases)}
   data-icon-map={JSON.stringify(iconMap)}
 >
   <!-- Logo / Site Name -->
@@ -1294,7 +1012,8 @@ const cmsUrl = import.meta.env.PUBLIC_CMS_URL || import.meta.env.CMS_URL || '';
 <script lang="ts">
   const sidebarElement = document.querySelector('.sidebar');
   const sidebarDataset = sidebarElement?.dataset;
-  const iconNameMap = sidebarDataset?.iconNameMap
+  // iconNameMap now only contains aliases (non-trivial mappings like cog → settings)
+  const iconAliases = sidebarDataset?.iconNameMap
     ? new Map(Object.entries(JSON.parse(sidebarDataset.iconNameMap)))
     : new Map();
   const iconifyMap = sidebarDataset?.iconMap
@@ -1302,6 +1021,11 @@ const cmsUrl = import.meta.env.PUBLIC_CMS_URL || import.meta.env.CMS_URL || '';
     : new Map();
   const iconSvgCache = new Map();
   const iconSvgRequests = new Map();
+
+  // Convert kebab-case to camelCase: 'folder-open' → 'folderOpen'
+  function kebabToCamel(str) {
+    return str.replace(/-([a-z0-9])/g, (_, c) => c.toUpperCase());
+  }
 
   // Cache for loaded folder content
   const folderCache = new Map();
@@ -1366,7 +1090,16 @@ const cmsUrl = import.meta.env.PUBLIC_CMS_URL || import.meta.env.CMS_URL || '';
   function resolveIconName(iconName, isFolder = false) {
     if (!iconName) return isFolder ? 'folder' : 'document';
     const normalized = iconName.toLowerCase();
-    return iconNameMap.get(normalized) || (isFolder ? 'folder' : 'document');
+    // 1. Check aliases (non-trivial mappings like cog → settings)
+    const alias = iconAliases.get(normalized);
+    if (alias) return alias;
+    // 2. Auto-convert kebab→camelCase, check if valid in iconMap
+    const camel = kebabToCamel(normalized);
+    if (iconifyMap.has(camel)) return camel;
+    // 3. Check raw in iconMap (single-word keys)
+    if (iconifyMap.has(normalized)) return normalized;
+    // 4. Fallback
+    return isFolder ? 'folder' : 'document';
   }
 
   function resolveIconifyName(iconName, isFolder = false) {

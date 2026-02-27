@@ -366,6 +366,7 @@ export interface CollectionConfig {
 export interface SEOSettings {
   siteName: string;
   siteUrl: string;
+  titleTemplate: string;
   defaultOgImage: string;
   twitterHandle: string;
   googleSiteVerification: string;

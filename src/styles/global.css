@@ -323,8 +323,8 @@
 
   /* Nested subgroup styles */
   .sidebar-nav-subgroup {
-    margin-left: 0.5rem;
-    padding-left: 0.75rem;
+    margin-left: 0rem;
+    padding-left: 0rem;
   }
 
   .sidebar-nav-subgroup-title {

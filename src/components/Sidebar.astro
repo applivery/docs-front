@@ -514,7 +514,13 @@ function buildNavigation(docs: Document[]): NavGroup[] {
       }
       if (settings) {
         if (settings.label) node.title = settings.label;
-        if (settings.icon) node.icon = settings.icon;
+        if (settings.icon) {
+          node.icon = settings.icon;
+        } else {
+          // CMS has a setting but icon is empty — use default folder icon
+          // (don't leave undefined, otherwise it resolves to 'document' file icon)
+          node.icon = 'folder';
+        }
         // Mark that CMS has a setting for this folder — even if icon is empty,
         // we should respect that and NOT let inferFolderIcon override it
         node.cmsIconSet = true;
@@ -1786,7 +1792,6 @@ const effectiveTranslations: Locale[] = availableTranslations.length > 0
   .product-nav-content {
     display: flex;
     flex-direction: column;
-    padding: 0.75rem;
   }
 
   .product-nav-content.hidden {

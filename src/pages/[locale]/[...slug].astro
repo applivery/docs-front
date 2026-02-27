@@ -10,7 +10,7 @@
 import { getCollection } from 'astro:content';
 import DocLayout from '../../layouts/DocLayout.astro';
 import ArchiveGrid from '../../components/ArchiveGrid.astro';
-import { resolveMediaUrl, getAllSettings } from '../../lib/cms';
+import { resolveMediaUrl, getAllSettings, getFolderSettings, type FolderSettingsMap } from '../../lib/cms';
 import { processMarkdown } from '../../lib/markdown';
 import {
   locales,
@@ -129,7 +129,10 @@ type DocData = DocEntry['data'];
 export async function getStaticPaths() {
   // ONE call to the local data store (populated by the CMS loader)
   const allDocs = await getCollection('docs');
-  const settings = await getAllSettings();
+  const [settings, cmsFolderSettings] = await Promise.all([
+    getAllSettings(),
+    getFolderSettings(),
+  ]);
 
   // Precompute manual labels from sidebar settings
   const manualLabels = new Map<string, string>();
@@ -321,7 +324,10 @@ export async function getStaticPaths() {
       const key = `${docLocale}:${folderSlug}`;
       if (pathKeys.has(key)) continue;
       const segment = folderSlug.split('/').pop() || folderSlug;
-      const title = manualLabels.get(folderSlug) || toTitle(segment);
+      // Check CMS folder settings for a label override
+      const cmsPathKey = `src/content/${docLocale}/docs/${folderSlug}`;
+      const cmsFolderLabel = cmsFolderSettings?.[cmsPathKey]?.label || cmsFolderSettings?.[folderPath]?.label;
+      const title = cmsFolderLabel || manualLabels.get(folderSlug) || toTitle(segment);
       const collection = folderSlug.split('/')[0] || 'docs';
       paths.push({
         params: { locale: docLocale, slug: folderSlug },
@@ -375,6 +381,12 @@ if (Astro.url.pathname.endsWith('/roadmap')) {
 // Content is already in the data store — no API call needed
 const content = entry?.rendered?.html || '';
 
+// Fetch CMS folder settings for archive grid (label, icon, order overrides)
+let cmsFolderSettings: FolderSettingsMap = {};
+try {
+  cmsFolderSettings = await getFolderSettings();
+} catch { /* non-fatal */ }
+
 // For index/archive pages, find child documents from the local store
 // The show_child_grid flag (default true) controls whether the grid renders
 const showChildGrid = fullDocument.show_child_grid !== false;
@@ -415,9 +427,25 @@ if (isIndex && showChildGrid) {
     return relative.length > 0 && !relative.includes('/');
   });
 
+  // Deduplicate archives by folder path (prefer index.mdx over folder-named files)
+  const archiveByFolder = new Map<string, typeof directChildArchives[0]>();
+  for (const archive of directChildArchives) {
+    const fp = getIndexFolderPath(archive.data);
+    if (!fp) continue;
+    const existing = archiveByFolder.get(fp);
+    if (!existing) {
+      archiveByFolder.set(fp, archive);
+    } else {
+      // Prefer the one with 'index' in filename
+      const isIndex = archive.data.path?.match(/\/index\.mdx?$/);
+      if (isIndex) archiveByFolder.set(fp, archive);
+    }
+  }
+  const deduplicatedArchives = Array.from(archiveByFolder.values());
+
   // Collect folder paths that already have index/archive pages
   const archiveFolderPaths = new Set<string>();
-  for (const archive of directChildArchives) {
+  for (const archive of deduplicatedArchives) {
     const fp = getIndexFolderPath(archive.data);
     if (fp) archiveFolderPaths.add(fp);
   }
@@ -444,7 +472,7 @@ if (isIndex && showChildGrid) {
   }
 
   // Count child docs per sub-folder (both real archives and virtual folders)
-  for (const archive of directChildArchives) {
+  for (const archive of deduplicatedArchives) {
     const archiveFolderPath = getIndexFolderPath(archive.data);
     if (!archiveFolderPath) continue;
     const childCount = allDocs.filter((other) => {
@@ -495,6 +523,39 @@ if (isIndex && showChildGrid) {
       order: 999,
       endpointCount: childCount,
     });
+  }
+
+  // Apply CMS folder settings overrides (label, icon, order)
+  // Folder settings keys use paths like: src/content/en/docs/device-management/android
+  if (cmsFolderSettings && Object.keys(cmsFolderSettings).length > 0) {
+    for (const folder of childFolders) {
+      // Determine the folder's CMS path from its href
+      // href is like /en/device-management/android → src/content/en/docs/device-management/android
+      const hrefSlug = folder.href.replace(/^\/[a-z]{2}\//, '').replace(/\/$/, '');
+      const pathVariants = [
+        `src/content/${locale}/docs/${hrefSlug}`,
+        `content/${locale}/docs/${hrefSlug}`,
+        `${locale}/docs/${hrefSlug}`,
+        hrefSlug,
+      ];
+      let settings = null;
+      for (const variant of pathVariants) {
+        if (cmsFolderSettings[variant]) {
+          settings = cmsFolderSettings[variant];
+          break;
+        }
+      }
+      if (settings) {
+        if (settings.label) folder.title = settings.label;
+        if (settings.icon) {
+          folder.icon = settings.icon;
+          // Re-resolve icon HTML with the CMS-provided icon
+          const archiveFolderPath = pathVariants[0]; // Use the full src/content path
+          folder.iconHtml = resolveFolderIcon(archiveFolderPath, settings.icon);
+        }
+        if (settings.order != null) folder.order = settings.order;
+      }
+    }
   }
 
   childFolders.sort((a, b) => a.order - b.order);

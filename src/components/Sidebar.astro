@@ -5,7 +5,7 @@
  * Supports both auto-tree mode (from documents) and manual mode (from admin config)
  */
 
-import type { Document, SideMenuConfig, SideMenuItem } from '../lib/cms';
+import type { Document, SideMenuConfig, SideMenuItem, FolderSettingsMap } from '../lib/cms';
 import {
   locales as i18nLocales,
   localeNames,
@@ -97,6 +97,8 @@ interface Props {
   availableTranslations?: Locale[];
   /** Mapping of locale to translated slug for URL building */
   translationSlugs?: Partial<Record<Locale, string>>;
+  /** Folder settings from CMS (label, icon, order overrides) */
+  folderSettings?: FolderSettingsMap;
 }
 
 const {
@@ -115,6 +117,7 @@ const {
   locale: propLocale,
   availableTranslations = [],
   translationSlugs = {},
+  folderSettings = {},
 } = Astro.props;
 
 // Determine current locale from prop, URL, or default
@@ -438,6 +441,41 @@ function buildNavigation(docs: Document[]): NavGroup[] {
     }
   }
   applyIndexDocs(root, '');
+
+  // Apply CMS folder settings (label, icon, order) — these override document-level fields
+  // Folder settings keys use paths like: src/content/en/docs/device-management/android
+  function applyCmsFolderSettings(tree: Record<string, TreeNode>, parentSlug: string) {
+    for (const [key, node] of Object.entries(tree)) {
+      const folderSlug = parentSlug ? `${parentSlug}/${key}` : key;
+      // Build all possible path variants the CMS might use
+      const pathVariants = [
+        `src/content/${currentLocale}/docs/${folderSlug}`,
+        `content/${currentLocale}/docs/${folderSlug}`,
+        `${currentLocale}/docs/${folderSlug}`,
+        folderSlug,
+      ];
+      let settings = null;
+      for (const variant of pathVariants) {
+        if (folderSettings[variant]) {
+          settings = folderSettings[variant];
+          break;
+        }
+      }
+      if (settings) {
+        if (settings.label) node.title = settings.label;
+        if (settings.icon) node.icon = settings.icon;
+        if (settings.order != null && settings.order !== 0) node.order = settings.order;
+        // If order is explicitly 0 and not already set from document, use it
+        else if (settings.order === 0 && node.order == null) node.order = 0;
+      }
+      if (Object.keys(node.children).length > 0) {
+        applyCmsFolderSettings(node.children, folderSlug);
+      }
+    }
+  }
+  if (folderSettings && Object.keys(folderSettings).length > 0) {
+    applyCmsFolderSettings(root, '');
+  }
 
   // Convert tree to NavGroup array with proper nesting, sorted by order
   function treeToGroups(tree: Record<string, TreeNode>): NavGroup[] {
@@ -1793,7 +1831,6 @@ const effectiveTranslations: Locale[] = availableTranslations.length > 0
     font-size: 0.6875rem;
     font-weight: 600;
     letter-spacing: 0.05em;
-    text-transform: uppercase;
     color: var(--color-text-muted);
   }
 

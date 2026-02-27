@@ -556,7 +556,6 @@ const cmsUrl = import.meta.env.PUBLIC_CMS_URL || import.meta.env.CMS_URL || '';
   class="sidebar"
   data-cms-url={cmsUrl}
   data-icon-name-map={JSON.stringify(iconAliases)}
-  data-icon-map={JSON.stringify(iconMap)}
 >
   <!-- Logo / Site Name -->
   <div class="sidebar-header">
@@ -1010,20 +1009,21 @@ const cmsUrl = import.meta.env.PUBLIC_CMS_URL || import.meta.env.CMS_URL || '';
 </aside>
 
 <script lang="ts">
+  import { iconMap } from '../lib/icons';
+
   const sidebarElement = document.querySelector('.sidebar');
   const sidebarDataset = sidebarElement?.dataset;
-  // iconNameMap now only contains aliases (non-trivial mappings like cog → settings)
+  // iconAliases: only non-trivial mappings (cog → settings, iphone → smartphone, etc.)
   const iconAliases = sidebarDataset?.iconNameMap
     ? new Map(Object.entries(JSON.parse(sidebarDataset.iconNameMap)))
     : new Map();
-  const iconifyMap = sidebarDataset?.iconMap
-    ? new Map(Object.entries(JSON.parse(sidebarDataset.iconMap)))
-    : new Map();
+  // iconMap imported as a JS module (bundled & cached by Vite, not serialized into HTML)
+  const iconifyMap = new Map(Object.entries(iconMap));
   const iconSvgCache = new Map();
   const iconSvgRequests = new Map();
 
   // Convert kebab-case to camelCase: 'folder-open' → 'folderOpen'
-  function kebabToCamel(str) {
+  function kebabToCamel(str: string): string {
     return str.replace(/-([a-z0-9])/g, (_, c) => c.toUpperCase());
   }
 

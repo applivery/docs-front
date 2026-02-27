@@ -156,16 +156,17 @@ if (!metaOgImage && OG_BASE_URL && title) {
 }
 
 // Resolve a proper logo URL for structured data (avoid data URIs, resolve /_r2/ paths)
-// Priority: SEO ogLogoUrl → logoIcon → logoDark → logo (skip data: URIs)
+// Priority: SEO ogLogoUrl → logoIcon → logoDark → logo → favicon (skip data: URIs)
 const schemaLogoRaw = extendedSeo?.ogLogoUrl
   || branding?.logoIcon
   || branding?.logoDark
   || branding?.logo
   || '';
 const schemaLogoResolved = resolveMediaUrl(schemaLogoRaw);
-const schemaLogoUrl = schemaLogoResolved && !schemaLogoResolved.startsWith('data:')
+// Fallback: use favicon as last resort — always a valid hosted URL
+const schemaLogoUrl = (schemaLogoResolved && !schemaLogoResolved.startsWith('data:'))
   ? new URL(schemaLogoResolved, siteUrl).href
-  : '';
+  : new URL(branding?.favicon || '/favicon.svg', siteUrl).href;
 
 // Organization Schema for SEO/LLM optimization
 const organizationSchema = {
@@ -173,12 +174,10 @@ const organizationSchema = {
   "@type": "Organization",
   "name": siteName,
   "url": siteUrl,
-  ...(schemaLogoUrl && {
-    "logo": {
-      "@type": "ImageObject",
-      "url": schemaLogoUrl
-    }
-  }),
+  "logo": {
+    "@type": "ImageObject",
+    "url": schemaLogoUrl
+  },
   ...(extendedSeo?.description && { "description": extendedSeo.description }),
   ...(extendedSeo?.twitterHandle && {
     "sameAs": [`https://twitter.com/${extendedSeo.twitterHandle.replace('@', '')}`]
@@ -607,9 +606,6 @@ const cssVars = `
 
     <!-- RSS Feed -->
     <link rel="alternate" type="application/rss+xml" href="/feed.xml" title={`${siteName} Updates`} />
-
-    <!-- LLMs.txt reference for AI crawlers -->
-    <link rel="author" href="/llms.txt" type="text/plain" />
 
     <!-- Organization & WebSite Schema -->
     <script type="application/ld+json" set:html={JSON.stringify(organizationSchema)} />

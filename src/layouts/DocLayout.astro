@@ -355,12 +355,14 @@ const publisherLogoRaw = settings?.seo?.ogLogoUrl
   || settings?.appearance?.branding?.logo
   || '';
 const publisherLogoResolved = resolveMediaUrl(publisherLogoRaw);
-const publisherLogoUrl = publisherLogoResolved && !publisherLogoResolved.startsWith('data:')
+// Fallback: use favicon as last resort — always a valid hosted URL
+const publisherLogoUrl = (publisherLogoResolved && !publisherLogoResolved.startsWith('data:'))
   ? new URL(publisherLogoResolved, siteUrl).href
-  : '';
+  : new URL(settings?.appearance?.branding?.favicon || '/favicon.svg', siteUrl).href;
 
 // Prefer section/category over collection for more meaningful articleSection values
-const articleSectionValue = section || category || (collection !== 'docs' ? collection : '');
+// Always provide a value — Google & LLMs use articleSection to categorize content
+const articleSectionValue = section || category || (collection !== 'docs' ? collection : '') || 'Documentation';
 
 // Map difficulty levels to schema.org proficiencyLevel values
 const proficiencyMap: Record<string, string> = {
@@ -397,12 +399,10 @@ const articleSchema: Record<string, any> = {
     "@type": "Organization",
     name: siteName,
     url: siteUrl,
-    ...(publisherLogoUrl && {
-      logo: {
-        "@type": "ImageObject",
-        url: publisherLogoUrl,
-      },
-    }),
+    logo: {
+      "@type": "ImageObject",
+      url: publisherLogoUrl,
+    },
   },
 };
 
@@ -426,12 +426,30 @@ if (dateModified) {
   articleSchema.dateModified = dateModified;
 }
 
-// Add author if available
-if (author) {
+// Author: use Person only if the CMS value looks like a valid human name
+// (not a token, URL, env var, or other sensitive/invalid data).
+// Otherwise default to the publisher Organization for safe, valid structured data.
+const isValidAuthorName = author
+  && author.length >= 2
+  && author.length <= 100
+  && !/[=&?:\/\\{}[\]|@#$%^*]/.test(author)
+  && !author.startsWith('Bearer ')
+  && !author.startsWith('sk-')
+  && author !== 'null'
+  && author !== 'undefined';
+
+if (isValidAuthorName) {
   articleSchema.author = {
     "@type": "Person",
     name: author,
     ...(authorUrl && { url: authorUrl }),
+  };
+} else {
+  // Default to Organization author (matches publisher)
+  articleSchema.author = {
+    "@type": "Organization",
+    name: siteName,
+    url: siteUrl,
   };
 }
 
@@ -527,8 +545,6 @@ const faqSchema = isFaq
         />
       )
     }
-    <!-- LLMs.txt reference -->
-    <link rel="author" href="/llms.txt" type="text/plain" />
   </Fragment>
   <div class="docs-layout">
     <!-- Sidebar -->

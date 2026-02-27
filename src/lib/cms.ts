@@ -368,6 +368,7 @@ export interface SEOSettings {
   siteUrl: string;
   titleTemplate: string;
   defaultOgImage: string;
+  ogLogoUrl?: string;
   twitterHandle: string;
   googleSiteVerification: string;
   analyticsId: string;

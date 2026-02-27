@@ -11,7 +11,7 @@ import TableOfContents from "../components/TableOfContents.astro";
 import Breadcrumbs from "../components/Breadcrumbs.astro";
 import Footer from "../components/Footer.astro";
 import AIChat from "../components/AIChat.astro";
-import { getDocuments, getAllSettings, type Document } from "../lib/cms";
+import { getDocuments, getAllSettings, resolveMediaUrl, type Document } from "../lib/cms";
 import { extractSlugFromPath, isIndexFile } from "../lib/doc-helpers";
 import { getCollection } from "astro:content";
 import {
@@ -339,6 +339,20 @@ const isHowTo =
 
 const isFaq = headings.filter((h) => h.text.includes("?")).length >= 2;
 
+// Resolve a proper logo URL for publisher schema (avoid data URIs, resolve /_r2/ paths)
+const publisherLogoRaw = settings?.seo?.ogLogoUrl
+  || settings?.appearance?.branding?.logoIcon
+  || settings?.appearance?.branding?.logoDark
+  || settings?.appearance?.branding?.logo
+  || '';
+const publisherLogoResolved = resolveMediaUrl(publisherLogoRaw);
+const publisherLogoUrl = publisherLogoResolved && !publisherLogoResolved.startsWith('data:')
+  ? new URL(publisherLogoResolved, siteUrl).href
+  : '';
+
+// Prefer section/category over collection for more meaningful articleSection values
+const articleSectionValue = section || category || (collection !== 'docs' ? collection : '');
+
 // Build Article schema (TechArticle for docs, HowTo for guides)
 const articleSchema: Record<string, any> = {
   "@context": "https://schema.org",
@@ -347,7 +361,7 @@ const articleSchema: Record<string, any> = {
   description: description || "",
   url: pageUrl,
   inLanguage: localeHrefLang[currentLocale] || currentLocale,
-  ...(collection && { articleSection: collection }),
+  ...(articleSectionValue && { articleSection: articleSectionValue }),
   ...(!isHowTo && { proficiencyLevel: "Beginner" }),
   isPartOf: {
     "@type": "WebSite",
@@ -358,10 +372,10 @@ const articleSchema: Record<string, any> = {
     "@type": "Organization",
     name: siteName,
     url: siteUrl,
-    ...(settings?.appearance?.branding?.logo && {
+    ...(publisherLogoUrl && {
       logo: {
         "@type": "ImageObject",
-        url: new URL(settings.appearance.branding.logo, siteUrl).href,
+        url: publisherLogoUrl,
       },
     }),
   },

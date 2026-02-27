@@ -4,7 +4,7 @@
  * Loads settings from CMS for colors, logo, and appearance
  */
 
-import { getAllSettings, type AppearanceSettings, type PrivacySettings } from '../lib/cms';
+import { getAllSettings, resolveMediaUrl, type AppearanceSettings, type PrivacySettings } from '../lib/cms';
 import type { BrandingSettings, ColorSettings, SEOSettings } from '../lib/types-astro-ext';
 import CookieBanner from '../components/CookieBanner.astro';
 import '../styles/global.css';
@@ -136,16 +136,28 @@ if (!metaOgImage && OG_BASE_URL && title) {
   metaOgImage = '/og-image.png';
 }
 
+// Resolve a proper logo URL for structured data (avoid data URIs, resolve /_r2/ paths)
+// Priority: SEO ogLogoUrl → logoIcon → logoDark → logo (skip data: URIs)
+const schemaLogoRaw = extendedSeo?.ogLogoUrl
+  || branding?.logoIcon
+  || branding?.logoDark
+  || branding?.logo
+  || '';
+const schemaLogoResolved = resolveMediaUrl(schemaLogoRaw);
+const schemaLogoUrl = schemaLogoResolved && !schemaLogoResolved.startsWith('data:')
+  ? new URL(schemaLogoResolved, siteUrl).href
+  : '';
+
 // Organization Schema for SEO/LLM optimization
 const organizationSchema = {
   "@context": "https://schema.org",
   "@type": "Organization",
   "name": siteName,
   "url": siteUrl,
-  ...(branding?.logo && {
+  ...(schemaLogoUrl && {
     "logo": {
       "@type": "ImageObject",
-      "url": new URL(branding.logo, siteUrl).href
+      "url": schemaLogoUrl
     }
   }),
   ...(extendedSeo?.description && { "description": extendedSeo.description }),
@@ -155,12 +167,14 @@ const organizationSchema = {
 };
 
 // WebSite Schema with SearchAction for site search
+// Use site-level description (not page-specific metaDescription) for the WebSite entity
+const siteDescription = extendedSeo?.description || '';
 const websiteSchema = {
   "@context": "https://schema.org",
   "@type": "WebSite",
   "name": siteName,
   "url": siteUrl,
-  "description": metaDescription,
+  ...(siteDescription && { "description": siteDescription }),
   "inLanguage": localeHrefLang[currentLocale] || currentLocale,
   "potentialAction": {
     "@type": "SearchAction",

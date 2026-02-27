@@ -125,7 +125,7 @@ try {
     // For API pages, build sidebar from Astro content collection (api_entities)
     // since API docs aren't in the regular documents table
     const allDocs = await getCollection('docs');
-    const apiDocs = allDocs.filter(d => d.data.collection === 'api' && d.data.visible !== false);
+    const apiDocs = allDocs.filter(d => d.data.collection === 'api' && d.data.visible !== false && (d.data.locale === currentLocale || !d.data.locale));
     documents = apiDocs.map(d => ({
       id: d.id,
       title: d.data.title,
@@ -148,7 +148,7 @@ try {
     settings = (await getAllSettings()) || null;
   } else {
     const [docsResponse, settingsResponse] = await Promise.all([
-      getDocuments({ collection, visible: true, limit: 2000 }),
+      getDocuments({ collection, locale: currentLocale, visible: true, limit: 2000 }),
       getAllSettings(),
     ]);
     documents = docsResponse.documents;

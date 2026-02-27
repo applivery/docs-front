@@ -1,0 +1,545 @@
+---
+/**
+ * McpConfig - MCP Server configuration UI
+ *
+ * Shows editor-specific JSON configs with tabs, copy buttons,
+ * and one-click setup. CMS-configurable via "mcp" settings category.
+ */
+
+import { getSettings, type McpSettings } from '../lib/cms';
+
+export interface Props {
+  packageName?: string;
+  cmsUrl?: string;
+  title?: string;
+  description?: string;
+  class?: string;
+}
+
+const props = Astro.props;
+
+// Fetch MCP settings from CMS (graceful fallback)
+let mcpSettings: McpSettings | null = null;
+try {
+  mcpSettings = await getSettings<McpSettings>('mcp');
+} catch {
+  // CMS settings not available — use defaults
+}
+
+// Merge: CMS settings > component props > hardcoded defaults
+const config = {
+  packageName: mcpSettings?.packageName || props.packageName || '@applivery/docs-mcp-server',
+  cmsUrl: mcpSettings?.cmsUrl || props.cmsUrl || 'https://docs-ai-eag.pages.dev',
+  title: mcpSettings?.title || props.title || 'MCP',
+  description: mcpSettings?.description || props.description || 'Allow AI tools to access full API docs site for AI-assisted coding.',
+  nodeVersion: mcpSettings?.nodeVersion || '18',
+  docsUrl: mcpSettings?.docsUrl || '',
+  editors: {
+    cursor: mcpSettings?.editors?.cursor?.enabled !== false,
+    vscode: mcpSettings?.editors?.vscode?.enabled !== false,
+    cline: mcpSettings?.editors?.cline?.enabled !== false,
+    windsurf: mcpSettings?.editors?.windsurf?.enabled !== false,
+    claudeCode: mcpSettings?.editors?.claudeCode?.enabled !== false,
+  },
+};
+
+// Editor metadata
+const editors = [
+  { id: 'cursor', name: 'Cursor', icon: 'cursor', enabled: config.editors.cursor, configPath: '~/.cursor/mcp.json', hasOneClick: true },
+  { id: 'vscode', name: 'VS Code', icon: 'vscode', enabled: config.editors.vscode, configPath: '.vscode/settings.json', hasOneClick: false },
+  { id: 'cline', name: 'Cline', icon: 'cline', enabled: config.editors.cline, configPath: '~/.cline/mcp_settings.json', hasOneClick: false },
+  { id: 'windsurf', name: 'Windsurf', icon: 'windsurf', enabled: config.editors.windsurf, configPath: '~/.windsurf/mcp.json', hasOneClick: false },
+  { id: 'claude-code', name: 'Claude Code', icon: 'claude', enabled: config.editors.claudeCode, configPath: '~/.claude/settings.json', hasOneClick: false },
+].filter(e => e.enabled);
+
+// JSON configs per editor
+function buildMcpArgs(): string[] {
+  return ['-y', config.packageName, '--cms-url', config.cmsUrl];
+}
+
+function cursorConfig(): string {
+  return JSON.stringify({
+    mcpServers: {
+      'applivery-docs': {
+        command: 'npx',
+        args: buildMcpArgs(),
+      },
+    },
+  }, null, 2);
+}
+
+function vscodeConfig(): string {
+  return JSON.stringify({
+    mcp: {
+      servers: {
+        'applivery-docs': {
+          command: 'npx',
+          args: buildMcpArgs(),
+        },
+      },
+    },
+  }, null, 2);
+}
+
+function claudeCodeConfig(): string {
+  return JSON.stringify({
+    mcpServers: {
+      'applivery-docs': {
+        command: 'npx',
+        args: buildMcpArgs(),
+      },
+    },
+  }, null, 2);
+}
+
+const configMap: Record<string, string> = {
+  cursor: cursorConfig(),
+  vscode: vscodeConfig(),
+  cline: cursorConfig(), // same format as cursor
+  windsurf: cursorConfig(), // same format as cursor
+  'claude-code': claudeCodeConfig(),
+};
+---
+
+<div
+  class:list={['mcp-config', props.class]}
+  data-config={JSON.stringify({ packageName: config.packageName, cmsUrl: config.cmsUrl })}
+>
+  <!-- Header -->
+  <div class="mcp-header">
+    <h2 class="mcp-title">{config.title}</h2>
+    <p class="mcp-description">{config.description}</p>
+  </div>
+
+  <!-- Tab Bar -->
+  <div class="mcp-tabs" role="tablist" aria-label="Editor configuration">
+    {editors.map((editor, i) => (
+      <button
+        role="tab"
+        aria-selected={i === 0 ? 'true' : 'false'}
+        aria-controls={`mcp-panel-${editor.id}`}
+        data-tab={editor.id}
+        class:list={['mcp-tab', { 'mcp-tab--active': i === 0 }]}
+      >
+        {editor.name}
+      </button>
+    ))}
+  </div>
+
+  <!-- Tab Panels -->
+  {editors.map((editor, i) => (
+    <div
+      id={`mcp-panel-${editor.id}`}
+      role="tabpanel"
+      data-panel={editor.id}
+      class:list={['mcp-panel', { 'mcp-panel--hidden': i !== 0 }]}
+    >
+      {/* One-click setup */}
+      {editor.hasOneClick && (
+        <div class="mcp-oneclick">
+          <span class="mcp-oneclick-label">One-click setup</span>
+          <button class="mcp-oneclick-btn" data-editor={editor.id}>
+            Click here to add to {editor.name}
+          </button>
+        </div>
+      )}
+
+      {editor.hasOneClick && (
+        <div class="mcp-divider">
+          <span>or</span>
+        </div>
+      )}
+
+      {/* Manual configuration */}
+      <div class="mcp-manual">
+        <span class="mcp-manual-label">Manual configuration</span>
+        <div class="mcp-code-wrapper">
+          <pre class="mcp-code"><code set:text={configMap[editor.id]} /></pre>
+          <button class="mcp-copy-btn" data-config={editor.id} aria-label="Copy configuration">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+            </svg>
+            <span class="mcp-copy-text">Copy</span>
+          </button>
+        </div>
+        <p class="mcp-config-path">
+          Add to <code>{editor.configPath}</code>
+        </p>
+      </div>
+    </div>
+  ))}
+
+  <!-- Footer note -->
+  <div class="mcp-footer">
+    <p class="mcp-note">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="mcp-note-icon">
+        <circle cx="12" cy="12" r="10"></circle>
+        <line x1="12" y1="16" x2="12" y2="12"></line>
+        <line x1="12" y1="8" x2="12.01" y2="8"></line>
+      </svg>
+      Note: Node.js environment must be installed (version &gt;= {config.nodeVersion})
+    </p>
+    {config.docsUrl && (
+      <p class="mcp-help">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"></circle>
+          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path>
+          <line x1="12" y1="17" x2="12.01" y2="17"></line>
+        </svg>
+        How to use MCP after copying the JSON?{' '}
+        <a href={config.docsUrl} class="mcp-help-link">View help documentation</a>
+      </p>
+    )}
+  </div>
+</div>
+
+<style>
+  .mcp-config {
+    width: 100%;
+    max-width: 640px;
+    margin: 0 auto;
+    background: var(--color-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 16px;
+    padding: 32px;
+    font-family: var(--font-body);
+    box-sizing: border-box;
+  }
+
+  .mcp-header {
+    text-align: center;
+    margin-bottom: 24px;
+  }
+
+  .mcp-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    margin: 0 0 8px;
+  }
+
+  .mcp-description {
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+    margin: 0;
+    line-height: 1.5;
+  }
+
+  /* Tabs */
+  .mcp-tabs {
+    display: flex;
+    gap: 0;
+    border-bottom: 1px solid var(--color-border);
+    margin-bottom: 24px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+  }
+
+  .mcp-tabs::-webkit-scrollbar {
+    display: none;
+  }
+
+  .mcp-tab {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 16px;
+    background: none;
+    border: none;
+    border-bottom: 2px solid transparent;
+    color: var(--color-text-tertiary);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: color var(--transition-fast), border-color var(--transition-fast);
+    font-family: var(--font-body);
+  }
+
+  .mcp-tab:hover {
+    color: var(--color-text-primary);
+  }
+
+  .mcp-tab--active {
+    color: var(--color-primary);
+    border-bottom-color: var(--color-primary);
+  }
+
+  /* Panels */
+  .mcp-panel--hidden {
+    display: none;
+  }
+
+  /* One-click setup */
+  .mcp-oneclick {
+    margin-bottom: 16px;
+  }
+
+  .mcp-oneclick-label {
+    display: block;
+    font-size: 0.8125rem;
+    color: var(--color-text-secondary);
+    margin-bottom: 12px;
+  }
+
+  .mcp-oneclick-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    background: var(--color-text-primary);
+    color: var(--color-surface);
+    border: none;
+    border-radius: 8px;
+    font-size: 0.8125rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: opacity var(--transition-fast);
+    font-family: var(--font-body);
+  }
+
+  .mcp-oneclick-btn:hover {
+    opacity: 0.9;
+  }
+
+  /* Divider */
+  .mcp-divider {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    margin: 16px 0;
+  }
+
+  .mcp-divider::before,
+  .mcp-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--color-border);
+  }
+
+  .mcp-divider span {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+  }
+
+  /* Manual config */
+  .mcp-manual-label {
+    display: block;
+    font-size: 0.8125rem;
+    color: var(--color-text-secondary);
+    margin-bottom: 12px;
+  }
+
+  .mcp-code-wrapper {
+    position: relative;
+    border-radius: 12px;
+    overflow: hidden;
+  }
+
+  .mcp-code {
+    background: var(--color-code-block-bg);
+    color: var(--color-code-block-text);
+    padding: 20px 24px;
+    margin: 0;
+    overflow-x: auto;
+    font-size: 0.8125rem;
+    line-height: 1.6;
+    font-family: var(--font-code);
+    border-radius: 12px;
+  }
+
+  .mcp-code code {
+    white-space: pre;
+  }
+
+  .mcp-copy-btn {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    background: rgba(255, 255, 255, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.15);
+    border-radius: 6px;
+    color: var(--color-code-block-text);
+    font-size: 0.75rem;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity var(--transition-fast), background var(--transition-fast);
+    font-family: var(--font-body);
+  }
+
+  .mcp-code-wrapper:hover .mcp-copy-btn {
+    opacity: 1;
+  }
+
+  .mcp-copy-btn:hover {
+    background: rgba(255, 255, 255, 0.2);
+  }
+
+  .mcp-copy-btn.copied {
+    background: rgba(16, 185, 129, 0.3);
+    border-color: rgba(16, 185, 129, 0.4);
+  }
+
+  .mcp-config-path {
+    margin: 10px 0 0;
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+  }
+
+  .mcp-config-path code {
+    background: var(--color-inline-code-bg);
+    color: var(--color-inline-code-text);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 0.6875rem;
+    font-family: var(--font-code);
+  }
+
+  /* Footer */
+  .mcp-footer {
+    margin-top: 24px;
+    padding-top: 16px;
+    border-top: 1px solid var(--color-border);
+  }
+
+  .mcp-note {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.8125rem;
+    color: var(--color-text-secondary);
+    margin: 0;
+  }
+
+  .mcp-note-icon {
+    flex-shrink: 0;
+  }
+
+  .mcp-help {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.8125rem;
+    color: var(--color-text-secondary);
+    margin: 12px 0 0;
+  }
+
+  .mcp-help-link {
+    color: var(--color-primary);
+    text-decoration: none;
+    font-weight: 500;
+  }
+
+  .mcp-help-link:hover {
+    text-decoration: underline;
+  }
+
+  /* Responsive */
+  @media (max-width: 640px) {
+    .mcp-config {
+      padding: 20px 16px;
+      border-radius: 12px;
+      margin: 0 8px;
+    }
+
+    .mcp-tab {
+      padding: 8px 12px;
+      font-size: 0.75rem;
+    }
+
+    .mcp-code {
+      padding: 16px;
+      font-size: 0.75rem;
+    }
+
+    .mcp-copy-btn {
+      opacity: 1;
+    }
+  }
+</style>
+
+<script>
+  // Tab switching
+  document.querySelectorAll<HTMLElement>('.mcp-config').forEach((container) => {
+    const tabs = container.querySelectorAll<HTMLButtonElement>('.mcp-tab');
+    const panels = container.querySelectorAll<HTMLElement>('.mcp-panel');
+
+    tabs.forEach((tab) => {
+      tab.addEventListener('click', () => {
+        const targetId = tab.dataset.tab;
+        if (!targetId) return;
+
+        // Update tabs
+        tabs.forEach((t) => {
+          t.classList.remove('mcp-tab--active');
+          t.setAttribute('aria-selected', 'false');
+        });
+        tab.classList.add('mcp-tab--active');
+        tab.setAttribute('aria-selected', 'true');
+
+        // Update panels
+        panels.forEach((p) => {
+          p.classList.toggle('mcp-panel--hidden', p.dataset.panel !== targetId);
+        });
+      });
+    });
+  });
+
+  // Copy to clipboard
+  document.querySelectorAll<HTMLButtonElement>('.mcp-copy-btn').forEach((btn) => {
+    btn.addEventListener('click', async () => {
+      const wrapper = btn.closest('.mcp-code-wrapper');
+      const code = wrapper?.querySelector('code')?.textContent;
+      if (!code) return;
+
+      try {
+        await navigator.clipboard.writeText(code);
+        const textEl = btn.querySelector('.mcp-copy-text');
+        if (textEl) {
+          const original = textEl.textContent;
+          textEl.textContent = 'Copied!';
+          btn.classList.add('copied');
+          setTimeout(() => {
+            textEl.textContent = original;
+            btn.classList.remove('copied');
+          }, 1500);
+        }
+      } catch {
+        // Clipboard API not available
+      }
+    });
+  });
+
+  // One-click setup (Cursor deep link)
+  document.querySelectorAll<HTMLButtonElement>('.mcp-oneclick-btn').forEach((btn) => {
+    btn.addEventListener('click', () => {
+      const editor = btn.dataset.editor;
+      const container = btn.closest('.mcp-config');
+      const configData = container?.getAttribute('data-config');
+      if (!configData) return;
+
+      const { packageName, cmsUrl } = JSON.parse(configData);
+
+      if (editor === 'cursor') {
+        // Cursor deep link protocol
+        const config = {
+          mcpServers: {
+            'applivery-docs': {
+              command: 'npx',
+              args: ['-y', packageName, '--cms-url', cmsUrl],
+            },
+          },
+        };
+        const encoded = encodeURIComponent(JSON.stringify(config));
+        window.open(`cursor://anysphere.cursor-deeplink/mcp/install?config=${encoded}`, '_blank');
+      }
+    });
+  });
+</script>

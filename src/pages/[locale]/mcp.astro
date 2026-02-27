@@ -1,0 +1,65 @@
+---
+/**
+ * MCP Configuration Page
+ * docs.applivery.com/{locale}/mcp
+ *
+ * Shows MCP server configuration for AI editor integration
+ */
+
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import McpConfig from '../../components/McpConfig.astro';
+import { locales } from '../../lib/i18n';
+
+export async function getStaticPaths() {
+  return locales.map(locale => ({
+    params: { locale },
+  }));
+}
+
+const { locale } = Astro.params;
+---
+
+<BaseLayout
+  title="MCP Server Configuration"
+  description="Connect AI tools to Applivery documentation using the Model Context Protocol (MCP). Configure your editor for AI-assisted coding with full docs access."
+>
+  <main class="mcp-page">
+    <a href={`/${locale}`} class="mcp-back-link">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="19" y1="12" x2="5" y2="12"></line>
+        <polyline points="12 19 5 12 12 5"></polyline>
+      </svg>
+      Back to Docs
+    </a>
+    <McpConfig />
+  </main>
+</BaseLayout>
+
+<style>
+  .mcp-page {
+    min-height: calc(100vh - var(--header-height, 64px) - 200px);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 16px;
+    box-sizing: border-box;
+    overflow: hidden;
+    gap: 24px;
+  }
+
+  .mcp-back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 0.875rem;
+    color: var(--color-text-secondary);
+    text-decoration: none;
+    transition: color var(--transition-fast);
+    align-self: center;
+  }
+
+  .mcp-back-link:hover {
+    color: var(--color-primary);
+  }
+</style>

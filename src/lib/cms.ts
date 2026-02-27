@@ -544,6 +544,22 @@ export interface HomeSettings {
   };
 }
 
+export interface McpSettings {
+  packageName?: string;
+  cmsUrl?: string;
+  title?: string;
+  description?: string;
+  nodeVersion?: string;
+  docsUrl?: string;
+  editors?: {
+    cursor?: { enabled?: boolean };
+    vscode?: { enabled?: boolean };
+    cline?: { enabled?: boolean };
+    windsurf?: { enabled?: boolean };
+    claudeCode?: { enabled?: boolean };
+  };
+}
+
 export type SettingsCategory =
   | "github"
   | "ai"
@@ -552,7 +568,8 @@ export type SettingsCategory =
   | "seo"
   | "navigation"
   | "privacy"
-  | "home";
+  | "home"
+  | "mcp";
 
 export interface SettingsResponse<T> {
   settings: T;

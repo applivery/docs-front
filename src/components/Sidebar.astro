@@ -573,12 +573,17 @@ function convertSideMenuToNavGroups(items: SideMenuItem[]): NavGroup[] {
   return groups;
 }
 
+// Filter documents to current locale only (prevent cross-locale leaking)
+const localeFilteredDocs = documents.filter(doc =>
+  !doc.locale || doc.locale === currentLocale
+);
+
 // Build navigation based on mode
 // If we have products, the navigation will be loaded dynamically based on active product
 // Otherwise, use the standard navigation building
 const navigation = isManualMode
   ? (hasProducts ? convertSideMenuToNavGroups(nonProductItems) : convertSideMenuToNavGroups(sideMenu!.items))
-  : buildNavigation(documents);
+  : buildNavigation(localeFilteredDocs);
 
 // Build navigation for each product from the documents collection (fully static)
 const productNavigations = new Map<string, NavGroup[]>();
@@ -588,7 +593,7 @@ for (const product of products) {
   const folderPrefix = product.folder.replace(/^\/|\/$/g, '');
 
   // Filter documents belonging to this product's folder
-  const productDocs = documents.filter(doc => {
+  const productDocs = localeFilteredDocs.filter(doc => {
     if (!doc.path) return false;
     const slug = extractDocSlug(doc.path, false);
     return slug.startsWith(folderPrefix + '/') || slug === folderPrefix;
@@ -613,7 +618,7 @@ const tabNavigations = new Map<string, NavGroup[]>();
 for (const tab of tabs) {
   if (!tab.folder) continue;
   const folderPrefix = tab.folder.replace(/^\/|\/$/g, '');
-  const tabDocs = documents.filter(doc => {
+  const tabDocs = localeFilteredDocs.filter(doc => {
     if (!doc.path) return false;
     const slug = extractDocSlug(doc.path, false);
     return slug.startsWith(folderPrefix + '/') || slug === folderPrefix;

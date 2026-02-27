@@ -28,6 +28,98 @@ import {
   extractHeadings,
   isValidSlug,
 } from '../../lib/doc-helpers';
+import { iconMap, type IconName } from '../../lib/icons';
+import solarSubset from '../../assets/solar-icons-subset.json';
+
+// ─── Icon rendering for archive folder cards ────────────────────────
+
+const customIconBodies: Record<string, { body: string; width?: number; height?: number }> = {
+  'custom:apple-logo': {
+    body: '<g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M12 5.75C12 3.75 13.5 1.75 15.5 1.75C15.5 3.75 14 5.75 12 5.75Z"/><path d="M12.5 8.09001C11.9851 8.09001 11.5867 7.92646 11.1414 7.74368C10.5776 7.51225 9.93875 7.25 8.89334 7.25C7.02235 7.25 4 8.74945 4 12.7495C4 17.4016 7.10471 22.25 9.10471 22.25C9.77426 22.25 10.3775 21.9871 10.954 21.7359C11.4815 21.5059 11.9868 21.2857 12.5 21.2857C13.0132 21.2857 13.5185 21.5059 14.046 21.7359C14.6225 21.9871 15.2257 22.25 15.8953 22.25C17.2879 22.25 18.9573 19.8992 20 16.9008C18.3793 16.2202 17.338 14.618 17.338 12.75C17.338 11.121 18.2036 10.0398 19.5 9.25C18.5 7.75 17.0134 7.25 15.9447 7.25C14.8993 7.25 14.2604 7.51225 13.6966 7.74368C13.2514 7.92646 13.0149 8.09001 12.5 8.09001Z"/></g>',
+    width: 24, height: 24,
+  },
+  'custom:apple-finder': {
+    body: '<g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M2.5 12C2.5 7.52166 2.5 5.28249 3.89124 3.89124C5.28249 2.5 7.52166 2.5 12 2.5C16.4783 2.5 18.7175 2.5 20.1088 3.89124C21.5 5.28249 21.5 7.52166 21.5 12C21.5 16.4783 21.5 18.7175 20.1088 20.1088C18.7175 21.5 16.4783 21.5 12 21.5C7.52166 21.5 5.28249 21.5 3.89124 20.1088C2.5 18.7175 2.5 16.4783 2.5 12Z"/><path d="M7 8V10"/><path d="M17 8V10"/><path d="M7 16.5C10.5 18.5 13.5 18.5 17 16.5"/><path d="M12.9896 2.5C12.1238 3.78525 10.5163 7.71349 10.0737 11.5798C9.98097 12.3899 9.9346 12.795 10.1905 13.1176C10.2151 13.1486 10.2474 13.1843 10.2757 13.212C10.5708 13.5 11.0149 13.5 11.9031 13.5C12.3889 13.5 12.6317 13.5 12.7766 13.6314C12.7923 13.6457 12.8051 13.6588 12.819 13.6748C12.9468 13.8225 12.9383 14.072 12.9212 14.5709C12.8685 16.1156 12.9401 19.0524 14 21.5"/></g>',
+    width: 24, height: 24,
+  },
+  'custom:windows-logo': {
+    body: '<g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.0136 3.99538L8.01361 4.99036C5.61912 5.38744 4.42188 5.58597 3.71094 6.421C3 7.25602 3 8.46368 3 10.879L3 13.121C3 15.5363 3 16.744 3.71094 17.579C4.42188 18.414 5.61913 18.6126 8.01361 19.0096L14.0136 20.0046C17.2567 20.5424 18.8782 20.8113 19.9391 19.9171C21 19.023 21 17.3873 21 14.116V9.88402C21 6.6127 21 4.97704 19.9391 4.08286C18.8782 3.18868 17.2567 3.45758 14.0136 3.99538Z"/><path d="M11 4.5V19.5M3 12H21"/></g>',
+    width: 24, height: 24,
+  },
+  'custom:android-robot': {
+    body: '<g fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6.5 9.5C6.5 6.46243 8.96243 4 12 4C15.0376 4 17.5 6.46243 17.5 9.5V16C17.5 17.4142 17.5 18.1213 17.0607 18.5607C16.6213 19 15.9142 19 14.5 19H9.5C8.08579 19 7.37868 19 6.93934 18.5607C6.5 18.1213 6.5 17.4142 6.5 16V9.5Z"/><path d="M20 11V17"/><path d="M15 19V22"/><path d="M9 19V22"/><path d="M4 11V17"/><path d="M10 4L8.5 2M14 4L15.5 2"/><path d="M6.5 10H17.5"/></g>',
+    width: 24, height: 24,
+  },
+};
+
+function renderIconSvg(name: IconName, className: string): string {
+  const iconId = iconMap[name];
+  if (!iconId) return '';
+  let body = '';
+  let width = 24;
+  let height = 24;
+  if (iconId.startsWith('custom:')) {
+    const customIcon = customIconBodies[iconId];
+    if (customIcon) { body = customIcon.body; width = customIcon.width || 24; height = customIcon.height || 24; }
+  } else if (iconId.startsWith('solar:')) {
+    const solarName = iconId.replace('solar:', '');
+    const solarIcon = (solarSubset as any).icons?.[solarName];
+    if (solarIcon) { body = solarIcon.body; width = solarIcon.width || (solarSubset as any).width || 24; height = solarIcon.height || (solarSubset as any).height || 24; }
+  }
+  if (!body) return '';
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 ${width} ${height}" class="${className}" aria-hidden="true">${body}</svg>`;
+}
+
+const folderIconInference: Record<string, string> = {
+  'android': 'androidRobot', 'ios': 'appleLogo', 'ipados': 'appleLogo',
+  'ios-ipados': 'appleLogo', 'macos': 'appleFinder', 'tvos': 'appleLogo',
+  'watchos': 'appleLogo', 'visionos': 'appleLogo', 'windows': 'windowsLogo',
+  'oem-configs': 'settings', 'oem': 'settings', 'workspace': 'building', 'workspaces': 'building',
+  'api': 'api',
+};
+
+const iconAliases: Record<string, string> = {
+  'settings-2': 'settings', cog: 'settings', 'columns-3-cog': 'settings',
+  'trash-2': 'trash', 'monitor-smartphone': 'smartphone', 'tablet-smartphone': 'tablet',
+  iphone: 'smartphone', ipad: 'tablet', 'bar-chart-2': 'barChart',
+  'android-robot': 'androidRobot', 'apple-logo': 'appleLogo', 'apple-finder': 'appleFinder',
+  'windows-logo': 'windowsLogo',
+};
+
+function kebabToCamel(str: string): string {
+  return str.replace(/-([a-z0-9])/g, (_, c: string) => c.toUpperCase());
+}
+
+function resolveIconName(iconName?: string): IconName {
+  if (!iconName) return 'folder';
+  const lower = iconName.toLowerCase();
+  if (iconAliases[lower]) return iconAliases[lower] as IconName;
+  const camel = kebabToCamel(lower);
+  if (camel in iconMap) return camel as IconName;
+  if (lower in iconMap) return lower as IconName;
+  return 'folder';
+}
+
+function resolveFolderIcon(folderPath: string, docIcon?: string): string {
+  // Extract last segment from folder path for inference
+  const segments = folderPath.split('/').filter(Boolean);
+  const folderKey = segments[segments.length - 1] || '';
+
+  // If doc has a specific (non-generic) icon, use it
+  const genericIcons = ['folder', 'folder-open', 'folder-tree', 'folder-plus'];
+  if (docIcon && !genericIcons.includes(docIcon.toLowerCase())) {
+    return renderIconSvg(resolveIconName(docIcon), 'folder-card-icon-svg');
+  }
+
+  // Try to infer from folder key
+  const inferredName = folderIconInference[folderKey.toLowerCase()];
+  if (inferredName) {
+    return renderIconSvg(inferredName as IconName, 'folder-card-icon-svg');
+  }
+
+  // Default: folder icon
+  return renderIconSvg('folder' as IconName, 'folder-card-icon-svg');
+}
 
 // ─── getStaticPaths — single data load, zero per-page API calls ──────
 
@@ -111,6 +203,10 @@ export async function getStaticPaths() {
     // API collection archives represent user-created folders in the CMS —
     // always generate their routes even if empty (entities may be added later).
     if (doc.collection === 'api') return true;
+
+    // Archive pages with rendered content should always generate a route
+    // even if they have no children (e.g. Platform overview with body text)
+    if (entry.rendered?.html) return true;
 
     const hasChildren = allDocs.some((other) => {
       const d = other.data;
@@ -283,7 +379,7 @@ const content = entry?.rendered?.html || '';
 // The show_child_grid flag (default true) controls whether the grid renders
 const showChildGrid = fullDocument.show_child_grid !== false;
 let childDocuments: typeof allDocs = [];
-let childFolders: Array<{ id: string; title: string; description: string; href: string; icon?: string; order: number; endpointCount: number }> = [];
+let childFolders: Array<{ id: string; title: string; description: string; href: string; icon?: string; iconHtml: string; order: number; endpointCount: number }> = [];
 const entryId = entry?.id;
 if (isIndex && showChildGrid) {
   const folderPath = getIndexFolderPath(fullDocument);
@@ -302,49 +398,106 @@ if (isIndex && showChildGrid) {
     return orderA - orderB;
   });
 
-  // For API pages, also collect direct child sub-folders (archive/index pages)
+  // Also collect direct child sub-folders (archive/index pages) for all archive pages
   const isApiCollection = fullDocument.collection === 'api' || fullDocument.schema_type === 'WebAPI';
-  if (isApiCollection) {
-    // Find archive pages that are direct children of this folder
-    const directChildArchives = allDocs.filter((other) => {
-      const d = other.data;
-      if (!d.path || (entryId && other.id === entryId)) return false;
-      if (d.visible === false) return false;
-      if (d.locale !== locale) return false;
-      if (!isIndexFile(d) && d.type !== 'archive') return false;
-      // Check if this archive is a DIRECT child folder (one level deeper)
-      const otherFolderPath = getIndexFolderPath(d);
-      if (!otherFolderPath || !otherFolderPath.startsWith(folderPath + '/')) return false;
-      // Ensure it's only one level deeper
-      const relative = otherFolderPath.slice(folderPath.length + 1);
-      return relative.length > 0 && !relative.includes('/');
-    });
+  // Find archive pages that are direct children of this folder
+  const directChildArchives = allDocs.filter((other) => {
+    const d = other.data;
+    if (!d.path || (entryId && other.id === entryId)) return false;
+    if (d.visible === false) return false;
+    if (d.locale !== locale) return false;
+    if (!isIndexFile(d) && d.type !== 'archive') return false;
+    // Check if this archive is a DIRECT child folder (one level deeper)
+    const otherFolderPath = getIndexFolderPath(d);
+    if (!otherFolderPath || !otherFolderPath.startsWith(folderPath + '/')) return false;
+    // Ensure it's only one level deeper
+    const relative = otherFolderPath.slice(folderPath.length + 1);
+    return relative.length > 0 && !relative.includes('/');
+  });
 
-    // Count endpoints per sub-folder
-    for (const archive of directChildArchives) {
-      const archiveFolderPath = getIndexFolderPath(archive.data);
-      if (!archiveFolderPath) continue;
-      const endpointCount = allDocs.filter((other) => {
-        const d = other.data;
-        if (!d.path || d.visible === false || d.locale !== locale) return false;
-        if (isIndexFile(d)) return false;
-        const docFolder = d.path.replace(/\/[^/]+\.mdx?$/, '');
-        return docFolder === archiveFolderPath || docFolder.startsWith(archiveFolderPath + '/');
-      }).length;
-
-      childFolders.push({
-        id: archive.id,
-        title: archive.data.item_name || archive.data.title || 'Untitled',
-        description: archive.data.description || '',
-        href: getDocUrl({ ...archive.data, id: archive.id }, locale),
-        icon: archive.data.sidebar_icon || archive.data.icon,
-        order: archive.data.sidebar_position ?? archive.data.order_num ?? archive.data.weight ?? 999,
-        endpointCount,
-      });
-    }
-
-    childFolders.sort((a, b) => a.order - b.order);
+  // Collect folder paths that already have index/archive pages
+  const archiveFolderPaths = new Set<string>();
+  for (const archive of directChildArchives) {
+    const fp = getIndexFolderPath(archive.data);
+    if (fp) archiveFolderPaths.add(fp);
   }
+
+  // Also detect sub-folders from document paths that DON'T have index files
+  // (e.g. app-distribution/distribute/ has docs but no index.mdx)
+  const virtualFolders = new Map<string, { folderPath: string; folderKey: string }>();
+  for (const other of allDocs) {
+    const d = other.data;
+    if (!d.path || d.visible === false || d.locale !== locale) continue;
+    if (isIndexFile(d)) continue;
+    const docFolder = d.path.replace(/\/[^/]+\.mdx?$/, '');
+    // Check if this doc is inside a direct child sub-folder of the current page
+    if (!docFolder.startsWith(folderPath + '/')) continue;
+    const relative = docFolder.slice(folderPath.length + 1);
+    const firstSegment = relative.split('/')[0];
+    if (!firstSegment) continue;
+    const childFolderPath = folderPath + '/' + firstSegment;
+    // Skip if this folder already has an index/archive page
+    if (archiveFolderPaths.has(childFolderPath)) continue;
+    if (!virtualFolders.has(childFolderPath)) {
+      virtualFolders.set(childFolderPath, { folderPath: childFolderPath, folderKey: firstSegment });
+    }
+  }
+
+  // Count child docs per sub-folder (both real archives and virtual folders)
+  for (const archive of directChildArchives) {
+    const archiveFolderPath = getIndexFolderPath(archive.data);
+    if (!archiveFolderPath) continue;
+    const childCount = allDocs.filter((other) => {
+      const d = other.data;
+      if (!d.path || d.visible === false || d.locale !== locale) return false;
+      if (isIndexFile(d)) return false;
+      const docFolder = d.path.replace(/\/[^/]+\.mdx?$/, '');
+      return docFolder === archiveFolderPath || docFolder.startsWith(archiveFolderPath + '/');
+    }).length;
+
+    const docIcon = archive.data.sidebar_icon || archive.data.icon;
+    childFolders.push({
+      id: archive.id,
+      title: archive.data.item_name || archive.data.title || 'Untitled',
+      description: archive.data.description || '',
+      href: getDocUrl({ ...archive.data, id: archive.id }, locale),
+      icon: docIcon,
+      iconHtml: resolveFolderIcon(archiveFolderPath, docIcon),
+      order: archive.data.sidebar_position ?? archive.data.order_num ?? archive.data.weight ?? 999,
+      endpointCount: childCount,
+    });
+  }
+
+  // Add virtual folder cards (sub-folders with docs but no index file)
+  const toTitle = (value: string) =>
+    value.split('-').map(part => (part ? part[0].toUpperCase() + part.slice(1) : part)).join(' ');
+
+  for (const [vfPath, { folderKey }] of virtualFolders) {
+    const childCount = allDocs.filter((other) => {
+      const d = other.data;
+      if (!d.path || d.visible === false || d.locale !== locale) return false;
+      if (isIndexFile(d)) return false;
+      const docFolder = d.path.replace(/\/[^/]+\.mdx?$/, '');
+      return docFolder === vfPath || docFolder.startsWith(vfPath + '/');
+    }).length;
+
+    // Build href from the virtual folder slug
+    const vfSlug = extractSlugFromPath(vfPath + '/index.md', true);
+    const vfHref = `/${locale}/${vfSlug}/`;
+
+    childFolders.push({
+      id: `virtual-${folderKey}`,
+      title: toTitle(folderKey),
+      description: '',
+      href: vfHref,
+      icon: undefined,
+      iconHtml: resolveFolderIcon(vfPath),
+      order: 999,
+      endpointCount: childCount,
+    });
+  }
+
+  childFolders.sort((a, b) => a.order - b.order);
 }
 
 // Find available translations — from precomputed maps, zero API calls
@@ -559,71 +712,104 @@ if (isApiPage && processedContent) {
 
   {/* For API archive pages, render sub-folder cards + endpoint cards */}
   {isIndex && isApiPage && showChildGrid && (childFolders.length > 0 || childDocuments.length > 0) && (
-    <div class="api-endpoint-grid">
-      {/* Sub-folder cards first */}
-      {childFolders.map(folder => (
-        <a href={folder.href} class="api-folder-card">
-          <div class="api-folder-card-header">
-            <svg class="api-folder-icon" viewBox="0 0 24 24" fill="currentColor" xmlns="http://www.w3.org/2000/svg">
-              <path opacity="0.5" d="M2 6.5C2 4.37868 2 3.31802 2.65901 2.65901C3.31802 2 4.37868 2 6.5 2C8.62132 2 9.68198 2 10.341 2.65901C11 3.31802 11 4.37868 11 6.5V8H6.5C4.37868 8 3.31802 8 2.65901 8.65901C2.29289 9.02513 2.12602 9.50062 2.05654 10.2H2V6.5Z" />
-              <path d="M2 14C2 11.1716 2 9.75736 2.87868 8.87868C3.75736 8 5.17157 8 8 8H13H16C18.8284 8 20.2426 8 21.1213 8.87868C22 9.75736 22 11.1716 22 14V16C22 18.8284 22 20.2426 21.1213 21.1213C20.2426 22 18.8284 22 16 22H8C5.17157 22 3.75736 22 2.87868 21.1213C2 20.2426 2 18.8284 2 16V14Z" />
-            </svg>
-            <span class="api-folder-card-title">{folder.title}</span>
-          </div>
-          <p class="api-folder-card-count">{folder.endpointCount} endpoint{folder.endpointCount !== 1 ? 's' : ''}</p>
-        </a>
-      ))}
+    <div class="api-archive-grid">
+      {/* Sub-folder cards */}
+      {childFolders.length > 0 && (
+        <div class="api-folders-section">
+          {childFolders.map(folder => (
+            <a href={folder.href} class="api-folder-card">
+              <div class="api-folder-card-icon">
+                <Fragment set:html={folder.iconHtml} />
+              </div>
+              <div class="api-folder-card-body">
+                <span class="api-folder-card-title">{folder.title}</span>
+                <span class="api-folder-card-count">{folder.endpointCount} endpoint{folder.endpointCount !== 1 ? 's' : ''}</span>
+              </div>
+              <svg class="api-folder-card-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+            </a>
+          ))}
+        </div>
+      )}
+
       {/* Endpoint cards */}
-      {childDocuments.map(d => {
-        const href = getDocUrl({ ...d.data, id: d.id }, locale);
-        const headline = d.data.headline || '';
-        // headline is "GET /path/here" — extract method
-        const headlineParts = headline.match(/^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+(.+)$/i);
-        const method = headlineParts ? headlineParts[1].toUpperCase() : '';
-        // Build clean description (strip "METHOD /path — " prefix from description)
-        const rawDesc = d.data.description || '';
-        const cleanDesc = rawDesc.replace(/^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+\S+\s*[—–-]\s*/i, '');
-        return (
-          <a href={href} class="api-endpoint-card">
-            <div class="api-endpoint-card-header">
-              {method && <span class={`api-method-badge method-${method.toLowerCase()}`}>{method}</span>}
-              <span class="api-endpoint-card-title">{d.data.title}</span>
-            </div>
-            {cleanDesc && <p class="api-endpoint-card-desc">{cleanDesc}</p>}
-          </a>
-        );
-      })}
+      {childDocuments.length > 0 && (
+        <div class="api-endpoints-section">
+          {childDocuments.map(d => {
+            const href = getDocUrl({ ...d.data, id: d.id }, locale);
+            const headline = d.data.headline || '';
+            const headlineParts = headline.match(/^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+(.+)$/i);
+            const method = headlineParts ? headlineParts[1].toUpperCase() : '';
+            const endpointPath = headlineParts ? headlineParts[2] : '';
+            const rawDesc = d.data.description || '';
+            const cleanDesc = rawDesc.replace(/^(GET|POST|PUT|PATCH|DELETE|HEAD|OPTIONS)\s+\S+\s*[—–-]\s*/i, '');
+            return (
+              <a href={href} class="api-endpoint-card">
+                <div class="api-endpoint-card-header">
+                  {method && <span class={`api-method-badge method-${method.toLowerCase()}`}>{method}</span>}
+                  <span class="api-endpoint-card-title">{d.data.title}</span>
+                </div>
+                {endpointPath && <code class="api-endpoint-card-path">{endpointPath}</code>}
+                {cleanDesc && <p class="api-endpoint-card-desc">{cleanDesc}</p>}
+              </a>
+            );
+          })}
+        </div>
+      )}
     </div>
   )}
 
-  {/* For non-API index/archive pages, show standard card grid */}
-  {isIndex && !isApiPage && showChildGrid && childDocuments.length > 0 && (
-    <ArchiveGrid
-      items={childDocuments.map(d => {
-        return ({
-          id: d.id,
-          title: d.data.title,
-          description: d.data.description,
-          og_title: d.data.og_title,
-          og_description: d.data.og_description,
-          href: getDocUrl({ ...d.data, id: d.id }, locale),
-          section: d.data.section,
-          platform: d.data.platform,
-          hero_image: resolveMediaUrl(d.data.hero_image),
-          og_image: resolveMediaUrl(d.data.og_image),
-          image_alt: d.data.image_alt,
-          reading_time: d.data.reading_time,
-          featured: d.data.featured,
-          pub_date: d.data.pub_date?.toISOString(),
-        });
-      })}
-      pageTitle={fullDocument.title}
-      pageDescription={fullDocument.description}
-      pageUrl={Astro.url.href}
-      enableFilters={true}
-      columns={3}
-      showImages={true}
-    />
+  {/* For non-API index/archive pages, show child folders + standard card grid */}
+  {isIndex && !isApiPage && showChildGrid && (childFolders.length > 0 || childDocuments.length > 0) && (
+    <div class="archive-content-grid">
+      {/* Child folder cards */}
+      {childFolders.length > 0 && (
+        <div class="archive-folders-section">
+          {childFolders.map(folder => (
+            <a href={folder.href} class="archive-folder-card">
+              <div class="archive-folder-card-icon">
+                <Fragment set:html={folder.iconHtml} />
+              </div>
+              <div class="archive-folder-card-body">
+                <span class="archive-folder-card-title">{folder.title}</span>
+                {folder.description && <p class="archive-folder-card-desc">{folder.description}</p>}
+                <span class="archive-folder-card-count">{folder.endpointCount} article{folder.endpointCount !== 1 ? 's' : ''}</span>
+              </div>
+              <svg class="archive-folder-card-arrow" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+            </a>
+          ))}
+        </div>
+      )}
+
+      {/* Direct child article cards */}
+      {childDocuments.length > 0 && (
+        <ArchiveGrid
+          items={childDocuments.map(d => {
+            return ({
+              id: d.id,
+              title: d.data.title,
+              description: d.data.description,
+              og_title: d.data.og_title,
+              og_description: d.data.og_description,
+              href: getDocUrl({ ...d.data, id: d.id }, locale),
+              section: d.data.section,
+              platform: d.data.platform,
+              hero_image: resolveMediaUrl(d.data.hero_image),
+              og_image: resolveMediaUrl(d.data.og_image),
+              image_alt: d.data.image_alt,
+              reading_time: d.data.reading_time,
+              featured: d.data.featured,
+              pub_date: d.data.pub_date?.toISOString(),
+            });
+          })}
+          pageTitle={fullDocument.title}
+          pageDescription={fullDocument.description}
+          pageUrl={Astro.url.href}
+          enableFilters={true}
+          columns={3}
+          showImages={true}
+        />
+      )}
+    </div>
   )}
 
   {/* Empty state for index with no children and no content */}
@@ -636,9 +822,7 @@ if (isApiPage && processedContent) {
 
 <style>
   :global(.archive-grid) {
-    margin-top: 2rem;
-    padding-top: 2rem;
-    border-top: 1px solid var(--color-border);
+    margin-top: 1.5rem;
   }
 
   .archive-empty {
@@ -647,72 +831,285 @@ if (isApiPage && processedContent) {
     padding: 2rem;
   }
 
-  /* API Folder Cards */
-  .api-folder-card {
-    display: block;
+  /* ── Non-API Archive Content Grid ── */
+  .archive-content-grid {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--color-border);
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  .archive-folders-section {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+
+  @media (max-width: 640px) {
+    .archive-folders-section {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .archive-folder-card {
+    display: flex;
+    align-items: center;
+    gap: 0.875rem;
     padding: 1rem 1.125rem;
     border: 1px solid var(--color-border);
-    border-radius: 0.5rem;
+    border-radius: 0.875rem;
     text-decoration: none;
     color: inherit;
-    background: var(--color-bg-subtle, var(--color-bg-secondary, rgba(0,0,0,0.02)));
-    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+    background: var(--color-surface);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+    position: relative;
+  }
+
+  .archive-folder-card:hover {
+    border-color: var(--color-primary-50);
+    box-shadow: 0 12px 30px -18px rgba(2, 6, 23, 0.35);
+    transform: translateY(-2px);
+    text-decoration: none;
+  }
+
+  :global(.dark) .archive-folder-card:hover {
+    border-color: var(--color-accent-10);
+    box-shadow: 0 12px 30px -18px rgba(0, 0, 0, 0.65);
+  }
+
+  .archive-folder-card-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    flex-shrink: 0;
+    border-radius: 0.625rem;
+    background: var(--color-primary-10);
+    color: var(--color-primary);
+  }
+
+  :global(.dark) .archive-folder-card-icon {
+    background: var(--color-accent-10);
+    color: var(--color-accent-light);
+  }
+
+  .archive-folder-card-icon svg,
+  .archive-folder-card-icon :global(.folder-card-icon-svg) {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
+  .archive-folder-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .archive-folder-card-title {
+    font-weight: 600;
+    font-size: 0.9375rem;
+    color: var(--color-text-primary);
+    line-height: 1.3;
+  }
+
+  .archive-folder-card:hover .archive-folder-card-title {
+    color: var(--color-primary);
+  }
+
+  :global(.dark) .archive-folder-card:hover .archive-folder-card-title {
+    color: var(--color-accent-light);
+  }
+
+  .archive-folder-card-desc {
+    font-size: 0.8125rem;
+    color: var(--color-text-secondary);
+    line-height: 1.4;
+    margin: 0;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+
+  .archive-folder-card-count {
+    font-size: 0.75rem;
+    color: var(--color-text-muted);
+    line-height: 1.3;
+  }
+
+  .archive-folder-card-arrow {
+    width: 1rem;
+    height: 1rem;
+    color: var(--color-text-muted);
+    flex-shrink: 0;
+    opacity: 0;
+    transform: translateX(-4px);
+    transition: all 0.2s ease;
+  }
+
+  .archive-folder-card:hover .archive-folder-card-arrow {
+    opacity: 0.7;
+    transform: translateX(0);
+    color: var(--color-primary);
+  }
+
+  :global(.dark) .archive-folder-card:hover .archive-folder-card-arrow {
+    color: var(--color-accent-light);
+  }
+
+  /* ── API Archive Grid ── */
+  .api-archive-grid {
+    margin-top: 2rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--color-border);
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+  }
+
+  /* API Folder Cards - Grid */
+  .api-folders-section {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
+  }
+
+  @media (max-width: 640px) {
+    .api-folders-section {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  .api-folder-card {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 1.125rem;
+    border: 1px solid var(--color-border);
+    border-radius: 0.75rem;
+    text-decoration: none;
+    color: inherit;
+    background: var(--color-surface);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+    position: relative;
   }
 
   .api-folder-card:hover {
-    border-color: var(--color-primary);
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+    border-color: var(--color-primary-50);
+    box-shadow: 0 8px 24px -12px rgba(2, 6, 23, 0.2);
+    transform: translateY(-1px);
     text-decoration: none;
   }
 
-  .api-folder-card-header {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
+  :global(.dark) .api-folder-card:hover {
+    border-color: var(--color-accent-10);
+    box-shadow: 0 8px 24px -12px rgba(0, 0, 0, 0.5);
   }
 
-  .api-folder-icon {
-    width: 1.125rem;
-    height: 1.125rem;
-    color: var(--color-primary, #3b82f6);
+  .api-folder-card-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
     flex-shrink: 0;
+    border-radius: 0.5rem;
+    background: var(--color-primary-10);
+    color: var(--color-primary);
+  }
+
+  :global(.dark) .api-folder-card-icon {
+    background: var(--color-accent-10);
+    color: var(--color-accent-light);
+  }
+
+  .api-folder-card-icon svg,
+  .api-folder-card-icon :global(.folder-card-icon-svg) {
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+
+  .api-folder-card-body {
+    display: flex;
+    flex-direction: column;
+    gap: 0.125rem;
+    min-width: 0;
+    flex: 1;
   }
 
   .api-folder-card-title {
     font-weight: 600;
     font-size: 0.9375rem;
     color: var(--color-text-primary);
+    line-height: 1.3;
+  }
+
+  .api-folder-card:hover .api-folder-card-title {
+    color: var(--color-primary);
+  }
+
+  :global(.dark) .api-folder-card:hover .api-folder-card-title {
+    color: var(--color-accent-light);
   }
 
   .api-folder-card-count {
-    margin: 0.25rem 0 0 1.625rem;
-    font-size: 0.8125rem;
+    font-size: 0.75rem;
     color: var(--color-text-muted);
-    line-height: 1.4;
+    line-height: 1.3;
   }
 
-  /* API Endpoint Card Grid */
-  .api-endpoint-grid {
+  .api-folder-card-arrow {
+    width: 1rem;
+    height: 1rem;
+    color: var(--color-text-muted);
+    flex-shrink: 0;
+    opacity: 0;
+    transform: translateX(-4px);
+    transition: all 0.2s ease;
+  }
+
+  .api-folder-card:hover .api-folder-card-arrow {
+    opacity: 0.7;
+    transform: translateX(0);
+    color: var(--color-primary);
+  }
+
+  :global(.dark) .api-folder-card:hover .api-folder-card-arrow {
+    color: var(--color-accent-light);
+  }
+
+  /* API Endpoint Cards */
+  .api-endpoints-section {
     display: flex;
     flex-direction: column;
     gap: 0.5rem;
-    margin-top: 1.5rem;
   }
 
   .api-endpoint-card {
     display: block;
     padding: 0.875rem 1rem;
     border: 1px solid var(--color-border);
-    border-radius: 0.5rem;
+    border-radius: 0.625rem;
     text-decoration: none;
     color: inherit;
-    transition: border-color var(--transition-fast), box-shadow var(--transition-fast);
+    background: var(--color-surface);
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
   }
 
   .api-endpoint-card:hover {
-    border-color: var(--color-primary);
-    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.06);
+    border-color: var(--color-primary-50);
+    box-shadow: 0 4px 16px -8px rgba(2, 6, 23, 0.15);
     text-decoration: none;
+  }
+
+  :global(.dark) .api-endpoint-card:hover {
+    border-color: var(--color-accent-10);
+    box-shadow: 0 4px 16px -8px rgba(0, 0, 0, 0.4);
   }
 
   .api-endpoint-card-header {
@@ -727,11 +1124,30 @@ if (isApiPage && processedContent) {
     color: var(--color-text-primary);
   }
 
+  .api-endpoint-card:hover .api-endpoint-card-title {
+    color: var(--color-primary);
+  }
+
+  :global(.dark) .api-endpoint-card:hover .api-endpoint-card-title {
+    color: var(--color-accent-light);
+  }
+
+  .api-endpoint-card-path {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: 0.75rem;
+    font-family: var(--font-code);
+    color: var(--color-text-tertiary);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .api-endpoint-card-desc {
     font-size: 0.8125rem;
     color: var(--color-text-muted);
-    margin: 0;
-    line-height: 1.4;
+    margin: 0.375rem 0 0;
+    line-height: 1.5;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;

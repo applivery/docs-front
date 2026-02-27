@@ -1380,16 +1380,35 @@ const effectiveTranslations: Locale[] = availableTranslations.length > 0
       </div>
     </div>
 
-    <!-- Theme toggle -->
+    <!-- Theme toggle - Animated Sun/Moon Switcher -->
     <div class="theme-controls">
       <button
         type="button"
-        class="theme-btn"
+        class="theme-switcher"
         id="sidebar-theme-toggle"
         aria-label="Toggle dark mode"
+        role="switch"
       >
-        <Fragment set:html={iconSvg('sun', 'theme-icon-light')} />
-        <Fragment set:html={iconSvg('moon', 'theme-icon-dark')} />
+        <span class="theme-switcher-track">
+          <span class="theme-switcher-thumb">
+            <!-- Sun icon -->
+            <svg class="theme-switcher-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="12" cy="12" r="4"/>
+              <path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/>
+            </svg>
+            <!-- Moon icon -->
+            <svg class="theme-switcher-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+            </svg>
+          </span>
+          <!-- Decorative stars (visible in dark mode) -->
+          <span class="theme-switcher-star star-1"></span>
+          <span class="theme-switcher-star star-2"></span>
+          <span class="theme-switcher-star star-3"></span>
+          <!-- Decorative clouds (visible in light mode) -->
+          <span class="theme-switcher-cloud cloud-1"></span>
+          <span class="theme-switcher-cloud cloud-2"></span>
+        </span>
       </button>
     </div>
   </div>
@@ -1506,12 +1525,22 @@ const effectiveTranslations: Locale[] = availableTranslations.length > 0
       });
     }
 
-    // --- Theme toggle ---
+    // --- Theme toggle - animated switcher ---
     const themeToggle = document.getElementById('sidebar-theme-toggle');
     if (themeToggle) {
+      // Set initial aria state
+      const isCurrentlyDark = document.documentElement.classList.contains('dark');
+      themeToggle.setAttribute('aria-checked', String(isCurrentlyDark));
+
       themeToggle.addEventListener('click', () => {
+        // Add transition class for animation
+        themeToggle.classList.add('switching');
         const isDark = document.documentElement.classList.toggle('dark');
         localStorage.setItem('theme', isDark ? 'dark' : 'light');
+        themeToggle.setAttribute('aria-checked', String(isDark));
+
+        // Remove transition class after animation
+        setTimeout(() => themeToggle.classList.remove('switching'), 600);
       });
     }
   }
@@ -2185,41 +2214,193 @@ const effectiveTranslations: Locale[] = availableTranslations.length > 0
     gap: 0.5rem;
   }
 
-  .theme-btn {
+  /* ── Animated Theme Switcher ── */
+  .theme-switcher {
+    position: relative;
+    width: 3.25rem;
+    height: 1.75rem;
+    padding: 0;
+    border: none;
+    border-radius: 9999px;
+    cursor: pointer;
+    background: transparent;
+    outline: none;
+  }
+
+  .theme-switcher:focus-visible {
+    box-shadow: 0 0 0 2px var(--color-primary-50);
+  }
+
+  .theme-switcher-track {
+    display: block;
+    position: relative;
+    width: 100%;
+    height: 100%;
+    border-radius: 9999px;
+    background: linear-gradient(135deg, #87CEEB 0%, #60b3f7 50%, #38bdf8 100%);
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.1);
+    transition: background 0.5s cubic-bezier(0.4, 0, 0.2, 1), box-shadow 0.5s ease;
+    overflow: hidden;
+  }
+
+  :global(.dark) .theme-switcher-track {
+    background: linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #020617 100%);
+    box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.4);
+  }
+
+  /* Thumb */
+  .theme-switcher-thumb {
+    position: absolute;
+    top: 0.1875rem;
+    left: 0.1875rem;
+    width: 1.375rem;
+    height: 1.375rem;
+    border-radius: 50%;
+    background: linear-gradient(135deg, #fbbf24, #f59e0b);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2), 0 0 8px rgba(251, 191, 36, 0.3);
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 2rem;
-    height: 2rem;
-    color: var(--color-text-tertiary);
-    background: transparent;
-    border: none;
-    border-radius: 0.375rem;
-    cursor: pointer;
-    transition: all 0.15s ease;
+    transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1),
+                background 0.5s ease,
+                box-shadow 0.5s ease;
+    z-index: 2;
   }
 
-  .theme-btn:hover {
-    color: var(--color-menu-item-hover-text);
-    background-color: var(--color-menu-item-hover-bg);
+  :global(.dark) .theme-switcher-thumb {
+    transform: translateX(1.5rem);
+    background: linear-gradient(135deg, #e2e8f0, #cbd5e1);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.3), 0 0 8px rgba(203, 213, 225, 0.2);
   }
 
-  .theme-icon-light,
-  .theme-icon-dark {
-    width: 1.125rem;
-    height: 1.125rem;
+  /* Squish effect on click */
+  .theme-switcher.switching .theme-switcher-thumb {
+    animation: thumb-squish 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  .theme-icon-dark {
-    display: none;
+  @keyframes thumb-squish {
+    0% { scale: 1; }
+    25% { scale: 1.2 0.8; }
+    50% { scale: 0.9 1.1; }
+    75% { scale: 1.05 0.95; }
+    100% { scale: 1; }
   }
 
-  :global(.dark) .theme-icon-light {
-    display: none;
+  /* Sun icon */
+  .theme-switcher-sun {
+    width: 0.875rem;
+    height: 0.875rem;
+    color: #92400e;
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+    transition: opacity 0.4s ease, transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
   }
 
-  :global(.dark) .theme-icon-dark {
-    display: block;
+  :global(.dark) .theme-switcher-sun {
+    opacity: 0;
+    transform: rotate(180deg) scale(0);
+  }
+
+  /* Moon icon */
+  .theme-switcher-moon {
+    position: absolute;
+    width: 0.8125rem;
+    height: 0.8125rem;
+    color: #475569;
+    opacity: 0;
+    transform: rotate(-180deg) scale(0);
+    transition: opacity 0.4s ease, transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  :global(.dark) .theme-switcher-moon {
+    opacity: 1;
+    transform: rotate(0deg) scale(1);
+  }
+
+  /* Decorative stars */
+  .theme-switcher-star {
+    position: absolute;
+    border-radius: 50%;
+    background: #e2e8f0;
+    opacity: 0;
+    transform: scale(0);
+    transition: opacity 0.5s ease, transform 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 1;
+  }
+
+  .star-1 {
+    width: 3px;
+    height: 3px;
+    top: 0.375rem;
+    left: 0.5rem;
+    transition-delay: 0.1s;
+  }
+
+  .star-2 {
+    width: 2px;
+    height: 2px;
+    top: 0.5rem;
+    left: 1rem;
+    transition-delay: 0.2s;
+  }
+
+  .star-3 {
+    width: 2.5px;
+    height: 2.5px;
+    top: 1rem;
+    left: 0.625rem;
+    transition-delay: 0.15s;
+  }
+
+  :global(.dark) .theme-switcher-star {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  :global(.dark) .theme-switcher.switching .star-1 {
+    animation: twinkle 1.5s ease-in-out infinite;
+  }
+
+  :global(.dark) .theme-switcher.switching .star-2 {
+    animation: twinkle 1.5s ease-in-out 0.3s infinite;
+  }
+
+  :global(.dark) .theme-switcher.switching .star-3 {
+    animation: twinkle 1.5s ease-in-out 0.6s infinite;
+  }
+
+  @keyframes twinkle {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: 0.4; transform: scale(0.6); }
+  }
+
+  /* Decorative clouds */
+  .theme-switcher-cloud {
+    position: absolute;
+    border-radius: 9999px;
+    background: rgba(255, 255, 255, 0.6);
+    opacity: 1;
+    transition: opacity 0.5s ease, transform 0.5s ease;
+    z-index: 1;
+  }
+
+  .cloud-1 {
+    width: 0.625rem;
+    height: 0.25rem;
+    top: 0.5rem;
+    right: 0.375rem;
+  }
+
+  .cloud-2 {
+    width: 0.5rem;
+    height: 0.1875rem;
+    bottom: 0.4375rem;
+    right: 0.625rem;
+  }
+
+  :global(.dark) .theme-switcher-cloud {
+    opacity: 0;
+    transform: translateX(0.5rem);
   }
 
   /* Mobile - needs background when open as overlay */

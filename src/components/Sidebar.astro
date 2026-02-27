@@ -13,12 +13,69 @@ import {
   defaultLocale as i18nDefaultLocale,
   type Locale
 } from '../lib/i18n';
-import Icon from './Icon';
 import { iconMap, type IconName } from '../lib/icons';
 import {
   isIndexFile as isDocIndexFile,
   extractSlugFromPath as extractDocSlug,
 } from '../lib/doc-helpers';
+
+// Import solar icons subset for static SVG rendering (no React/client JS needed)
+import solarSubset from '../assets/solar-icons-subset.json';
+
+// Custom brand icon SVG bodies (same data as Icon.tsx, used for build-time rendering)
+const customIconBodies: Record<string, { body: string; width?: number; height?: number }> = {
+  'custom:apple-logo': {
+    body: '<g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M12 5.75C12 3.75 13.5 1.75 15.5 1.75C15.5 3.75 14 5.75 12 5.75Z"/><path d="M12.5 8.09001C11.9851 8.09001 11.5867 7.92646 11.1414 7.74368C10.5776 7.51225 9.93875 7.25 8.89334 7.25C7.02235 7.25 4 8.74945 4 12.7495C4 17.4016 7.10471 22.25 9.10471 22.25C9.77426 22.25 10.3775 21.9871 10.954 21.7359C11.4815 21.5059 11.9868 21.2857 12.5 21.2857C13.0132 21.2857 13.5185 21.5059 14.046 21.7359C14.6225 21.9871 15.2257 22.25 15.8953 22.25C17.2879 22.25 18.9573 19.8992 20 16.9008C18.3793 16.2202 17.338 14.618 17.338 12.75C17.338 11.121 18.2036 10.0398 19.5 9.25C18.5 7.75 17.0134 7.25 15.9447 7.25C14.8993 7.25 14.2604 7.51225 13.6966 7.74368C13.2514 7.92646 13.0149 8.09001 12.5 8.09001Z"/></g>',
+    width: 24, height: 24,
+  },
+  'custom:apple-finder': {
+    body: '<g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M2.5 12C2.5 7.52166 2.5 5.28249 3.89124 3.89124C5.28249 2.5 7.52166 2.5 12 2.5C16.4783 2.5 18.7175 2.5 20.1088 3.89124C21.5 5.28249 21.5 7.52166 21.5 12C21.5 16.4783 21.5 18.7175 20.1088 20.1088C18.7175 21.5 16.4783 21.5 12 21.5C7.52166 21.5 5.28249 21.5 3.89124 20.1088C2.5 18.7175 2.5 16.4783 2.5 12Z"/><path d="M7 8V10"/><path d="M17 8V10"/><path d="M7 16.5C10.5 18.5 13.5 18.5 17 16.5"/><path d="M12.9896 2.5C12.1238 3.78525 10.5163 7.71349 10.0737 11.5798C9.98097 12.3899 9.9346 12.795 10.1905 13.1176C10.2151 13.1486 10.2474 13.1843 10.2757 13.212C10.5708 13.5 11.0149 13.5 11.9031 13.5C12.3889 13.5 12.6317 13.5 12.7766 13.6314C12.7923 13.6457 12.8051 13.6588 12.819 13.6748C12.9468 13.8225 12.9383 14.072 12.9212 14.5709C12.8685 16.1156 12.9401 19.0524 14 21.5"/></g>',
+    width: 24, height: 24,
+  },
+  'custom:windows-logo': {
+    body: '<g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.0136 3.99538L8.01361 4.99036C5.61912 5.38744 4.42188 5.58597 3.71094 6.421C3 7.25602 3 8.46368 3 10.879L3 13.121C3 15.5363 3 16.744 3.71094 17.579C4.42188 18.414 5.61913 18.6126 8.01361 19.0096L14.0136 20.0046C17.2567 20.5424 18.8782 20.8113 19.9391 19.9171C21 19.023 21 17.3873 21 14.116V9.88402C21 6.6127 21 4.97704 19.9391 4.08286C18.8782 3.18868 17.2567 3.45758 14.0136 3.99538Z"/><path d="M11 4.5V19.5M3 12H21"/></g>',
+    width: 24, height: 24,
+  },
+  'custom:android-robot': {
+    body: '<g fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6.5 9.5C6.5 6.46243 8.96243 4 12 4C15.0376 4 17.5 6.46243 17.5 9.5V16C17.5 17.4142 17.5 18.1213 17.0607 18.5607C16.6213 19 15.9142 19 14.5 19H9.5C8.08579 19 7.37868 19 6.93934 18.5607C6.5 18.1213 6.5 17.4142 6.5 16V9.5Z"/><path d="M20 11V17"/><path d="M15 19V22"/><path d="M9 19V22"/><path d="M4 11V17"/><path d="M10 4L8.5 2M14 4L15.5 2"/><path d="M6.5 10H17.5"/></g>',
+    width: 24, height: 24,
+  },
+};
+
+/**
+ * Render an icon as a static inline SVG string (no client JS needed).
+ * Resolves icon names through iconMap → iconify identifier → SVG body.
+ */
+function iconSvg(name: IconName, className: string, style?: string): string {
+  const iconId = iconMap[name];
+  if (!iconId) return '';
+
+  let body = '';
+  let width = 24;
+  let height = 24;
+
+  if (iconId.startsWith('custom:')) {
+    const customIcon = customIconBodies[iconId];
+    if (customIcon) {
+      body = customIcon.body;
+      width = customIcon.width || 24;
+      height = customIcon.height || 24;
+    }
+  } else if (iconId.startsWith('solar:')) {
+    const solarName = iconId.replace('solar:', '');
+    const solarIcon = (solarSubset as any).icons?.[solarName];
+    if (solarIcon) {
+      body = solarIcon.body;
+      width = solarIcon.width || (solarSubset as any).width || 24;
+      height = solarIcon.height || (solarSubset as any).height || 24;
+    }
+  }
+
+  if (!body) return '';
+
+  const styleAttr = style ? ` style="${style}"` : '';
+  return `<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 ${width} ${height}" class="${className}" aria-hidden="true"${styleAttr}>${body}</svg>`;
+}
 
 interface Props {
   documents: Document[];
@@ -136,7 +193,7 @@ const hasProducts = products.length > 0;
 // Determine which tab is active by default
 const defaultActiveTab = tabs.find(t => t.defaultActive) || tabs[0];
 const hasTabs = tabs.length > 0;
-const tabsJson = JSON.stringify(tabs);
+// tabs data is used in server-side template rendering (tabNavigations map)
 
 // Group documents by section/category
 interface NavGroup {
@@ -493,8 +550,51 @@ const navigation = isManualMode
   ? (hasProducts ? convertSideMenuToNavGroups(nonProductItems) : convertSideMenuToNavGroups(sideMenu!.items))
   : buildNavigation(documents);
 
-// Serialize products for client-side use
-const productsJson = JSON.stringify(products);
+// Build navigation for each product from the documents collection (fully static)
+const productNavigations = new Map<string, NavGroup[]>();
+
+for (const product of products) {
+  if (!product.folder) continue;
+  const folderPrefix = product.folder.replace(/^\/|\/$/g, '');
+
+  // Filter documents belonging to this product's folder
+  const productDocs = documents.filter(doc => {
+    if (!doc.path) return false;
+    const slug = extractDocSlug(doc.path, false);
+    return slug.startsWith(folderPrefix + '/') || slug === folderPrefix;
+  });
+
+  // Build navigation tree — top-level group = product folder name
+  const fullNav = buildNavigation(productDocs);
+
+  // Unwrap: take the product folder group's children as top-level items
+  // (the product selector already indicates which product is active)
+  const productGroup = fullNav.find(g =>
+    g.title.toLowerCase().replace(/\s+/g, '-') === folderPrefix.toLowerCase() ||
+    g.href?.includes(folderPrefix)
+  );
+
+  productNavigations.set(product.id, productGroup?.subgroups || fullNav);
+}
+
+// Build navigation for each tab from the documents collection (fully static)
+const tabNavigations = new Map<string, NavGroup[]>();
+
+for (const tab of tabs) {
+  if (!tab.folder) continue;
+  const folderPrefix = tab.folder.replace(/^\/|\/$/g, '');
+  const tabDocs = documents.filter(doc => {
+    if (!doc.path) return false;
+    const slug = extractDocSlug(doc.path, false);
+    return slug.startsWith(folderPrefix + '/') || slug === folderPrefix;
+  });
+  const fullNav = buildNavigation(tabDocs);
+  const tabGroup = fullNav.find(g =>
+    g.title.toLowerCase().replace(/\s+/g, '-') === folderPrefix.toLowerCase() ||
+    g.href?.includes(folderPrefix)
+  );
+  tabNavigations.set(tab.id, tabGroup?.subgroups || fullNav);
+}
 
 // Aliases for icon names that DON'T follow the standard kebab→camelCase pattern.
 // All other names (e.g. 'folder-open' → 'folderOpen') are auto-converted at runtime.
@@ -548,52 +648,10 @@ const effectiveTranslations: Locale[] = availableTranslations.length > 0
   ? availableTranslations
   : [currentLocale]; // If not provided, only show current locale
 
-// CMS URL for client-side navigation API calls
-const cmsUrl = import.meta.env.PUBLIC_CMS_URL || import.meta.env.CMS_URL || '';
-
-// Collect only the icons actually used by CMS data at build time
-const usedIcons = new Set<string>([
-  // Structural icons always needed by the sidebar
-  'folder', 'folderOpen', 'document', 'chevronDown',
-]);
-
-// Walk sideMenu items recursively to collect icons
-function collectMenuIcons(items: SideMenuItem[]) {
-  for (const item of items) {
-    if (item.icon) usedIcons.add(getIconName(item.icon));
-    if (item.children) collectMenuIcons(item.children);
-  }
-}
-if (sideMenu?.items) collectMenuIcons(sideMenu.items);
-
-// Collect icons from products
-for (const p of products) {
-  if (p.icon) usedIcons.add(getIconName(p.icon));
-}
-
-// Collect icons from navigation groups
-function collectNavIcons(groups: NavGroup[]) {
-  for (const g of groups) {
-    if (g.icon) usedIcons.add(getIconName(g.icon));
-    for (const item of g.items) {
-      if (item.icon) usedIcons.add(getIconName(item.icon));
-    }
-    if (g.subgroups) collectNavIcons(g.subgroups);
-  }
-}
-collectNavIcons(navigation);
-
-// Build filtered iconMap with only the used icons
-const usedIconMap = Object.fromEntries(
-  Object.entries(iconMap).filter(([k]) => usedIcons.has(k))
-);
 ---
 
 <aside
   class="sidebar"
-  data-cms-url={cmsUrl}
-  data-icon-name-map={JSON.stringify(iconAliases)}
-  data-icon-map={JSON.stringify(usedIconMap)}
 >
   <!-- Logo / Site Name -->
   <div class="sidebar-header">
@@ -640,7 +698,7 @@ const usedIconMap = Object.fromEntries(
       ) : (
         <div class="flex items-center gap-2">
           <div class="w-8 h-8 rounded-lg bg-[var(--color-primary)] flex items-center justify-center">
-            <Icon name="document" className="w-5 h-5 text-white" aria-hidden={true} client:only="react" />
+            <Fragment set:html={iconSvg('document', 'w-5 h-5 text-white')} />
           </div>
           <span class="font-semibold text-[var(--color-text-primary)]">{siteName}</span>
         </div>
@@ -650,7 +708,7 @@ const usedIconMap = Object.fromEntries(
 
   <!-- Products Selector (if products exist) -->
   {hasProducts && (
-    <div class="product-selector" data-products={productsJson}>
+    <div class="product-selector">
       {products.map((product, index) => (
         <button
           type="button"
@@ -663,7 +721,7 @@ const usedIconMap = Object.fromEntries(
           data-product-collection={product.collection}
         >
           {product.icon && (
-            <Icon name={getIconName(product.icon)} className="product-icon" aria-hidden={true} client:only="react" />
+            <Fragment set:html={iconSvg(getIconName(product.icon), 'product-icon')} />
           )}
           <span class="product-label">{product.label}</span>
         </button>
@@ -671,59 +729,354 @@ const usedIconMap = Object.fromEntries(
     </div>
   )}
 
-  <!-- Product Navigation (lazy-loaded content area) -->
+  <!-- Product Navigation (statically built per product at build time) -->
   {hasProducts && (
     <div class="product-nav-container" id="product-nav-container">
-      <div class="product-nav-skeleton">
-        <!-- Skeleton folder with children -->
-        <div class="skeleton-folder">
-          <div class="skeleton-bar skeleton-folder-title"></div>
-          <div class="skeleton-children">
-            <div class="skeleton-bar skeleton-item"></div>
-            <div class="skeleton-bar skeleton-item short"></div>
-            <div class="skeleton-bar skeleton-item"></div>
-          </div>
-        </div>
-        <!-- Second skeleton folder -->
-        <div class="skeleton-folder">
-          <div class="skeleton-bar skeleton-folder-title short"></div>
-          <div class="skeleton-children">
-            <div class="skeleton-bar skeleton-item"></div>
-            <div class="skeleton-bar skeleton-item short"></div>
-          </div>
-        </div>
-        <!-- Third skeleton folder -->
-        <div class="skeleton-folder">
-          <div class="skeleton-bar skeleton-folder-title"></div>
-        </div>
-      </div>
-      <!-- Content will be loaded dynamically -->
+      {products.map((product) => {
+        const nav = productNavigations.get(product.id) || [];
+        const isActiveProduct = product.id === activeProduct?.id;
+        return (
+          <nav
+            class:list={['product-nav-content', 'scrollbar-on-hover', { 'hidden': !isActiveProduct }]}
+            data-product-nav={product.id}
+          >
+            {nav.length > 0 ? (
+              nav.map((group) => {
+                const isExpanded = isGroupActive(group, currentPath);
+                return (
+                  <div class="sidebar-nav-group" data-nav-group>
+                    <div
+                      class:list={['sidebar-nav-group-title', { active: group.href && (isPathActive(group.href, currentPath) || group.active) }]}
+                      data-nav-toggle
+                      aria-expanded={isExpanded ? 'true' : 'false'}
+                    >
+                      {group.href ? (
+                        <a href={group.href} class="nav-toggle-link sidebar-nav-group-link">
+                          <span class="group-title-content">
+                            <Fragment set:html={iconSvg(getIconName(group.icon || 'folder'), 'group-title-icon')} />
+                            <span class="truncate">{group.title}</span>
+                          </span>
+                        </a>
+                      ) : (
+                        <span class="nav-toggle-link">
+                          <span class="group-title-content">
+                            <Fragment set:html={iconSvg(getIconName(group.icon || 'folder'), 'group-title-icon')} />
+                            <span class="truncate">{group.title}</span>
+                          </span>
+                        </span>
+                      )}
+                      <button type="button" class="nav-chevron-btn" data-nav-chevron aria-label="Toggle expand">
+                        <Fragment set:html={iconSvg('chevronDown', 'nav-chevron', isExpanded ? 'transform: rotate(180deg)' : undefined)} />
+                      </button>
+                    </div>
+                    <div class="nav-group-content" data-nav-content style={isExpanded ? '' : 'display: none;'}>
+                      {group.items.length > 0 && (
+                        <ul>
+                          {group.items.map((item) => (
+                            <li>
+                              <a href={item.href} class:list={['sidebar-nav-item', { active: isPathActive(item.href, currentPath) || item.active }]}>
+                                {item.method ? (
+                                  <span class={`sidebar-method-badge method-${item.method.toLowerCase()}`}>{item.method}</span>
+                                ) : (
+                                  <Fragment set:html={iconSvg(getIconName(item.icon || 'document'), 'nav-item-icon')} />
+                                )}
+                                <span class="nav-item-label">{item.label}</span>
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      {group.subgroups && group.subgroups.map((subgroup) => {
+                        const subHasActive = isGroupActive(subgroup, currentPath);
+                        const hasChildren = subgroup.items.length > 0 || (subgroup.subgroups && subgroup.subgroups.length > 0);
+                        const subIsFolderIcon = isFolderIcon(subgroup.icon);
+                        return hasChildren ? (
+                          <div class="sidebar-nav-subgroup" data-nav-group>
+                            <div
+                              class:list={['sidebar-nav-subgroup-title', { active: subgroup.href && (isPathActive(subgroup.href, currentPath) || subgroup.active) }]}
+                              data-nav-toggle
+                              {...(subIsFolderIcon ? { 'data-subfolder-toggle': '' } : {})}
+                              aria-expanded={subHasActive ? 'true' : 'false'}
+                            >
+                              {subgroup.href ? (
+                                <a href={subgroup.href} class="nav-toggle-link sidebar-nav-subgroup-link">
+                                  <span class="group-title-content">
+                                    {subIsFolderIcon ? (
+                                      <>
+                                        <Fragment set:html={iconSvg(getIconName(subgroup.icon || 'folder'), 'group-title-icon subfolder-icon-closed')} />
+                                        <Fragment set:html={iconSvg('folderOpen', 'group-title-icon subfolder-icon-open')} />
+                                      </>
+                                    ) : (
+                                      <Fragment set:html={iconSvg(getIconName(subgroup.icon), 'group-title-icon')} />
+                                    )}
+                                    <span class="truncate">{subgroup.title}</span>
+                                  </span>
+                                </a>
+                              ) : (
+                                <span class="nav-toggle-link" {...(subIsFolderIcon ? { 'data-subfolder-link': '', role: 'button', tabindex: '0' } : {})}>
+                                  <span class="group-title-content">
+                                    {subIsFolderIcon ? (
+                                      <>
+                                        <Fragment set:html={iconSvg(getIconName(subgroup.icon || 'folder'), 'group-title-icon subfolder-icon-closed')} />
+                                        <Fragment set:html={iconSvg('folderOpen', 'group-title-icon subfolder-icon-open')} />
+                                      </>
+                                    ) : (
+                                      <Fragment set:html={iconSvg(getIconName(subgroup.icon), 'group-title-icon')} />
+                                    )}
+                                    <span class="truncate">{subgroup.title}</span>
+                                  </span>
+                                </span>
+                              )}
+                              {!subIsFolderIcon && (
+                                <button type="button" class="nav-chevron-btn" data-nav-chevron aria-label="Toggle expand">
+                                  <Fragment set:html={iconSvg('chevronDown', 'nav-chevron-sub', subHasActive ? 'transform: rotate(180deg)' : undefined)} />
+                                </button>
+                              )}
+                            </div>
+                            <ul class="nav-subgroup-content" data-nav-content style={subHasActive ? '' : 'display: none;'}>
+                              {subgroup.subgroups && subgroup.subgroups.map((nested) => {
+                                const nestedHasActive = isGroupActive(nested, currentPath);
+                                const nestedHasChildren = nested.items.length > 0 || (nested.subgroups && nested.subgroups.length > 0);
+                                const nestedIsFolderIcon = isFolderIcon(nested.icon);
+                                return nestedHasChildren ? (
+                                  <li>
+                                    <div class="sidebar-nav-subgroup" data-nav-group>
+                                      <div
+                                        class:list={['sidebar-nav-subgroup-title', { active: nested.href && (isPathActive(nested.href, currentPath) || nested.active) }]}
+                                        data-nav-toggle
+                                        {...(nestedIsFolderIcon ? { 'data-subfolder-toggle': '' } : {})}
+                                        aria-expanded={nestedHasActive ? 'true' : 'false'}
+                                      >
+                                        {nested.href ? (
+                                          <a href={nested.href} class="nav-toggle-link sidebar-nav-subgroup-link">
+                                            <span class="group-title-content">
+                                              {nestedIsFolderIcon ? (
+                                                <>
+                                                  <Fragment set:html={iconSvg(getIconName(nested.icon || 'folder'), 'group-title-icon subfolder-icon-closed')} />
+                                                  <Fragment set:html={iconSvg('folderOpen', 'group-title-icon subfolder-icon-open')} />
+                                                </>
+                                              ) : (
+                                                <Fragment set:html={iconSvg(getIconName(nested.icon), 'group-title-icon')} />
+                                              )}
+                                              <span class="truncate">{nested.title}</span>
+                                            </span>
+                                          </a>
+                                        ) : (
+                                          <span class="nav-toggle-link" {...(nestedIsFolderIcon ? { 'data-subfolder-link': '', role: 'button', tabindex: '0' } : {})}>
+                                            <span class="group-title-content">
+                                              {nestedIsFolderIcon ? (
+                                                <>
+                                                  <Fragment set:html={iconSvg(getIconName(nested.icon || 'folder'), 'group-title-icon subfolder-icon-closed')} />
+                                                  <Fragment set:html={iconSvg('folderOpen', 'group-title-icon subfolder-icon-open')} />
+                                                </>
+                                              ) : (
+                                                <Fragment set:html={iconSvg(getIconName(nested.icon), 'group-title-icon')} />
+                                              )}
+                                              <span class="truncate">{nested.title}</span>
+                                            </span>
+                                          </span>
+                                        )}
+                                        {!nestedIsFolderIcon && (
+                                          <button type="button" class="nav-chevron-btn" data-nav-chevron aria-label="Toggle expand">
+                                            <Fragment set:html={iconSvg('chevronDown', 'nav-chevron-sub', nestedHasActive ? 'transform: rotate(180deg)' : undefined)} />
+                                          </button>
+                                        )}
+                                      </div>
+                                      <ul class="nav-subgroup-content" data-nav-content style={nestedHasActive ? '' : 'display: none;'}>
+                                        {nested.items.map((nItem) => (
+                                          <li>
+                                            <a href={nItem.href} class:list={['sidebar-nav-item sidebar-nav-item-nested', { active: isPathActive(nItem.href, currentPath) || nItem.active }]}>
+                                              {nItem.method ? (
+                                                <span class={`sidebar-method-badge method-${nItem.method.toLowerCase()}`}>{nItem.method}</span>
+                                              ) : (
+                                                <Fragment set:html={iconSvg(getIconName(nItem.icon || 'document'), 'nav-item-icon')} />
+                                              )}
+                                              <span class="nav-item-label">{nItem.label}</span>
+                                            </a>
+                                          </li>
+                                        ))}
+                                      </ul>
+                                    </div>
+                                  </li>
+                                ) : nested.href ? (
+                                  <li>
+                                    <a href={nested.href} class:list={['sidebar-nav-item', { active: isPathActive(nested.href, currentPath) || nested.active }]}>
+                                      <Fragment set:html={iconSvg(getIconName(nested.icon || 'document'), 'nav-item-icon')} />
+                                      <span class="nav-item-label">{nested.title}</span>
+                                    </a>
+                                  </li>
+                                ) : null;
+                              })}
+                              {subgroup.items.map((item) => (
+                                <li>
+                                  <a href={item.href} class:list={['sidebar-nav-item sidebar-nav-item-nested', { active: isPathActive(item.href, currentPath) || item.active }]}>
+                                    {item.method ? (
+                                      <span class={`sidebar-method-badge method-${item.method.toLowerCase()}`}>{item.method}</span>
+                                    ) : (
+                                      <Fragment set:html={iconSvg(getIconName(item.icon || 'document'), 'nav-item-icon')} />
+                                    )}
+                                    <span class="nav-item-label">{item.label}</span>
+                                  </a>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : subgroup.href ? (
+                          <a href={subgroup.href} class:list={['sidebar-nav-item', { active: isPathActive(subgroup.href, currentPath) || subgroup.active }]}>
+                            <Fragment set:html={iconSvg(getIconName(subgroup.icon || 'document'), 'nav-item-icon')} />
+                            <span class="nav-item-label">{subgroup.title}</span>
+                          </a>
+                        ) : null;
+                      })}
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div class="product-nav-empty">No content found</div>
+            )}
+          </nav>
+        );
+      })}
     </div>
   )}
 
-  <!-- Tab Navigation (lazy-loaded content area, controlled by header tabs) -->
+  <!-- Tab Navigation (statically built per tab at build time) -->
   {hasTabs && (
-    <div class="tab-nav-container" id="tab-nav-container" data-tabs={tabsJson}>
-      <div class="tab-nav-skeleton">
-        <!-- Skeleton folder with children -->
-        <div class="skeleton-folder">
-          <div class="skeleton-bar skeleton-folder-title"></div>
-          <div class="skeleton-children">
-            <div class="skeleton-bar skeleton-item"></div>
-            <div class="skeleton-bar skeleton-item short"></div>
-            <div class="skeleton-bar skeleton-item"></div>
-          </div>
-        </div>
-        <!-- Second skeleton folder -->
-        <div class="skeleton-folder">
-          <div class="skeleton-bar skeleton-folder-title short"></div>
-          <div class="skeleton-children">
-            <div class="skeleton-bar skeleton-item"></div>
-            <div class="skeleton-bar skeleton-item short"></div>
-          </div>
-        </div>
-      </div>
-      <!-- Content will be loaded dynamically based on active tab -->
+    <div class="tab-nav-container" id="tab-nav-container">
+      {tabs.map((tab) => {
+        const nav = tabNavigations.get(tab.id) || [];
+        const isActiveTab = tab.id === defaultActiveTab?.id;
+        return (
+          <nav
+            class:list={['tab-nav-content', 'scrollbar-on-hover', { 'hidden': !isActiveTab }]}
+            data-tab-nav={tab.id}
+          >
+            {nav.length > 0 ? (
+              nav.map((group) => {
+                const isExpanded = isGroupActive(group, currentPath);
+                return (
+                  <div class="sidebar-nav-group" data-nav-group>
+                    <div
+                      class:list={['sidebar-nav-group-title', { active: group.href && (isPathActive(group.href, currentPath) || group.active) }]}
+                      data-nav-toggle
+                      aria-expanded={isExpanded ? 'true' : 'false'}
+                    >
+                      {group.href ? (
+                        <a href={group.href} class="nav-toggle-link sidebar-nav-group-link">
+                          <span class="group-title-content">
+                            <Fragment set:html={iconSvg(getIconName(group.icon || 'folder'), 'group-title-icon')} />
+                            <span class="truncate">{group.title}</span>
+                          </span>
+                        </a>
+                      ) : (
+                        <span class="nav-toggle-link">
+                          <span class="group-title-content">
+                            <Fragment set:html={iconSvg(getIconName(group.icon || 'folder'), 'group-title-icon')} />
+                            <span class="truncate">{group.title}</span>
+                          </span>
+                        </span>
+                      )}
+                      <button type="button" class="nav-chevron-btn" data-nav-chevron aria-label="Toggle expand">
+                        <Fragment set:html={iconSvg('chevronDown', 'nav-chevron', isExpanded ? 'transform: rotate(180deg)' : undefined)} />
+                      </button>
+                    </div>
+                    <div class="nav-group-content" data-nav-content style={isExpanded ? '' : 'display: none;'}>
+                      {group.items.length > 0 && (
+                        <ul>
+                          {group.items.map((item) => (
+                            <li>
+                              <a href={item.href} class:list={['sidebar-nav-item', { active: isPathActive(item.href, currentPath) || item.active }]}>
+                                {item.method ? (
+                                  <span class={`sidebar-method-badge method-${item.method.toLowerCase()}`}>{item.method}</span>
+                                ) : (
+                                  <Fragment set:html={iconSvg(getIconName(item.icon || 'document'), 'nav-item-icon')} />
+                                )}
+                                <span class="nav-item-label">{item.label}</span>
+                              </a>
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                      {group.subgroups && group.subgroups.map((subgroup) => {
+                        const subHasActive = isGroupActive(subgroup, currentPath);
+                        const hasChildren = subgroup.items.length > 0 || (subgroup.subgroups && subgroup.subgroups.length > 0);
+                        const subIsFolderIcon = isFolderIcon(subgroup.icon);
+                        return hasChildren ? (
+                          <div class="sidebar-nav-subgroup" data-nav-group>
+                            <div
+                              class:list={['sidebar-nav-subgroup-title', { active: subgroup.href && (isPathActive(subgroup.href, currentPath) || subgroup.active) }]}
+                              data-nav-toggle
+                              {...(subIsFolderIcon ? { 'data-subfolder-toggle': '' } : {})}
+                              aria-expanded={subHasActive ? 'true' : 'false'}
+                            >
+                              {subgroup.href ? (
+                                <a href={subgroup.href} class="nav-toggle-link sidebar-nav-subgroup-link">
+                                  <span class="group-title-content">
+                                    {subIsFolderIcon ? (
+                                      <>
+                                        <Fragment set:html={iconSvg(getIconName(subgroup.icon || 'folder'), 'group-title-icon subfolder-icon-closed')} />
+                                        <Fragment set:html={iconSvg('folderOpen', 'group-title-icon subfolder-icon-open')} />
+                                      </>
+                                    ) : (
+                                      <Fragment set:html={iconSvg(getIconName(subgroup.icon), 'group-title-icon')} />
+                                    )}
+                                    <span class="truncate">{subgroup.title}</span>
+                                  </span>
+                                </a>
+                              ) : (
+                                <span class="nav-toggle-link" {...(subIsFolderIcon ? { 'data-subfolder-link': '', role: 'button', tabindex: '0' } : {})}>
+                                  <span class="group-title-content">
+                                    {subIsFolderIcon ? (
+                                      <>
+                                        <Fragment set:html={iconSvg(getIconName(subgroup.icon || 'folder'), 'group-title-icon subfolder-icon-closed')} />
+                                        <Fragment set:html={iconSvg('folderOpen', 'group-title-icon subfolder-icon-open')} />
+                                      </>
+                                    ) : (
+                                      <Fragment set:html={iconSvg(getIconName(subgroup.icon), 'group-title-icon')} />
+                                    )}
+                                    <span class="truncate">{subgroup.title}</span>
+                                  </span>
+                                </span>
+                              )}
+                              {!subIsFolderIcon && (
+                                <button type="button" class="nav-chevron-btn" data-nav-chevron aria-label="Toggle expand">
+                                  <Fragment set:html={iconSvg('chevronDown', 'nav-chevron-sub', subHasActive ? 'transform: rotate(180deg)' : undefined)} />
+                                </button>
+                              )}
+                            </div>
+                            <ul class="nav-subgroup-content" data-nav-content style={subHasActive ? '' : 'display: none;'}>
+                              {subgroup.items.map((item) => (
+                                <li>
+                                  <a href={item.href} class:list={['sidebar-nav-item sidebar-nav-item-nested', { active: isPathActive(item.href, currentPath) || item.active }]}>
+                                    {item.method ? (
+                                      <span class={`sidebar-method-badge method-${item.method.toLowerCase()}`}>{item.method}</span>
+                                    ) : (
+                                      <Fragment set:html={iconSvg(getIconName(item.icon || 'document'), 'nav-item-icon')} />
+                                    )}
+                                    <span class="nav-item-label">{item.label}</span>
+                                  </a>
+                                </li>
+                              ))}
+                            </ul>
+                          </div>
+                        ) : subgroup.href ? (
+                          <a href={subgroup.href} class:list={['sidebar-nav-item', { active: isPathActive(subgroup.href, currentPath) || subgroup.active }]}>
+                            <Fragment set:html={iconSvg(getIconName(subgroup.icon || 'document'), 'nav-item-icon')} />
+                            <span class="nav-item-label">{subgroup.title}</span>
+                          </a>
+                        ) : null;
+                      })}
+                    </div>
+                  </div>
+                );
+              })
+            ) : (
+              <div class="tab-nav-empty">No content found</div>
+            )}
+          </nav>
+        );
+      })}
     </div>
   )}
 
@@ -743,26 +1096,20 @@ const usedIconMap = Object.fromEntries(
               {group.href ? (
                 <a href={group.href} class="nav-toggle-link sidebar-nav-group-link">
                   <span class="group-title-content">
-                    <Icon name={getIconName(group.icon || 'folder')} className="group-title-icon" aria-hidden={true} client:only="react" />
+                    <Fragment set:html={iconSvg(getIconName(group.icon || 'folder'), 'group-title-icon')} />
                     <span class="truncate">{group.title}</span>
                   </span>
                 </a>
               ) : (
                 <span class="nav-toggle-link">
                   <span class="group-title-content">
-                    <Icon name={getIconName(group.icon || 'folder')} className="group-title-icon" aria-hidden={true} client:only="react" />
+                    <Fragment set:html={iconSvg(getIconName(group.icon || 'folder'), 'group-title-icon')} />
                     <span class="truncate">{group.title}</span>
                   </span>
                 </span>
               )}
               <button type="button" class="nav-chevron-btn" data-nav-chevron aria-label="Toggle expand">
-                <Icon
-                  name="chevronDown"
-                  className="nav-chevron"
-                  style={isExpanded ? { transform: 'rotate(180deg)' } : undefined}
-                  aria-hidden={true}
-                  client:only="react"
-                />
+                <Fragment set:html={iconSvg('chevronDown', 'nav-chevron', isExpanded ? 'transform: rotate(180deg)' : undefined)} />
               </button>
             </div>
             <div
@@ -783,7 +1130,7 @@ const usedIconMap = Object.fromEntries(
                           <span class={`sidebar-method-badge method-${item.method.toLowerCase()}`}>{item.method}</span>
                         )}
                         {!item.method && (
-                          <Icon name={getIconName(item.icon || 'document')} className="nav-item-icon" aria-hidden={true} client:only="react" />
+                          <Fragment set:html={iconSvg(getIconName(item.icon || 'document'), 'nav-item-icon')} />
                         )}
                         <span class="nav-item-label">{item.label}</span>
                       </a>
@@ -810,11 +1157,11 @@ const usedIconMap = Object.fromEntries(
                           <span class="group-title-content">
                             {subIsFolderIcon ? (
                               <>
-                                <Icon name={getIconName(subgroup.icon || 'folder')} className="group-title-icon subfolder-icon-closed" aria-hidden={true} client:only="react" />
-                                <Icon name="folderOpen" className="group-title-icon subfolder-icon-open" aria-hidden={true} client:only="react" />
+                                <Fragment set:html={iconSvg(getIconName(subgroup.icon || 'folder'), 'group-title-icon subfolder-icon-closed')} />
+                                <Fragment set:html={iconSvg('folderOpen', 'group-title-icon subfolder-icon-open')} />
                               </>
                             ) : (
-                              <Icon name={getIconName(subgroup.icon)} className="group-title-icon" aria-hidden={true} client:only="react" />
+                              <Fragment set:html={iconSvg(getIconName(subgroup.icon), 'group-title-icon')} />
                             )}
                             <span class="truncate">{subgroup.title}</span>
                           </span>
@@ -824,11 +1171,11 @@ const usedIconMap = Object.fromEntries(
                           <span class="group-title-content">
                             {subIsFolderIcon ? (
                               <>
-                                <Icon name={getIconName(subgroup.icon || 'folder')} className="group-title-icon subfolder-icon-closed" aria-hidden={true} client:only="react" />
-                                <Icon name="folderOpen" className="group-title-icon subfolder-icon-open" aria-hidden={true} client:only="react" />
+                                <Fragment set:html={iconSvg(getIconName(subgroup.icon || 'folder'), 'group-title-icon subfolder-icon-closed')} />
+                                <Fragment set:html={iconSvg('folderOpen', 'group-title-icon subfolder-icon-open')} />
                               </>
                             ) : (
-                              <Icon name={getIconName(subgroup.icon)} className="group-title-icon" aria-hidden={true} client:only="react" />
+                              <Fragment set:html={iconSvg(getIconName(subgroup.icon), 'group-title-icon')} />
                             )}
                             <span class="truncate">{subgroup.title}</span>
                           </span>
@@ -836,13 +1183,7 @@ const usedIconMap = Object.fromEntries(
                       )}
                       {!subIsFolderIcon && (
                         <button type="button" class="nav-chevron-btn" data-nav-chevron aria-label="Toggle expand">
-                          <Icon
-                            name="chevronDown"
-                            className="nav-chevron-sub"
-                            style={subHasActive ? { transform: 'rotate(180deg)' } : undefined}
-                            aria-hidden={true}
-                            client:only="react"
-                          />
+                          <Fragment set:html={iconSvg('chevronDown', 'nav-chevron-sub', subHasActive ? 'transform: rotate(180deg)' : undefined)} />
                         </button>
                       )}
                     </div>
@@ -870,11 +1211,11 @@ const usedIconMap = Object.fromEntries(
                                     <span class="group-title-content">
                                       {nestedIsFolderIcon ? (
                                         <>
-                                          <Icon name={getIconName(nested.icon || 'folder')} className="group-title-icon subfolder-icon-closed" aria-hidden={true} client:only="react" />
-                                          <Icon name="folderOpen" className="group-title-icon subfolder-icon-open" aria-hidden={true} client:only="react" />
+                                          <Fragment set:html={iconSvg(getIconName(nested.icon || 'folder'), 'group-title-icon subfolder-icon-closed')} />
+                                          <Fragment set:html={iconSvg('folderOpen', 'group-title-icon subfolder-icon-open')} />
                                         </>
                                       ) : (
-                                        <Icon name={getIconName(nested.icon)} className="group-title-icon" aria-hidden={true} client:only="react" />
+                                        <Fragment set:html={iconSvg(getIconName(nested.icon), 'group-title-icon')} />
                                       )}
                                       <span class="truncate">{nested.title}</span>
                                     </span>
@@ -884,11 +1225,11 @@ const usedIconMap = Object.fromEntries(
                                     <span class="group-title-content">
                                       {nestedIsFolderIcon ? (
                                         <>
-                                          <Icon name={getIconName(nested.icon || 'folder')} className="group-title-icon subfolder-icon-closed" aria-hidden={true} client:only="react" />
-                                          <Icon name="folderOpen" className="group-title-icon subfolder-icon-open" aria-hidden={true} client:only="react" />
+                                          <Fragment set:html={iconSvg(getIconName(nested.icon || 'folder'), 'group-title-icon subfolder-icon-closed')} />
+                                          <Fragment set:html={iconSvg('folderOpen', 'group-title-icon subfolder-icon-open')} />
                                         </>
                                       ) : (
-                                        <Icon name={getIconName(nested.icon)} className="group-title-icon" aria-hidden={true} client:only="react" />
+                                        <Fragment set:html={iconSvg(getIconName(nested.icon), 'group-title-icon')} />
                                       )}
                                       <span class="truncate">{nested.title}</span>
                                     </span>
@@ -896,13 +1237,7 @@ const usedIconMap = Object.fromEntries(
                                 )}
                                 {!nestedIsFolderIcon && (
                                   <button type="button" class="nav-chevron-btn" data-nav-chevron aria-label="Toggle expand">
-                                    <Icon
-                                      name="chevronDown"
-                                      className="nav-chevron-sub"
-                                      style={nestedHasActive ? { transform: 'rotate(180deg)' } : undefined}
-                                      aria-hidden={true}
-                                      client:only="react"
-                                    />
+                                    <Fragment set:html={iconSvg('chevronDown', 'nav-chevron-sub', nestedHasActive ? 'transform: rotate(180deg)' : undefined)} />
                                   </button>
                                 )}
                               </div>
@@ -921,7 +1256,7 @@ const usedIconMap = Object.fromEntries(
                                         <span class={`sidebar-method-badge method-${nItem.method.toLowerCase()}`}>{nItem.method}</span>
                                       )}
                                       {!nItem.method && (
-                                        <Icon name={getIconName(nItem.icon || 'document')} className="nav-item-icon" aria-hidden={true} client:only="react" />
+                                        <Fragment set:html={iconSvg(getIconName(nItem.icon || 'document'), 'nav-item-icon')} />
                                       )}
                                       <span class="nav-item-label">{nItem.label}</span>
                                     </a>
@@ -936,7 +1271,7 @@ const usedIconMap = Object.fromEntries(
                               href={nested.href}
                               class:list={['sidebar-nav-item', { active: isPathActive(nested.href, currentPath) || nested.active }]}
                             >
-                              <Icon name={getIconName(nested.icon || 'document')} className="nav-item-icon" aria-hidden={true} client:only="react" />
+                              <Fragment set:html={iconSvg(getIconName(nested.icon || 'document'), 'nav-item-icon')} />
                               <span class="nav-item-label">{nested.title}</span>
                             </a>
                           </li>
@@ -953,7 +1288,7 @@ const usedIconMap = Object.fromEntries(
                               <span class={`sidebar-method-badge method-${item.method.toLowerCase()}`}>{item.method}</span>
                             )}
                             {!item.method && (
-                              <Icon name={getIconName(item.icon || 'document')} className="nav-item-icon" aria-hidden={true} client:only="react" />
+                              <Fragment set:html={iconSvg(getIconName(item.icon || 'document'), 'nav-item-icon')} />
                             )}
                             <span class="nav-item-label">{item.label}</span>
                           </a>
@@ -968,7 +1303,7 @@ const usedIconMap = Object.fromEntries(
                       href={subgroup.href}
                       class:list={['sidebar-nav-item', { active: isPathActive(subgroup.href, currentPath) || subgroup.active }]}
                     >
-                      <Icon name={getIconName(subgroup.icon || 'document')} className="nav-item-icon" aria-hidden={true} client:only="react" />
+                      <Fragment set:html={iconSvg(getIconName(subgroup.icon || 'document'), 'nav-item-icon')} />
                       <span class="nav-item-label">{subgroup.title}</span>
                     </a>
                   </li>
@@ -1039,516 +1374,56 @@ const usedIconMap = Object.fromEntries(
         id="sidebar-theme-toggle"
         aria-label="Toggle dark mode"
       >
-        <Icon name="sun" className="theme-icon-light" aria-hidden={true} client:only="react" />
-        <Icon name="moon" className="theme-icon-dark" aria-hidden={true} client:only="react" />
+        <Fragment set:html={iconSvg('sun', 'theme-icon-light')} />
+        <Fragment set:html={iconSvg('moon', 'theme-icon-dark')} />
       </button>
     </div>
   </div>
 </aside>
 
-<script lang="ts">
-  const sidebarElement = document.querySelector('.sidebar');
-  const sidebarDataset = sidebarElement?.dataset;
-  // iconNameMap now only contains aliases (non-trivial mappings like cog → settings)
-  const iconAliases = sidebarDataset?.iconNameMap
-    ? new Map(Object.entries(JSON.parse(sidebarDataset.iconNameMap)))
-    : new Map();
-  const iconifyMap = sidebarDataset?.iconMap
-    ? new Map(Object.entries(JSON.parse(sidebarDataset.iconMap)))
-    : new Map();
-  const iconSvgCache = new Map();
-  const iconSvgRequests = new Map();
-
-  // Convert kebab-case to camelCase: 'folder-open' → 'folderOpen'
-  function kebabToCamel(str) {
-    return str.replace(/-([a-z0-9])/g, (_, c) => c.toUpperCase());
-  }
-
-  // Cache for loaded folder content
-  const folderCache = new Map();
-
-  // Get current locale from page or default to 'en'
-  function getCurrentLocale() {
-    // Try to get from URL path (e.g., /en/docs/... or /es/docs/...)
-    const pathParts = window.location.pathname.split('/').filter(Boolean);
-    const knownLocales = ['en', 'es', 'fr', 'de', 'pt', 'it', 'ja', 'zh', 'ko'];
-    for (const part of pathParts) {
-      if (knownLocales.includes(part)) {
-        return part;
-      }
-    }
-    // Try to get from language selector
-    const langBtn = document.querySelector('.sidebar-lang-code');
-    if (langBtn) {
-      const code = langBtn.textContent?.trim().toUpperCase();
-      if (code && knownLocales.includes(code.toLowerCase())) {
-        return code.toLowerCase();
-      }
-    }
-    return 'en';
-  }
-
-  // Fetch folder content from CMS API
-  async function fetchFolderContent(collection, folder) {
-    const locale = getCurrentLocale();
-    const cacheKey = `${collection}/${folder}/${locale}`;
-    const cached = folderCache.get(cacheKey);
-    if (cached) {
-      return cached;
-    }
-
-    try {
-      // Use CMS API directly (server-rendered endpoint, works with static builds)
-      const sidebar = document.querySelector('.sidebar');
-      const cmsUrl = sidebar?.dataset?.cmsUrl || '';
-      const apiUrl = cmsUrl
-        ? `${cmsUrl}/api/docs/navigation?collection=${collection}&folder=${folder}&locale=${locale}`
-        : `/api/navigation?collection=${collection}&folder=${folder}&locale=${locale}`;
-      const response = await fetch(apiUrl);
-      if (!response.ok) throw new Error('Failed to fetch');
-      const data = await response.json();
-      const items = data.items || [];
-      folderCache.set(cacheKey, items);
-      return items;
-    } catch (error) {
-      console.error('Failed to fetch folder content:', error);
-      return [];
-    }
-  }
-
-  // Format title from path segment
-  function formatTitle(segment) {
-    return segment
-      .replace(/-/g, ' ')
-      .replace(/_/g, ' ')
-      .replace(/\b\w/g, c => c.toUpperCase());
-  }
-
-  function resolveIconName(iconName, isFolder = false) {
-    if (!iconName) return isFolder ? 'folder' : 'document';
-    const normalized = iconName.toLowerCase();
-    // 1. Check aliases (non-trivial mappings like cog → settings)
-    const alias = iconAliases.get(normalized);
-    if (alias) return alias;
-    // 2. Auto-convert kebab→camelCase, check if valid in iconMap
-    const camel = kebabToCamel(normalized);
-    if (iconifyMap.has(camel)) return camel;
-    // 3. Check raw in iconMap (single-word keys)
-    if (iconifyMap.has(normalized)) return normalized;
-    // 4. Fallback
-    return isFolder ? 'folder' : 'document';
-  }
-
-  function resolveIconifyName(iconName, isFolder = false) {
-    const resolved = resolveIconName(iconName, isFolder);
-    return iconifyMap.get(resolved) || iconifyMap.get(isFolder ? 'folder' : 'document') || '';
-  }
-
-  function renderIcon(iconName, className = '', isFolder = false) {
-    const iconifyName = resolveIconifyName(iconName, isFolder);
-    if (!iconifyName) return '';
-    return `<span class="${className}" data-iconify="${iconifyName}"></span>`;
-  }
-
-  function renderIconByName(iconifyName, className = '', style = '') {
-    if (!iconifyName) return '';
-    const styleAttr = style ? ` style="${style}"` : '';
-    return `<span class="${className}" data-iconify="${iconifyName}"${styleAttr}></span>`;
-  }
-
-  // Custom icon SVG bodies (same as registered in Icon.tsx via addIcon)
-  const customIconSvgs = {
-    'custom:apple-logo': '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M12 5.75C12 3.75 13.5 1.75 15.5 1.75C15.5 3.75 14 5.75 12 5.75Z"/><path d="M12.5 8.09001C11.9851 8.09001 11.5867 7.92646 11.1414 7.74368C10.5776 7.51225 9.93875 7.25 8.89334 7.25C7.02235 7.25 4 8.74945 4 12.7495C4 17.4016 7.10471 22.25 9.10471 22.25C9.77426 22.25 10.3775 21.9871 10.954 21.7359C11.4815 21.5059 11.9868 21.2857 12.5 21.2857C13.0132 21.2857 13.5185 21.5059 14.046 21.7359C14.6225 21.9871 15.2257 22.25 15.8953 22.25C17.2879 22.25 18.9573 19.8992 20 16.9008C18.3793 16.2202 17.338 14.618 17.338 12.75C17.338 11.121 18.2036 10.0398 19.5 9.25C18.5 7.75 17.0134 7.25 15.9447 7.25C14.8993 7.25 14.2604 7.51225 13.6966 7.74368C13.2514 7.92646 13.0149 8.09001 12.5 8.09001Z"/></g></svg>',
-    'custom:apple-finder': '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M2.5 12C2.5 7.52166 2.5 5.28249 3.89124 3.89124C5.28249 2.5 7.52166 2.5 12 2.5C16.4783 2.5 18.7175 2.5 20.1088 3.89124C21.5 5.28249 21.5 7.52166 21.5 12C21.5 16.4783 21.5 18.7175 20.1088 20.1088C18.7175 21.5 16.4783 21.5 12 21.5C7.52166 21.5 5.28249 21.5 3.89124 20.1088C2.5 18.7175 2.5 16.4783 2.5 12Z"/><path d="M7 8V10"/><path d="M17 8V10"/><path d="M7 16.5C10.5 18.5 13.5 18.5 17 16.5"/><path d="M12.9896 2.5C12.1238 3.78525 10.5163 7.71349 10.0737 11.5798C9.98097 12.3899 9.9346 12.795 10.1905 13.1176C10.2151 13.1486 10.2474 13.1843 10.2757 13.212C10.5708 13.5 11.0149 13.5 11.9031 13.5C12.3889 13.5 12.6317 13.5 12.7766 13.6314C12.7923 13.6457 12.8051 13.6588 12.819 13.6748C12.9468 13.8225 12.9383 14.072 12.9212 14.5709C12.8685 16.1156 12.9401 19.0524 14 21.5"/></g></svg>',
-    'custom:windows-logo': '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M14.0136 3.99538L8.01361 4.99036C5.61912 5.38744 4.42188 5.58597 3.71094 6.421C3 7.25602 3 8.46368 3 10.879L3 13.121C3 15.5363 3 16.744 3.71094 17.579C4.42188 18.414 5.61913 18.6126 8.01361 19.0096L14.0136 20.0046C17.2567 20.5424 18.8782 20.8113 19.9391 19.9171C21 19.023 21 17.3873 21 14.116V9.88402C21 6.6127 21 4.97704 19.9391 4.08286C18.8782 3.18868 17.2567 3.45758 14.0136 3.99538Z"/><path d="M11 4.5V19.5M3 12H21"/></g></svg>',
-    'custom:android-robot': '<svg xmlns="http://www.w3.org/2000/svg" width="1em" height="1em" viewBox="0 0 24 24"><g fill="none" stroke="currentColor" stroke-width="1.5"><path d="M6.5 9.5C6.5 6.46243 8.96243 4 12 4C15.0376 4 17.5 6.46243 17.5 9.5V16C17.5 17.4142 17.5 18.1213 17.0607 18.5607C16.6213 19 15.9142 19 14.5 19H9.5C8.08579 19 7.37868 19 6.93934 18.5607C6.5 18.1213 6.5 17.4142 6.5 16V9.5Z"/><path d="M20 11V17"/><path d="M15 19V22"/><path d="M9 19V22"/><path d="M4 11V17"/><path d="M10 4L8.5 2M14 4L15.5 2"/><path d="M6.5 10H17.5"/></g></svg>',
-  };
-
-  async function loadIconSvg(iconifyName) {
-    const cached = iconSvgCache.get(iconifyName);
-    if (cached) return cached;
-    // Resolve custom icons locally (not available on Iconify API)
-    if (customIconSvgs[iconifyName]) {
-      const svg = customIconSvgs[iconifyName];
-      iconSvgCache.set(iconifyName, svg);
-      return svg;
-    }
-    const inFlight = iconSvgRequests.get(iconifyName);
-    if (inFlight) return inFlight;
-    const request = fetch(`https://api.iconify.design/${iconifyName}.svg`)
-      .then(res => (res.ok ? res.text() : ''))
-      .then(svg => {
-        iconSvgCache.set(iconifyName, svg);
-        return svg;
-      })
-      .catch(() => '');
-    iconSvgRequests.set(iconifyName, request);
-    return request;
-  }
-
-  async function hydrateIcons(container) {
-    const placeholders = Array.from(container.querySelectorAll('[data-iconify]'));
-    if (placeholders.length === 0) return;
-    await Promise.all(placeholders.map(async placeholder => {
-      const iconifyName = placeholder.dataset?.iconify;
-      if (!iconifyName) return;
-      const svg = await loadIconSvg(iconifyName);
-      if (!svg) return;
-      placeholder.innerHTML = svg;
-    }));
-  }
-
-  // Check if any item or its descendants are active (recursive)
-  function hasActiveDescendant(items, currentPath) {
-    const normCurrent = currentPath.replace(/\/+$/, '') || '/';
-    for (const item of items) {
-      const normItem = (item.href || '').replace(/\/+$/, '') || '/';
-      if (normCurrent === normItem || normCurrent.startsWith(normItem + '/')) {
-        return true;
-      }
-      if (item.children && hasActiveDescendant(item.children, currentPath)) {
-        return true;
-      }
-    }
-    return false;
-  }
-
-  // Render folder navigation tree
-  function renderFolderTree(items, currentPath, depth = 0) {
-    if (!items || items.length === 0) return '';
-    const normCurrent = currentPath.replace(/\/+$/, '') || '/';
-
-    return items.map(item => {
-      const normItem = (item.href || '').replace(/\/+$/, '') || '/';
-      const isActive = normCurrent === normItem || normCurrent.startsWith(normItem + '/');
-      const isFolder = item.type === 'folder';
-      const paddingLeft = 0.75 + (depth * 0.75);
-
-      if (isFolder && item.children) {
-        // Check recursively for active items in all descendants OR if the folder itself is active
-        const hasActiveChild = hasActiveDescendant(item.children, currentPath);
-        const isSelfActive = normCurrent === normItem;
-        const shouldExpand = isActive || hasActiveChild;
-        const isTopLevel = depth === 0;
-        const chevronStyle = shouldExpand ? 'transform: rotate(180deg)' : '';
-        const chevronIcon = iconifyMap.get('chevronDown') || '';
-        const folderClosedIcon = resolveIconifyName(item.icon, true);
-        const folderOpenIcon = iconifyMap.get('folderOpen') || '';
-        const iconLower = (item.icon || '').toLowerCase();
-        const itemHasFolderIcon = !item.icon || iconLower === 'folder' || iconLower === 'folder-open' || iconLower === 'folder-tree' || iconLower === 'folder-plus';
-        const showChevron = isTopLevel || !itemHasFolderIcon;
-
-        return `
-          <div class="folder-group" data-folder-group>
-            <div
-              class="folder-toggle ${shouldExpand ? 'has-active' : ''}"
-              data-folder-toggle
-              aria-expanded="${shouldExpand ? 'true' : 'false'}"
-              style="padding-left: ${paddingLeft}rem"
-            >
-              <a href="${item.href || '#'}" class="folder-toggle-link ${isSelfActive ? 'active' : ''}">
-                ${isTopLevel
-                  ? renderIcon(item.icon, 'folder-icon', true)
-                  : itemHasFolderIcon
-                    ? `<span class="folder-icon folder-icon-closed" data-iconify="${folderClosedIcon}" style="${shouldExpand ? 'display:none' : ''}"></span>
-                       <span class="folder-icon folder-icon-open" data-iconify="${folderOpenIcon}" style="${shouldExpand ? '' : 'display:none'}"></span>`
-                    : renderIcon(item.icon, 'folder-icon', true)
-                }
-                <span class="folder-label">${item.title || formatTitle(item.name)}</span>
-              </a>
-              ${showChevron
-                ? `<button type="button" class="folder-chevron-btn" data-folder-chevron aria-label="Toggle expand">
-                    ${renderIconByName(chevronIcon, 'folder-chevron', chevronStyle)}
-                  </button>`
-                : ''
-              }
-            </div>
-            <div class="folder-content" data-folder-content style="${shouldExpand ? '' : 'display: none'}">
-              ${renderFolderTree(item.children, currentPath, depth + 1)}
-            </div>
-          </div>
-        `;
-      } else {
-        const methodBadge = item.method
-          ? `<span class="sidebar-method-badge method-${item.method.toLowerCase()}">${item.method}</span>`
-          : renderIcon(item.icon, 'folder-item-icon', false);
-        return `
-          <a
-            href="${item.href}"
-            class="folder-item ${isActive ? 'active' : ''}"
-            style="padding-left: ${paddingLeft}rem"
-          >
-            ${methodBadge}
-            <span class="folder-item-label">${item.title || formatTitle(item.name)}</span>
-          </a>
-        `;
-      }
-    }).join('');
-  }
-
-  // Initialize folder toggle handlers
-  function initFolderToggles(container) {
-    const EXPAND_KEY = 'sidebar_expanded';
-    function getExpandedSet() {
-      try {
-        return new Set(JSON.parse(sessionStorage.getItem(EXPAND_KEY) || '[]'));
-      } catch { return new Set(); }
-    }
-    function saveExpandedSet(set) {
-      sessionStorage.setItem(EXPAND_KEY, JSON.stringify([...set]));
-    }
-
-    const expandedSet = getExpandedSet();
-    const folderGroups = container.querySelectorAll('[data-folder-group]');
-    folderGroups.forEach(group => {
-      const toggle = group.querySelector('[data-folder-toggle]');
-      const content = group.querySelector('[data-folder-content]');
-      const chevronBtn = toggle?.querySelector('[data-folder-chevron]');
-      const chevron = toggle?.querySelector('.folder-chevron');
-      const iconClosed = toggle?.querySelector('.folder-icon-closed');
-      const iconOpen = toggle?.querySelector('.folder-icon-open');
-
-      if (!toggle || !content) return;
-
-      // Get key from link href or label text
-      const link = toggle.querySelector('a');
-      const key = link?.getAttribute('href') || toggle.textContent.trim();
-
-      function updateExpandState(expanded) {
-        if (chevron) {
-          chevron.style.transform = expanded ? 'rotate(180deg)' : 'rotate(0deg)';
-        }
-        if (iconClosed) iconClosed.style.display = expanded ? 'none' : '';
-        if (iconOpen) iconOpen.style.display = expanded ? '' : 'none';
-      }
-
-      // Restore persisted expand state
-      if (key && expandedSet.has(key)) {
-        const serverExpanded = toggle.getAttribute('aria-expanded') === 'true';
-        if (!serverExpanded) {
-          toggle.setAttribute('aria-expanded', 'true');
-          updateExpandState(true);
-          content.style.display = 'block';
-        }
-      }
-
-      // For folders with chevron: chevron button toggles
-      if (chevronBtn) {
-        chevronBtn.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          const isExpanded = toggle.getAttribute('aria-expanded') === 'true';
-          const nowExpanded = !isExpanded;
-          toggle.setAttribute('aria-expanded', nowExpanded.toString());
-          updateExpandState(nowExpanded);
-          content.style.display = isExpanded ? 'none' : 'block';
-
-          const current = getExpandedSet();
-          if (nowExpanded) current.add(key);
-          else current.delete(key);
-          saveExpandedSet(current);
-        });
-      }
-
-      // For sub-folders without chevron: clicking the link toggles expand
-      if (!chevronBtn && (iconClosed || iconOpen)) {
-        link?.addEventListener('click', (e) => {
-          e.preventDefault();
-          const isExpanded = toggle.getAttribute('aria-expanded') === 'true';
-          const nowExpanded = !isExpanded;
-          toggle.setAttribute('aria-expanded', nowExpanded.toString());
-          updateExpandState(nowExpanded);
-          content.style.display = isExpanded ? 'none' : 'block';
-
-          const current = getExpandedSet();
-          if (nowExpanded) current.add(key);
-          else current.delete(key);
-          saveExpandedSet(current);
-        });
-      }
-    });
-  }
-
-  // Load product navigation
-  async function loadProductNav(productBtn) {
-    const container = document.getElementById('product-nav-container');
-    if (!container) return;
-
-    const folder = productBtn.dataset.productFolder;
-    const collection = productBtn.dataset.productCollection || 'docs';
-
-    if (!folder) {
-      container.innerHTML = '<div class="product-nav-empty">No folder configured for this product</div>';
-      return;
-    }
-
-    // Show skeleton loading
-    container.innerHTML = `
-      <div class="product-nav-skeleton">
-        <div class="skeleton-folder">
-          <div class="skeleton-bar skeleton-folder-title"></div>
-          <div class="skeleton-children">
-            <div class="skeleton-bar skeleton-item"></div>
-            <div class="skeleton-bar skeleton-item short"></div>
-            <div class="skeleton-bar skeleton-item"></div>
-          </div>
-        </div>
-        <div class="skeleton-folder">
-          <div class="skeleton-bar skeleton-folder-title short"></div>
-          <div class="skeleton-children">
-            <div class="skeleton-bar skeleton-item"></div>
-            <div class="skeleton-bar skeleton-item short"></div>
-          </div>
-        </div>
-      </div>
-    `;
-
-    // Fetch content
-    const items = await fetchFolderContent(collection, folder);
-    const currentPath = window.location.pathname;
-
-    if (items.length === 0) {
-      container.innerHTML = '<div class="product-nav-empty">No content found</div>';
-      return;
-    }
-
-    // Render navigation
-    container.innerHTML = `<div class="product-nav-content">${renderFolderTree(items, currentPath)}</div>`;
-
-    // Initialize toggle handlers
-    initFolderToggles(container);
-
-    // Hydrate iconify placeholders with actual SVGs
-    await hydrateIcons(container);
-  }
-
-  /**
-   * Load tab navigation content
-   * - Aborts previous request if new one comes in (prevents race conditions)
-   * - Uses cache for instant re-renders of visited tabs
-   * - Minimal DOM updates
-   */
-  let currentLoadController = null;
-
-  async function loadTabNav(folder, collection) {
-    const container = document.getElementById('tab-nav-container');
-    if (!container || !folder) return;
-
-    // Abort any in-flight request
-    currentLoadController?.abort();
-    currentLoadController = new AbortController();
-
-    // Check cache first for instant render
-    const locale = getCurrentLocale();
-    const cacheKey = `${collection}/${folder}/${locale}`;
-    const cached = folderCache.get(cacheKey);
-
-    if (cached) {
-      renderNav(container, cached);
-      return;
-    }
-
-    // Show minimal loading indicator
-    container.setAttribute('aria-busy', 'true');
-
-    try {
-      const items = await fetchFolderContent(collection, folder);
-      renderNav(container, items);
-    } catch (e) {
-      const isAbort =
-        e &&
-        typeof e === 'object' &&
-        'name' in e &&
-        e.name === 'AbortError';
-      if (!isAbort) {
-        container.innerHTML = '<div class="tab-nav-empty">Failed to load</div>';
-      }
-    } finally {
-      container.removeAttribute('aria-busy');
-    }
-  }
-
-  function renderNav(container, items) {
-    if (items.length === 0) {
-      container.innerHTML = '<div class="tab-nav-empty">No content found</div>';
-      return;
-    }
-    container.innerHTML = `<div class="tab-nav-content">${renderFolderTree(items, location.pathname)}</div>`;
-    initFolderToggles(container);
-
-    // Hydrate iconify placeholders with actual SVGs
-    hydrateIcons(container);
-  }
-
+<script>
   function initSidebar() {
-    // Product selector
+    // --- Product selector (static show/hide) ---
     const productBtns = document.querySelectorAll('.product-btn');
-    productBtns.forEach(btn => {
-      btn.addEventListener('click', async () => {
-        // Update active state
-        productBtns.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-
-        // Load product navigation
-        await loadProductNav(btn);
+    if (productBtns.length > 0) {
+      productBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+          productBtns.forEach(b => b.classList.remove('active'));
+          btn.classList.add('active');
+          const productId = btn.dataset.productId;
+          document.querySelectorAll('[data-product-nav]').forEach(nav => {
+            nav.classList.toggle('hidden', nav.dataset.productNav !== productId);
+          });
+        });
       });
-    });
-
-    // Load default active product navigation on page load
-    const activeProduct = document.querySelector('.product-btn.active');
-    if (activeProduct) {
-      loadProductNav(activeProduct);
     }
 
-    // Tab navigation - listen for tabChange events from header
+    // --- Tab navigation (static show/hide, driven by header tabChange events) ---
     const tabContainer = document.getElementById('tab-nav-container');
     if (tabContainer) {
-      // Load initial tab content from localStorage or default
-      const storedTab = localStorage.getItem('docs_active_tab');
-      let initialTab = null;
-
-      if (storedTab) {
-        try {
-          initialTab = JSON.parse(storedTab);
-        } catch (e) {
-          // Ignore parse errors
-        }
-      }
-
-      // If no stored tab, use default from data attribute
-      if (!initialTab) {
-        const tabsData = tabContainer.dataset.tabs;
-        if (tabsData) {
-          try {
-            const tabs = JSON.parse(tabsData);
-            const defaultTab = tabs.find((t) => t.defaultActive) || tabs[0];
-            if (defaultTab) {
-              initialTab = {
-                id: defaultTab.id,
-                folder: defaultTab.folder,
-                collection: defaultTab.collection || 'docs'
-              };
-            }
-          } catch (e) {
-            // Ignore parse errors
+      // Restore stored tab selection
+      try {
+        const storedTab = localStorage.getItem('docs_active_tab');
+        if (storedTab) {
+          const { id } = JSON.parse(storedTab);
+          if (id) {
+            document.querySelectorAll('[data-tab-nav]').forEach(nav => {
+              nav.classList.toggle('hidden', nav.dataset.tabNav !== id);
+            });
           }
         }
-      }
+      } catch { /* ignore */ }
 
-      // Load initial tab navigation
-      if (initialTab?.folder) {
-        loadTabNav(initialTab.folder, initialTab.collection);
-      }
-
-      // Listen for tab changes from header
       window.addEventListener('tabChange', (e) => {
-        const detail = e.detail || {};
-        const { folder, collection } = detail || {};
-        if (folder) loadTabNav(folder, collection);
+        const tabId = e.detail?.id;
+        if (!tabId) return;
+        document.querySelectorAll('[data-tab-nav]').forEach(nav => {
+          nav.classList.toggle('hidden', nav.dataset.tabNav !== tabId);
+        });
       });
     }
 
-    // Sidebar expand state persistence
+    // --- Sidebar expand state persistence ---
     const EXPAND_KEY = 'sidebar_expanded';
     function getExpandedSet() {
       try {
@@ -1560,10 +1435,10 @@ const usedIconMap = Object.fromEntries(
     }
     function getToggleKey(toggle) {
       const link = toggle.querySelector('a');
-      return link?.getAttribute('href') || toggle.textContent.trim();
+      return link?.getAttribute('href') || toggle.textContent?.trim() || '';
     }
 
-    // Navigation toggle (for static navigation)
+    // --- Navigation toggle (for all server-rendered nav groups) ---
     const expandedSet = getExpandedSet();
     const groups = document.querySelectorAll('[data-nav-group]');
     groups.forEach(group => {
@@ -1617,17 +1492,12 @@ const usedIconMap = Object.fromEntries(
           link.addEventListener('click', (e) => {
             e.preventDefault();
             doToggle();
-
-            const current = getExpandedSet();
-            if (nowExpanded) current.add(key);
-            else current.delete(key);
-            saveExpandedSet(current);
           });
         }
       }
     });
 
-    // Language selector
+    // --- Language selector ---
     const langSelector = document.querySelector('[data-language-selector]');
     const langToggle = langSelector?.querySelector('[data-language-toggle]');
     const langDropdown = langSelector?.querySelector('[data-language-dropdown]');
@@ -1639,7 +1509,6 @@ const usedIconMap = Object.fromEntries(
         langSelector.classList.toggle('open', !isOpen);
       });
 
-      // Close on click outside
       document.addEventListener('click', (e) => {
         if (e.target && !langSelector.contains(e.target)) {
           langToggle.setAttribute('aria-expanded', 'false');
@@ -1648,7 +1517,7 @@ const usedIconMap = Object.fromEntries(
       });
     }
 
-    // Theme toggle
+    // --- Theme toggle ---
     const themeToggle = document.getElementById('sidebar-theme-toggle');
     if (themeToggle) {
       themeToggle.addEventListener('click', () => {
@@ -1786,241 +1655,21 @@ const usedIconMap = Object.fromEntries(
     background-color: var(--color-border);
   }
 
-  /* Skeleton Loading Styles */
-  .product-nav-skeleton,
-  .tab-nav-skeleton,
-  :global(.product-nav-skeleton),
-  :global(.tab-nav-skeleton) {
-    padding: 0.75rem;
-  }
-
-  .skeleton-folder {
-    margin-bottom: 0.75rem;
-  }
-
-  .skeleton-bar {
-    height: 0.625rem;
-    border-radius: 0.25rem;
-    background: linear-gradient(
-      90deg,
-      var(--color-border) 0%,
-      var(--color-background-secondary) 50%,
-      var(--color-border) 100%
-    );
-    background-size: 200% 100%;
-    animation: skeleton-shimmer 1.5s ease-in-out infinite;
-  }
-
-  .skeleton-folder-title {
-    width: 60%;
-    height: 0.75rem;
-    margin-bottom: 0.5rem;
-    margin-left: 0.25rem;
-  }
-
-  .skeleton-folder-title.short {
-    width: 45%;
-  }
-
-  .skeleton-children {
-    padding-left: 1.25rem;
-    display: flex;
-    flex-direction: column;
-    gap: 0.5rem;
-  }
-
-  .skeleton-item {
-    width: 80%;
-  }
-
-  .skeleton-item.short {
-    width: 55%;
-  }
-
-  @keyframes skeleton-shimmer {
-    0% {
-      background-position: 200% 0;
-    }
-    100% {
-      background-position: -200% 0;
-    }
-  }
-
-  .product-nav-empty,
-  :global(.product-nav-empty) {
+  .product-nav-empty {
     padding: 1.5rem 1rem;
     text-align: center;
     color: var(--color-text-muted);
     font-size: 0.8125rem;
   }
 
-  :global(.product-nav-content) {
+  .product-nav-content {
     display: flex;
     flex-direction: column;
+    padding: 0.75rem;
   }
 
-  /* Folder Tree Styles - must be global for dynamic JS rendering */
-  :global(.folder-group) {
-    margin-bottom: 0.125rem;
-  }
-
-  :global(.folder-toggle) {
-    display: flex;
-    align-items: center;
-    width: 100%;
-    font-size: 0.8125rem;
-    font-weight: 500;
-    color: var(--color-text-secondary);
-    background: transparent;
-    border: none;
-    border-radius: 0.375rem;
-    transition: all 0.15s ease;
-  }
-
-  :global(.folder-toggle:hover) {
-    background: var(--color-menu-item-hover-bg);
-  }
-
-  :global(.folder-toggle.has-active) {
-    color: var(--color-text-primary);
-  }
-
-  :global(.folder-toggle-link) {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    flex: 1;
-    min-width: 0;
-    padding-top: 0.5rem;
-    padding-bottom: 0.5rem;
-    color: inherit;
-    text-decoration: none;
-    cursor: pointer;
-  }
-
-  :global(.folder-toggle-link:hover) {
-    color: var(--color-menu-item-hover-text);
-  }
-
-  :global(.folder-chevron-btn) {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 0.5rem 0.75rem;
-    background: transparent;
-    border: none;
-    cursor: pointer;
-    border-radius: 0 0.375rem 0.375rem 0;
-    transition: all 0.15s ease;
-  }
-
-  :global(.folder-chevron-btn:hover) {
-    background: transparent;
-  }
-
-  :global(.folder-icon) {
-    width: 1rem;
-    height: 1rem;
-    flex-shrink: 0;
-    color: var(--color-text-muted);
-  }
-
-  :global(.folder-toggle-link:hover .folder-icon),
-  :global(.folder-toggle.has-active .folder-icon),
-  :global(.folder-toggle-link.active .folder-icon) {
-    color: var(--color-primary);
-  }
-
-  :global(.folder-toggle-link.active) {
-    color: var(--color-menu-item-active-text, var(--color-primary));
-    font-weight: 600;
-  }
-
-  :global(.dark .folder-toggle-link.active) {
-    color: var(--color-menu-item-active-text, var(--color-accent-light));
-  }
-
-  :global(.folder-label) {
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-
-  :global(.folder-chevron) {
-    width: 0.875rem;
-    height: 0.875rem;
-    opacity: 0.4;
-    transition: transform 0.2s ease, opacity 0.15s ease;
-    flex-shrink: 0;
-  }
-
-  :global(.folder-chevron-btn:hover .folder-chevron) {
-    opacity: 0.7;
-  }
-
-  :global(.folder-content) {
-    overflow: hidden;
-  }
-
-  /* Auto-tree subfolder icon swap via aria-expanded */
-  :global([data-folder-toggle] .folder-icon-open) {
+  .product-nav-content.hidden {
     display: none;
-  }
-  :global([data-folder-toggle][aria-expanded="true"] .folder-icon-closed) {
-    display: none;
-  }
-  :global([data-folder-toggle][aria-expanded="true"] .folder-icon-open) {
-    display: initial;
-  }
-
-  :global(.folder-item) {
-    display: flex;
-    align-items: center;
-    gap: 0.5rem;
-    padding-top: 0.5rem;
-    padding-bottom: 0.5rem;
-    padding-right: 0.75rem;
-    font-size: 0.8125rem;
-    color: var(--color-text-tertiary);
-    border-radius: 0.375rem;
-    transition: all 0.15s ease;
-    text-decoration: none;
-  }
-
-  :global(.folder-item:hover) {
-    color: var(--color-menu-item-hover-text);
-    background: var(--color-menu-item-hover-bg);
-  }
-
-  :global(.folder-item.active) {
-    color: var(--color-menu-item-active-text, var(--color-primary));
-    background: var(--color-menu-item-active-bg, var(--color-primary-10));
-    font-weight: 500;
-  }
-
-  :global(.dark .folder-item.active) {
-    color: var(--color-menu-item-active-text, var(--color-accent-light));
-    background: var(--color-menu-item-active-bg, var(--color-accent-10));
-  }
-
-  :global(.folder-item-icon) {
-    width: 1rem;
-    height: 1rem;
-    flex-shrink: 0;
-    opacity: 0.5;
-  }
-
-  :global(.folder-item:hover .folder-item-icon),
-  :global(.folder-item.active .folder-item-icon) {
-    opacity: 1;
-  }
-
-  :global(.folder-item-label) {
-    flex: 1;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
   }
 
   /* Hide static content when products or tabs are active */
@@ -2059,17 +1708,21 @@ const usedIconMap = Object.fromEntries(
     background-color: var(--color-border);
   }
 
-  .tab-nav-empty,
-  :global(.tab-nav-empty) {
+  .tab-nav-empty {
     padding: 1.5rem 1rem;
     text-align: center;
     color: var(--color-text-muted);
     font-size: 0.8125rem;
   }
 
-  :global(.tab-nav-content) {
+  .tab-nav-content {
     display: flex;
     flex-direction: column;
+    padding: 0.75rem;
+  }
+
+  .tab-nav-content.hidden {
+    display: none;
   }
 
   .sidebar-content {

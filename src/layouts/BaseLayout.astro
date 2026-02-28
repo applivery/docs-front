@@ -301,7 +301,6 @@ const codeFont = typography?.codeFont || 'jetbrains-mono';
 
 // Font family mappings
 const fontFamilyMap: Record<string, string> = {
-  'inter': "'Inter', sans-serif",
   'outfit': "'Outfit', sans-serif",
   'roboto': "'Roboto', sans-serif",
   'open-sans': "'Open Sans', sans-serif",
@@ -625,12 +624,12 @@ const cssVars = `
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     {/* Dynamic font loading based on CMS settings */}
     <link
-      href={`https://fonts.googleapis.com/css2?family=${encodeURIComponent(headingFont === 'inter' ? 'Inter' : headingFont === 'outfit' ? 'Outfit' : headingFont === 'roboto' ? 'Roboto' : headingFont === 'open-sans' ? 'Open Sans' : headingFont === 'lato' ? 'Lato' : headingFont === 'poppins' ? 'Poppins' : 'Outfit')}:wght@400;500;600;700&display=swap`}
+      href={`https://fonts.googleapis.com/css2?family=${encodeURIComponent(headingFont === 'outfit' ? 'Outfit' : headingFont === 'roboto' ? 'Roboto' : headingFont === 'open-sans' ? 'Open Sans' : headingFont === 'lato' ? 'Lato' : headingFont === 'poppins' ? 'Poppins' : 'Outfit')}:wght@400;500;600;700&display=swap`}
       rel="stylesheet"
     />
     {bodyFont !== headingFont && (
       <link
-        href={`https://fonts.googleapis.com/css2?family=${encodeURIComponent(bodyFont === 'inter' ? 'Inter' : bodyFont === 'outfit' ? 'Outfit' : bodyFont === 'roboto' ? 'Roboto' : bodyFont === 'open-sans' ? 'Open Sans' : bodyFont === 'lato' ? 'Lato' : bodyFont === 'poppins' ? 'Poppins' : 'Outfit')}:wght@400;500;600;700&display=swap`}
+        href={`https://fonts.googleapis.com/css2?family=${encodeURIComponent(bodyFont === 'outfit' ? 'Outfit' : bodyFont === 'roboto' ? 'Roboto' : bodyFont === 'open-sans' ? 'Open Sans' : bodyFont === 'lato' ? 'Lato' : bodyFont === 'poppins' ? 'Poppins' : 'Outfit')}:wght@400;500;600;700&display=swap`}
         rel="stylesheet"
       />
     )}

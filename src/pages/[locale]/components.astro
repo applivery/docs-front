@@ -1,0 +1,491 @@
+---
+/**
+ * Component Showcase Page
+ * docs.applivery.com/{locale}/components
+ *
+ * Shows all available components for documentation and API pages
+ */
+
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import { processMarkdown } from '../../lib/markdown';
+import { locales } from '../../lib/i18n';
+
+export async function getStaticPaths() {
+  return locales.map(locale => ({
+    params: { locale },
+  }));
+}
+
+const { locale } = Astro.params;
+
+// We use a backtick-fenced approach with a unique delimiter to avoid conflicts
+// with the markdown code blocks inside the content.
+const showcaseMarkdown = `
+## Headings
+
+# Heading 1 (renders as H2)
+
+## Heading 2
+
+### Heading 3
+
+#### Heading 4
+
+---
+
+## Text Formatting
+
+This is **bold text** and this is *italic text*.
+
+This is ***bold and italic*** together.
+
+This is ~~strikethrough~~ text.
+
+This is \`inline code\` within a sentence.
+
+---
+
+## Links
+
+This is a [regular link](https://applivery.com) and this is an [external link](https://github.com).
+
+---
+
+## Lists
+
+### Unordered List
+
+- First item
+- Second item
+  - Nested item A
+  - Nested item B
+- Third item
+
+### Ordered List
+
+1. First step
+2. Second step
+   1. Sub-step A
+   2. Sub-step B
+3. Third step
+
+---
+
+## Blockquote
+
+> This is a blockquote. It can contain **formatted text**, \`inline code\`, and [links](https://applivery.com).
+>
+> It can also span multiple paragraphs.
+
+---
+
+## Tables
+
+| Property | Type | Required | Description |
+|----------|------|----------|-------------|
+| name | string | Yes | The display name |
+| email | string | Yes | Contact email |
+| role | enum | No | User role (admin, editor, viewer) |
+| active | boolean | No | Whether the user is active |
+
+---
+
+## Code Blocks
+
+### Plain Code Block
+
+\`\`\`
+This is a plain code block with no syntax highlighting.
+\`\`\`
+
+### Code Block with Language
+
+\`\`\`javascript
+const greeting = "Hello, World!";
+console.log(greeting);
+
+function sum(a, b) {
+  return a + b;
+}
+\`\`\`
+
+### Code Block with Filename
+
+\`\`\`typescript title="src/config.ts"
+interface AppConfig {
+  apiUrl: string;
+  debug: boolean;
+  version: string;
+}
+
+export const config: AppConfig = {
+  apiUrl: "https://api.applivery.com",
+  debug: false,
+  version: "1.0.0",
+};
+\`\`\`
+
+\`\`\`bash title="terminal"
+npm install @applivery/sdk
+\`\`\`
+
+---
+
+## Callouts
+
+:::note
+Highlights information that users should take into account, even when skimming.
+:::
+
+:::info
+This is an informational callout, rendered the same as **Note**.
+:::
+
+:::tip
+Optional information to help a user be more successful.
+:::
+
+:::success
+Operation completed successfully. Your changes have been saved.
+:::
+
+:::important
+Crucial information necessary for users to succeed.
+:::
+
+:::warning
+Critical content demanding immediate user attention due to potential risks.
+:::
+
+:::danger
+Dangerous action that could lead to data loss or system failure.
+:::
+
+:::caution
+Negative potential consequences of an action.
+:::
+
+---
+
+## Accordion
+
+<Accordion title="What is Applivery?">
+Applivery is a platform for **mobile device management** and **app distribution**. It supports Android, iOS, and Windows devices.
+
+You can use it to:
+- Manage device policies
+- Distribute apps
+- Monitor compliance
+</Accordion>
+
+<Accordion title="How do I get started?">
+Sign up for a free account at [applivery.com](https://applivery.com) and follow the onboarding guide.
+
+\`\`\`bash
+curl -X GET https://api.applivery.com/v1/account
+\`\`\`
+</Accordion>
+
+---
+
+## Tabs
+
+<Tabs>
+<Tab title="JavaScript">
+\`\`\`javascript
+const response = await fetch("https://api.applivery.com/v1/devices");
+const data = await response.json();
+console.log(data);
+\`\`\`
+</Tab>
+<Tab title="Python">
+\`\`\`python
+import requests
+
+response = requests.get("https://api.applivery.com/v1/devices")
+data = response.json()
+print(data)
+\`\`\`
+</Tab>
+<Tab title="cURL">
+\`\`\`bash
+curl -X GET "https://api.applivery.com/v1/devices" \\
+  -H "Authorization: Bearer YOUR_API_KEY"
+\`\`\`
+</Tab>
+</Tabs>
+
+---
+
+## Steps
+
+<Steps>
+<Step title="Create an account">
+Go to [applivery.com](https://applivery.com) and sign up for a free account. You will need a valid email address.
+</Step>
+<Step title="Install the SDK">
+Install the Applivery SDK in your project using your preferred package manager.
+
+\`\`\`bash
+npm install @applivery/sdk
+\`\`\`
+</Step>
+<Step title="Configure your app">
+Initialize the SDK with your API key and configure the settings for your application.
+
+\`\`\`typescript title="app.ts"
+import { Applivery } from "@applivery/sdk";
+
+const app = new Applivery({
+  apiKey: "your-api-key",
+});
+\`\`\`
+</Step>
+<Step title="Deploy">
+Build and deploy your application. The SDK will handle updates automatically.
+</Step>
+</Steps>
+
+---
+
+## Cards
+
+### Single Card
+
+<Card title="Getting Started" icon="rocket" href="/en/guides/getting-started">
+Learn the basics of the platform and set up your first project.
+</Card>
+
+### Card Group (2 columns)
+
+<CardGroup cols={2}>
+<Card title="Device Management" icon="smartphone" href="/en/device-management">
+Manage Android, iOS, and Windows devices from a single console.
+</Card>
+<Card title="App Distribution" icon="zap" href="/en/app-distribution">
+Distribute apps to your team with over-the-air updates.
+</Card>
+</CardGroup>
+
+### Card Group (3 columns)
+
+<CardGroup cols={3}>
+<Card title="API Reference" icon="code">
+Full REST API documentation with examples.
+</Card>
+<Card title="Security" icon="shield">
+Security best practices and compliance.
+</Card>
+<Card title="Users & Teams" icon="users">
+Manage user access and team permissions.
+</Card>
+</CardGroup>
+
+---
+
+## API Endpoint
+
+<APIEndpoint method="GET" path="/v1/devices">
+Returns a list of all managed devices in the organization.
+</APIEndpoint>
+
+<APIEndpoint method="POST" path="/v1/devices/{deviceId}/commands">
+Send a command to a specific device.
+</APIEndpoint>
+
+<APIEndpoint method="DELETE" path="/v1/devices/{deviceId}">
+Remove a device from the organization.
+</APIEndpoint>
+
+---
+
+## Browser Mockup
+
+<BrowserMockup url="https://dashboard.applivery.com" theme="auto">
+
+### Welcome to the Dashboard
+
+This is a preview of what the Applivery dashboard looks like. You can manage all your devices, apps, and policies from here.
+
+| Status | Count |
+|--------|-------|
+| Online | 142 |
+| Offline | 23 |
+| Pending | 7 |
+
+</BrowserMockup>
+`;
+
+const processedContent = processMarkdown(showcaseMarkdown);
+---
+
+<BaseLayout
+  title="Component Showcase"
+  description="All available documentation components with live examples"
+>
+  <main class="showcase-page">
+    <a href={`/${locale}`} class="showcase-back-link">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <line x1="19" y1="12" x2="5" y2="12"></line>
+        <polyline points="12 19 5 12 12 5"></polyline>
+      </svg>
+      Back to Docs
+    </a>
+
+    <header class="showcase-header">
+      <h1 class="showcase-title">Component Showcase</h1>
+      <p class="showcase-description">All available components for documentation and API pages. Use this as a reference when writing content in the CMS.</p>
+    </header>
+
+    <article class="article-content showcase-content">
+      <Fragment set:html={processedContent} />
+    </article>
+  </main>
+
+  {/* Accordion & Tabs init script (same logic as DocLayout) */}
+  <script is:inline>
+    function initShowcaseInteractions() {
+      // Accordion toggles
+      document.querySelectorAll('[data-accordion-trigger]').forEach(function(trigger) {
+        if (trigger.dataset.accordionBound) return;
+        trigger.dataset.accordionBound = 'true';
+        trigger.addEventListener('click', function() {
+          var accordion = trigger.closest('[data-accordion]');
+          if (!accordion) return;
+          var isOpen = accordion.classList.contains('open');
+          accordion.classList.toggle('open', !isOpen);
+          trigger.setAttribute('aria-expanded', (!isOpen).toString());
+        });
+      });
+
+      // Tab switching
+      document.querySelectorAll('[data-tabs]').forEach(function(tabGroup) {
+        if (tabGroup.dataset.tabsBound) return;
+        tabGroup.dataset.tabsBound = 'true';
+        var buttons = tabGroup.querySelectorAll('[data-tab-trigger]');
+        var panels = tabGroup.querySelectorAll('[data-tab-panel]');
+        buttons.forEach(function(btn) {
+          btn.addEventListener('click', function() {
+            var idx = btn.dataset.tabIndex;
+            buttons.forEach(function(b) { b.classList.remove('active'); });
+            panels.forEach(function(p) {
+              if (p.dataset.tabIndex === idx) {
+                p.classList.add('active');
+              } else {
+                p.classList.remove('active');
+              }
+            });
+            btn.classList.add('active');
+          });
+        });
+      });
+
+      // Code copy buttons
+      document.querySelectorAll('.article-content pre').forEach(function(pre) {
+        if (pre.closest('.doc-code-block')) return;
+        if (pre.querySelector('.code-copy-btn')) return;
+        var wrapper = document.createElement('div');
+        wrapper.className = 'code-block-wrapper';
+        pre.parentNode.insertBefore(wrapper, pre);
+        wrapper.appendChild(pre);
+        var btn = document.createElement('button');
+        btn.className = 'code-copy-btn';
+        btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';
+        btn.title = 'Copy code';
+        wrapper.appendChild(btn);
+      });
+
+      document.querySelectorAll('.doc-code-copy, .code-copy-btn').forEach(function(btn) {
+        if (btn.dataset.copyBound) return;
+        btn.dataset.copyBound = 'true';
+        btn.addEventListener('click', async function() {
+          var container = btn.closest('.doc-code-block') || btn.closest('.code-block-wrapper');
+          var code = container ? container.querySelector('code') : null;
+          if (!code) return;
+          try {
+            await navigator.clipboard.writeText(code.textContent || '');
+            var isTitled = btn.classList.contains('doc-code-copy');
+            if (isTitled) {
+              btn.classList.add('copied');
+              var span = btn.querySelector('span');
+              if (span) span.textContent = 'Copied!';
+              setTimeout(function() {
+                btn.classList.remove('copied');
+                if (span) span.textContent = 'Copy';
+              }, 2000);
+            } else {
+              btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>';
+              btn.classList.add('copied');
+              setTimeout(function() {
+                btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>';
+                btn.classList.remove('copied');
+              }, 2000);
+            }
+          } catch(e) {}
+        });
+      });
+
+      // Collapsible body params
+      document.querySelectorAll('[data-bp-trigger]').forEach(function(trigger) {
+        if (trigger.dataset.bpBound) return;
+        trigger.dataset.bpBound = 'true';
+        trigger.addEventListener('click', function() {
+          var row = trigger.closest('[data-bp-collapsible]');
+          if (!row) return;
+          row.classList.toggle('open');
+        });
+      });
+    }
+
+    initShowcaseInteractions();
+    document.addEventListener('astro:after-swap', initShowcaseInteractions);
+  </script>
+</BaseLayout>
+
+<style>
+  .showcase-page {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 2rem 1.5rem 4rem;
+  }
+
+  .showcase-back-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    color: var(--color-text-secondary);
+    text-decoration: none;
+    font-size: 0.875rem;
+    margin-bottom: 1.5rem;
+    transition: color 0.15s;
+  }
+
+  .showcase-back-link:hover {
+    color: var(--color-primary);
+  }
+
+  .showcase-header {
+    margin-bottom: 2.5rem;
+    padding-bottom: 1.5rem;
+    border-bottom: 1px solid var(--color-border, #e5e7eb);
+  }
+
+  .showcase-title {
+    font-size: 2rem;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    margin: 0 0 0.5rem;
+    font-family: var(--font-heading);
+  }
+
+  .showcase-description {
+    color: var(--color-text-secondary);
+    font-size: 1.0625rem;
+    margin: 0;
+    line-height: 1.6;
+  }
+
+  .showcase-content {
+    /* article-content class handles all typography */
+  }
+</style>

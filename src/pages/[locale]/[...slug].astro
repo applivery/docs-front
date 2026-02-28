@@ -255,6 +255,11 @@ export async function getStaticPaths() {
     const doc = entry.data;
     const isIndex = isIndexFile(doc);
 
+    // Skip individual product-update pages — all content renders in the feed
+    if (doc.collection === 'product-updates' && !isIndex && doc.type !== 'archive') {
+      continue;
+    }
+
     const docLocale: Locale = resolveDocLocale(doc);
 
     let fullSlug: string;
@@ -620,6 +625,55 @@ if (isIndex && showChildGrid) {
   childFolders.sort((a, b) => a.order - b.order);
 }
 
+// ─── Product Updates: collect ALL updates for feed rendering ──────────
+const isProductUpdates = fullDocument.collection === 'product-updates' && isIndex;
+let productUpdatesFeed: typeof allDocs = [];
+if (isProductUpdates) {
+  productUpdatesFeed = allDocs.filter(d => {
+    return d.data.collection === 'product-updates' &&
+      d.data.locale === locale &&
+      !isIndexFile(d.data) &&
+      d.data.type !== 'archive' &&
+      d.data.visible !== false;
+  }).sort((a, b) => {
+    const dateA = a.data.date?.getTime() || 0;
+    const dateB = b.data.date?.getTime() || 0;
+    return dateB - dateA; // newest first
+  });
+}
+
+// ─── Roadmap: collect items grouped by stage for kanban ──────────────
+const slugParam = Astro.params.slug as string;
+const isRoadmapArchive = fullDocument.collection === 'roadmap' && isIndex && slugParam === 'roadmap';
+let roadmapStages: { key: string; label: string; items: typeof allDocs }[] = [];
+if (isRoadmapArchive) {
+  const roadmapItems = allDocs.filter(d => {
+    return d.data.collection === 'roadmap' &&
+      d.data.locale === locale &&
+      !isIndexFile(d.data) &&
+      d.data.type !== 'archive' &&
+      d.data.visible !== false;
+  });
+
+  const stageOrder = ['planned', 'in-progress', 'shipped'];
+  const stageLabels: Record<string, string> = {
+    'planned': 'Planned',
+    'in-progress': 'In Progress',
+    'shipped': 'Shipped',
+  };
+
+  for (const stage of stageOrder) {
+    const items = roadmapItems.filter(d => {
+      return d.data.path?.includes(`/roadmap/${stage}/`);
+    }).sort((a, b) => {
+      const orderA = a.data.order ?? a.data.sidebar_position ?? 999;
+      const orderB = b.data.order ?? b.data.sidebar_position ?? 999;
+      return orderA - orderB;
+    });
+    roadmapStages.push({ key: stage, label: stageLabels[stage], items });
+  }
+}
+
 // Find available translations — from precomputed maps, zero API calls
 let availableTranslations: Locale[] = [locale];
 const translationSlugs: Partial<Record<Locale, string>> = {};
@@ -824,10 +878,22 @@ if (isApiPage && processedContent) {
     <script type="application/ld+json" set:html={JSON.stringify(apiJsonLd)} />
   )}
 
+  {/* Roadmap feature detail — metadata header */}
+  {fullDocument.collection === 'roadmap' && !isIndex && (
+    <div class="roadmap-detail-meta">
+      {fullDocument.status && <span class={`roadmap-status-badge status-${fullDocument.status.toLowerCase().replace(/\s+/g, '-')}`}>{fullDocument.status}</span>}
+      {fullDocument.priority && <span class={`roadmap-priority-badge priority-${fullDocument.priority}`}>{fullDocument.priority} priority</span>}
+      {fullDocument.quarter && <span class="roadmap-meta-item">{fullDocument.quarter}</span>}
+      {fullDocument.team && <span class="roadmap-meta-item">{fullDocument.team}</span>}
+      {(fullDocument.votes ?? fullDocument.vote) != null && <span class="roadmap-meta-item roadmap-votes">{fullDocument.votes || fullDocument.vote} votes</span>}
+      {fullDocument.plan && <span class="roadmap-meta-item">{fullDocument.plan} plan</span>}
+    </div>
+  )}
+
   {/* Render document content */}
   {processedContent ? (
     <Fragment set:html={processedContent} />
-  ) : !isIndex && (
+  ) : !isIndex && !isProductUpdates && (
     <p class="text-[var(--color-text-muted)]">No content available</p>
   )}
 
@@ -879,8 +945,75 @@ if (isApiPage && processedContent) {
     </div>
   )}
 
+  {/* Product Updates — Changelog Feed */}
+  {isProductUpdates && productUpdatesFeed.length > 0 && (
+    <div class="pu-feed">
+      {productUpdatesFeed.map((update, i) => {
+        const html = update.rendered?.html ? processMarkdown(update.rendered.html) : '';
+        const dateStr = update.data.date
+          ? update.data.date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
+          : '';
+        return (
+          <article class="pu-entry" id={`v${update.data.version || i}`}>
+            <div class="pu-entry-header">
+              <time class="pu-entry-date" datetime={update.data.date?.toISOString()}>{dateStr}</time>
+              {update.data.version && <span class="pu-entry-version">v{update.data.version}</span>}
+            </div>
+            <h2 class="pu-entry-title">{update.data.title}</h2>
+            {update.data.summary && <p class="pu-entry-summary">{update.data.summary}</p>}
+            {update.data.tags && update.data.tags.length > 0 && (
+              <div class="pu-entry-tags">
+                {update.data.tags.map(tag => <span class="pu-tag">{tag}</span>)}
+              </div>
+            )}
+            <div class="pu-entry-content">
+              <Fragment set:html={html} />
+            </div>
+          </article>
+        );
+      })}
+    </div>
+  )}
+
+  {/* Roadmap — Kanban Board */}
+  {isRoadmapArchive && roadmapStages.length > 0 && (
+    <div class="roadmap-board">
+      {roadmapStages.map(stage => (
+        <div class="roadmap-column" data-stage={stage.key}>
+          <div class="roadmap-column-header">
+            <span class={`roadmap-stage-dot roadmap-stage-${stage.key}`}></span>
+            <h3 class="roadmap-column-title">{stage.label}</h3>
+            <span class="roadmap-column-count">{stage.items.length}</span>
+          </div>
+          <div class="roadmap-column-items">
+            {stage.items.map(item => {
+              const href = getDocUrl({ ...item.data, id: item.id }, locale);
+              const categoryVal = Array.isArray(item.data.category) ? item.data.category[0] : item.data.category;
+              return (
+                <a href={href} class="roadmap-card">
+                  <h4 class="roadmap-card-title">{item.data.title}</h4>
+                  {item.data.description && <p class="roadmap-card-desc">{item.data.description}</p>}
+                  <div class="roadmap-card-meta">
+                    {categoryVal && <span class="roadmap-card-category">{categoryVal}</span>}
+                    {item.data.quarter && <span class="roadmap-card-quarter">{item.data.quarter}</span>}
+                  </div>
+                  <div class="roadmap-card-footer">
+                    {item.data.team && <span class="roadmap-card-team">{item.data.team}</span>}
+                    {(item.data.votes ?? item.data.vote) != null && <span class="roadmap-card-votes">{item.data.votes || item.data.vote}</span>}
+                    {item.data.priority && <span class={`roadmap-card-priority priority-${item.data.priority}`}>{item.data.priority}</span>}
+                  </div>
+                </a>
+              );
+            })}
+            {stage.items.length === 0 && <p class="roadmap-empty">No items yet</p>}
+          </div>
+        </div>
+      ))}
+    </div>
+  )}
+
   {/* For non-API index/archive pages, show child folders + standard card grid */}
-  {isIndex && !isApiPage && showChildGrid && (childFolders.length > 0 || childDocuments.length > 0) && (
+  {isIndex && !isApiPage && !isProductUpdates && !isRoadmapArchive && showChildGrid && (childFolders.length > 0 || childDocuments.length > 0) && (
     <div class="archive-content-grid">
       {/* Child folder cards */}
       {childFolders.length > 0 && (
@@ -934,7 +1067,7 @@ if (isApiPage && processedContent) {
   )}
 
   {/* Empty state for index with no children and no content */}
-  {isIndex && childDocuments.length === 0 && childFolders.length === 0 && !processedContent && (
+  {isIndex && !isProductUpdates && !isRoadmapArchive && childDocuments.length === 0 && childFolders.length === 0 && !processedContent && (
     <div class="archive-empty">
       <p class="text-[var(--color-text-muted)]">No articles in this section yet.</p>
     </div>

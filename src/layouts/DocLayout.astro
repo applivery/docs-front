@@ -352,6 +352,73 @@ try {
 } catch { /* github settings not available */ }
 const hasFooter = !!(prevPage || nextPage || editUrl);
 
+// ─── Collection-specific sidebar overrides ──────────────────────────
+let collectionSideMenu: any = collection === 'api' ? undefined : settings?.navigation?.sideMenu;
+
+if (collection === 'product-updates') {
+  const puDocs = documents.filter((d: Document) =>
+    d.collection === 'product-updates' && (d.locale === currentLocale || !d.locale) &&
+    d.type !== 'archive' && d.visible !== false
+  ).sort((a: Document, b: Document) => {
+    const dateA = new Date((a as any).date || (a as any).pub_date || 0).getTime();
+    const dateB = new Date((b as any).date || (b as any).pub_date || 0).getTime();
+    return dateB - dateA;
+  });
+
+  collectionSideMenu = {
+    mode: 'manual',
+    items: [{
+      id: 'product-updates',
+      type: 'group',
+      label: 'Product Updates',
+      icon: 'rocket',
+      children: puDocs.map((d: Document, i: number) => ({
+        id: `pu-${i}`,
+        type: 'anchor',
+        label: (d as any).version ? `v${(d as any).version}` : d.title,
+        href: `/${currentLocale}/product-updates/#v${(d as any).version || ''}`,
+        icon: 'document',
+      })),
+    }],
+  };
+}
+
+if (collection === 'roadmap') {
+  const stages = ['planned', 'in-progress', 'shipped'];
+  const stageLabels: Record<string, string> = { planned: 'Planned', 'in-progress': 'In Progress', shipped: 'Shipped' };
+  const stageIcons: Record<string, string> = { planned: 'clipboard', 'in-progress': 'bolt', shipped: 'checkCircle' };
+
+  const roadmapDocs = documents.filter((d: Document) =>
+    d.collection === 'roadmap' && (d.locale === currentLocale || !d.locale) &&
+    d.type !== 'archive' && d.visible !== false
+  );
+
+  collectionSideMenu = {
+    mode: 'manual',
+    items: [{
+      id: 'roadmap',
+      type: 'group',
+      label: 'Roadmap',
+      icon: 'map',
+      children: stages.map(stage => {
+        const stageItems = roadmapDocs.filter((d: Document) => d.path?.includes(`/roadmap/${stage}/`));
+        return {
+          id: `roadmap-${stage}`,
+          type: 'group' as const,
+          label: `${stageLabels[stage]} (${stageItems.length})`,
+          icon: stageIcons[stage],
+          children: stageItems.map((item: Document, i: number) => ({
+            id: `roadmap-${stage}-${i}`,
+            type: 'page' as const,
+            label: item.title,
+            href: `/${currentLocale}/roadmap/${stage}/${item.slug || item.path?.split('/').pop()?.replace(/\.mdx?$/, '')}`,
+          })),
+        };
+      }),
+    }],
+  };
+}
+
 // Build Article Schema for SEO/LLM optimization
 const siteUrl = settings?.seo?.siteUrl || Astro.url.origin;
 const siteName = settings?.seo?.siteName || "Documentation";
@@ -579,7 +646,7 @@ const faqSchema = isFaq
       siteName={settings?.seo?.siteName}
       supportedLocales={settings?.content?.supportedLocales}
       defaultLocale={settings?.content?.defaultLocale}
-      sideMenu={collection === 'api' ? undefined : settings?.navigation?.sideMenu}
+      sideMenu={collectionSideMenu}
       locale={currentLocale}
       availableTranslations={effectiveTranslations}
       translationSlugs={translationSlugs}
@@ -602,7 +669,7 @@ const faqSchema = isFaq
         <!-- Content Container with border - wraps content + TOC -->
         <div class="content-container">
           <!-- Article Content -->
-          <main class:list={["article-main scrollbar-hide", { "no-footer": !hasFooter }]}>
+          <main class:list={["article-main scrollbar-hide", { "no-footer": !hasFooter, "full-width": collection === 'product-updates' || collection === 'roadmap' }]}>
             <!-- Breadcrumbs - SEO optimized -->
             <Breadcrumbs
               items={breadcrumbItems}
@@ -1015,6 +1082,10 @@ const faqSchema = isFaq
     padding-right: 1rem;
     display: flex;
     flex-direction: column;
+  }
+
+  .article-main.full-width {
+    max-width: 100%;
   }
 
   .article-main.no-footer {

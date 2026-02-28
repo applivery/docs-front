@@ -81,6 +81,19 @@ const baseSchema = z.object({
   summary: z.string().optional(),
   key_takeaways: z.array(z.string()).optional(),
 
+  // Product Updates
+  version: z.string().optional(),
+  tags: z.array(z.string()).optional(),
+
+  // Roadmap
+  votes: z.number().optional(),
+  vote: z.number().optional(),
+  priority: z.string().optional(),
+  quarter: z.string().optional(),
+  team: z.string().optional(),
+  status: z.string().optional(),
+  plan: z.string().optional(),
+
   // Structured Data (includes WebAPI for API reference pages)
   schema_type: z.string().optional(),
   faqs: z.array(z.object({

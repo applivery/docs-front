@@ -249,6 +249,19 @@ function normalizeCmsDocument(doc: any): Record<string, any> {
     og_title: toStr(doc.og_title),
     og_description: toStr(doc.og_description),
     og_image: toStr(doc.og_image),
+
+    // Product Updates
+    version: toStr(doc.version),
+    tags: parseJsonField(doc.tags),
+
+    // Roadmap
+    votes: toNumber(doc.votes),
+    vote: toNumber(doc.vote),
+    priority: toStr(doc.priority),
+    quarter: toStr(doc.quarter),
+    team: toStr(doc.team),
+    status: toStr(doc.status),
+    plan: toStr(doc.plan),
   };
 }
 

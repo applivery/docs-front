@@ -853,12 +853,18 @@ const faqSchema = isFaq
 
           navigator.clipboard.writeText(text).then(function() {
             el.classList.add('copied');
-            var orig = el.getAttribute('title');
-            el.setAttribute('title', 'Copied!');
-            setTimeout(function() {
-              el.classList.remove('copied');
-              el.setAttribute('title', orig || 'Click to copy');
-            }, 1500);
+            var tooltip = el.querySelector('.api-endpoint-tooltip');
+            if (tooltip) {
+              tooltip.textContent = 'Copied!';
+              setTimeout(function() {
+                el.classList.remove('copied');
+                tooltip.textContent = 'Copy to clipboard';
+              }, 1500);
+            } else {
+              setTimeout(function() {
+                el.classList.remove('copied');
+              }, 1500);
+            }
           });
         });
       });

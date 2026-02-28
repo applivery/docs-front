@@ -181,9 +181,12 @@ export function processMarkdown(content: string): string {
     const baseUrlHtml = cleanBase
       ? `<span class="api-endpoint-base">${escapeHtml(cleanBase)}</span>`
       : '';
-    apiHeaderHtml = `<div class="api-endpoint-header">
+    apiHeaderHtml = `<div class="api-endpoint-header" data-copy-path="${escapeHtml(fullPath)}">
       <span class="api-method-badge method-${methodLower}">${escapeHtml(apiMethod.toUpperCase())}</span>
-      <span class="api-endpoint-path" role="button" tabindex="0" title="Click to copy" data-copy-path="${escapeHtml(fullPath)}">${baseUrlHtml}${escapeHtml(cleanPath)}</span>
+      <div class="api-endpoint-url">
+        ${baseUrlHtml}<span class="api-endpoint-route">${escapeHtml(cleanPath)}</span>
+      </div>
+      <span class="api-endpoint-tooltip">Copy to clipboard</span>
     </div>`;
   }
 

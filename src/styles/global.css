@@ -1246,17 +1246,23 @@
     }
   }
 
-  /* API Endpoint Page Header (method badge + path) */
+  /* API Endpoint Page Header (method badge + path + copy tooltip) */
   .api-endpoint-header {
+    position: relative;
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 0.75rem 1.25rem;
+    padding: 0.625rem 1rem;
     margin: 0 0 1.5rem 0;
-    background: var(--color-surface);
+    background: var(--color-background);
     border: 1px solid var(--color-border);
     border-radius: 0.75rem;
-    overflow: hidden;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+
+  .api-endpoint-header:hover {
+    border-color: #0241e3;
   }
 
   .api-method-badge {
@@ -1272,42 +1278,73 @@
     flex-shrink: 0;
   }
 
-  .api-endpoint-path {
+  .api-endpoint-url {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    align-items: center;
     font-size: 0.875rem;
     font-family: var(--font-code);
-    color: var(--color-text-primary);
     white-space: nowrap;
     overflow-x: auto;
     overflow-y: hidden;
-    min-width: 0;
-    padding: 0.25rem 0.5rem;
-    border-radius: 0.375rem;
-    cursor: pointer;
-    transition: background-color 0.15s ease;
     scrollbar-width: none;
+    padding: 0.125rem 0;
   }
 
-  .api-endpoint-path::-webkit-scrollbar {
+  .api-endpoint-url::-webkit-scrollbar {
     display: none;
-  }
-
-  .api-endpoint-path:hover {
-    background-color: var(--color-background-tertiary);
-  }
-
-  .api-endpoint-path.copied {
-    background-color: rgb(220 252 231);
-    color: rgb(22 101 52);
-  }
-
-  .dark .api-endpoint-path.copied {
-    background-color: rgb(22 101 52 / 0.3);
-    color: rgb(134 239 172);
   }
 
   .api-endpoint-base {
     color: var(--color-text-tertiary);
-    margin-right: 0.5rem;
+    padding-right: 0.375rem;
+  }
+
+  .api-endpoint-route {
+    color: var(--color-text-primary);
+  }
+
+  /* Tooltip */
+  .api-endpoint-tooltip {
+    position: absolute;
+    top: -2.25rem;
+    left: 50%;
+    transform: translateX(-50%);
+    padding: 0.375rem 0.75rem;
+    background: var(--color-text-primary);
+    color: var(--color-background);
+    font-family: var(--font-sans);
+    font-size: 0.75rem;
+    font-weight: 500;
+    border-radius: 0.375rem;
+    white-space: nowrap;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.15s, visibility 0.15s;
+    pointer-events: none;
+    z-index: 10;
+  }
+
+  .api-endpoint-tooltip::after {
+    content: '';
+    position: absolute;
+    bottom: -3px;
+    left: 50%;
+    transform: translateX(-50%) rotate(45deg);
+    width: 6px;
+    height: 6px;
+    background: inherit;
+  }
+
+  .api-endpoint-header:hover .api-endpoint-tooltip,
+  .api-endpoint-header.copied .api-endpoint-tooltip {
+    opacity: 1;
+    visibility: visible;
+  }
+
+  .api-endpoint-header.copied .api-endpoint-tooltip {
+    background: #16a34a;
   }
 
   /* API Endpoint (inline component) */

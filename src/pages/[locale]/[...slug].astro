@@ -808,8 +808,8 @@ if (isApiPage && processedContent) {
   keyTakeaways={fullDocument.key_takeaways}
   author={fullDocument.author}
   authorUrl={fullDocument.author_url}
-  datePublished={(fullDocument.pub_date || fullDocument.date)?.toISOString()}
-  dateModified={fullDocument.updated_date?.toISOString()}
+  datePublished={fullDocument.collection !== 'api' ? (fullDocument.pub_date || fullDocument.date)?.toISOString() : undefined}
+  dateModified={fullDocument.collection !== 'api' ? fullDocument.updated_date?.toISOString() : undefined}
   heroImage={resolveMediaUrl(fullDocument.hero_image)}
   imageAlt={fullDocument.image_alt}
   headings={headings}

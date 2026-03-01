@@ -180,6 +180,24 @@ export function cmsLoader(config: CmsLoaderConfig): Loader {
  * The CMS returns raw DB values; we need to coerce types for Zod validation.
  */
 function normalizeCmsDocument(doc: any): Record<string, any> {
+  // The CMS stores extra frontmatter fields inside `extended_metadata` (JSON string).
+  // Merge them into the top-level doc so the normalizer can access them directly.
+  if (doc.extended_metadata) {
+    try {
+      const em = typeof doc.extended_metadata === 'string'
+        ? JSON.parse(doc.extended_metadata)
+        : doc.extended_metadata;
+      if (em && typeof em === 'object') {
+        for (const [key, value] of Object.entries(em)) {
+          // Only fill in fields not already present at top level
+          if (doc[key] === undefined || doc[key] === null) {
+            doc[key] = value;
+          }
+        }
+      }
+    } catch { /* ignore malformed extended_metadata */ }
+  }
+
   return {
     // Core fields
     title: doc.title || 'Untitled',

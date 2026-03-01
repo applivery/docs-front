@@ -881,12 +881,40 @@ if (isApiPage && processedContent) {
   {/* Roadmap feature detail — metadata header */}
   {fullDocument.collection === 'roadmap' && !isIndex && (
     <div class="roadmap-detail-meta">
-      {fullDocument.status && <span class={`roadmap-status-badge status-${fullDocument.status.toLowerCase().replace(/\s+/g, '-')}`}>{fullDocument.status}</span>}
-      {fullDocument.priority && <span class={`roadmap-priority-badge priority-${fullDocument.priority}`}>{fullDocument.priority} priority</span>}
-      {fullDocument.quarter && <span class="roadmap-meta-item">{fullDocument.quarter}</span>}
-      {fullDocument.team && <span class="roadmap-meta-item">{fullDocument.team}</span>}
-      {(fullDocument.votes ?? fullDocument.vote) != null && <span class="roadmap-meta-item roadmap-votes">{fullDocument.votes || fullDocument.vote} votes</span>}
-      {fullDocument.plan && <span class="roadmap-meta-item">{fullDocument.plan} plan</span>}
+      <div class="roadmap-detail-badges">
+        {fullDocument.status && <span class={`roadmap-status-badge status-${fullDocument.status.toLowerCase().replace(/\s+/g, '-')}`}>{fullDocument.status}</span>}
+        {fullDocument.priority && <span class={`roadmap-priority-badge priority-${fullDocument.priority}`}>{fullDocument.priority} priority</span>}
+        {fullDocument.plan && <span class="roadmap-plan-badge">{fullDocument.plan}</span>}
+      </div>
+      <div class="roadmap-detail-info">
+        {fullDocument.quarter && (
+          <div class="roadmap-detail-item">
+            <span class="roadmap-detail-label">Timeline</span>
+            <span class="roadmap-detail-value">{fullDocument.quarter}</span>
+          </div>
+        )}
+        {fullDocument.team && (
+          <div class="roadmap-detail-item">
+            <span class="roadmap-detail-label">Team</span>
+            <span class="roadmap-detail-value">{fullDocument.team}</span>
+          </div>
+        )}
+        {(fullDocument.votes ?? fullDocument.vote) != null && (
+          <div class="roadmap-detail-item">
+            <span class="roadmap-detail-label">Votes</span>
+            <span class="roadmap-detail-value roadmap-detail-votes">
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 2L9 7H3L6 2Z" fill="currentColor"/></svg>
+              {fullDocument.votes || fullDocument.vote}
+            </span>
+          </div>
+        )}
+        {fullDocument.category && (
+          <div class="roadmap-detail-item">
+            <span class="roadmap-detail-label">Category</span>
+            <span class="roadmap-detail-value">{Array.isArray(fullDocument.category) ? fullDocument.category[0] : fullDocument.category}</span>
+          </div>
+        )}
+      </div>
     </div>
   )}
 
@@ -955,19 +983,23 @@ if (isApiPage && processedContent) {
           : '';
         return (
           <article class="pu-entry" id={`v${update.data.version || i}`}>
-            <div class="pu-entry-header">
-              <time class="pu-entry-date" datetime={update.data.date?.toISOString()}>{dateStr}</time>
-              {update.data.version && <span class="pu-entry-version">v{update.data.version}</span>}
-            </div>
-            <h2 class="pu-entry-title">{update.data.title}</h2>
-            {update.data.summary && <p class="pu-entry-summary">{update.data.summary}</p>}
-            {update.data.tags && update.data.tags.length > 0 && (
-              <div class="pu-entry-tags">
-                {update.data.tags.map(tag => <span class="pu-tag">{tag}</span>)}
+            <aside class="pu-entry-aside">
+              <div class="pu-entry-aside-inner">
+                <time class="pu-entry-date" datetime={update.data.date?.toISOString()}>{dateStr}</time>
+                {update.data.version && <span class="pu-entry-version">v{update.data.version}</span>}
+                {update.data.tags && update.data.tags.length > 0 && (
+                  <div class="pu-entry-tags">
+                    {update.data.tags.map(tag => <span class="pu-tag">{tag}</span>)}
+                  </div>
+                )}
               </div>
-            )}
-            <div class="pu-entry-content">
-              <Fragment set:html={html} />
+            </aside>
+            <div class="pu-entry-body">
+              <h2 class="pu-entry-title">{update.data.title}</h2>
+              {update.data.summary && <p class="pu-entry-summary">{update.data.summary}</p>}
+              <div class="pu-entry-content">
+                <Fragment set:html={html} />
+              </div>
             </div>
           </article>
         );
@@ -989,18 +1021,26 @@ if (isApiPage && processedContent) {
             {stage.items.map(item => {
               const href = getDocUrl({ ...item.data, id: item.id }, locale);
               const categoryVal = Array.isArray(item.data.category) ? item.data.category[0] : item.data.category;
+              const voteCount = item.data.votes || item.data.vote;
               return (
                 <a href={href} class="roadmap-card">
+                  <div class="roadmap-card-top">
+                    {item.data.priority && <span class={`roadmap-card-priority priority-${item.data.priority}`}>{item.data.priority}</span>}
+                    {categoryVal && <span class="roadmap-card-category">{categoryVal}</span>}
+                  </div>
                   <h4 class="roadmap-card-title">{item.data.title}</h4>
                   {item.data.description && <p class="roadmap-card-desc">{item.data.description}</p>}
-                  <div class="roadmap-card-meta">
-                    {categoryVal && <span class="roadmap-card-category">{categoryVal}</span>}
-                    {item.data.quarter && <span class="roadmap-card-quarter">{item.data.quarter}</span>}
-                  </div>
                   <div class="roadmap-card-footer">
+                    {item.data.quarter && <span class="roadmap-card-quarter">{item.data.quarter}</span>}
                     {item.data.team && <span class="roadmap-card-team">{item.data.team}</span>}
-                    {(item.data.votes ?? item.data.vote) != null && <span class="roadmap-card-votes">{item.data.votes || item.data.vote}</span>}
-                    {item.data.priority && <span class={`roadmap-card-priority priority-${item.data.priority}`}>{item.data.priority}</span>}
+                    {voteCount != null && (
+                      <span class="roadmap-card-votes">
+                        <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><path d="M6 2L9 7H3L6 2Z" fill="currentColor"/></svg>
+                        {voteCount}
+                      </span>
+                    )}
+                    {item.data.status && <span class="roadmap-card-status">{item.data.status}</span>}
+                    {item.data.plan && <span class="roadmap-card-plan">{item.data.plan}</span>}
                   </div>
                 </a>
               );

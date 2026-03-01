@@ -158,6 +158,19 @@ export interface Document {
   sources?: string[];
   translations?: Array<{ locale: string; path: string }>;
 
+  // Product Updates
+  version?: string;
+  tags?: string[];
+
+  // Roadmap
+  votes?: number;
+  vote?: number;
+  priority?: string;
+  quarter?: string;
+  team?: string;
+  status?: string;
+  plan?: string;
+
   // System
   sha?: string;
   created_at?: string;

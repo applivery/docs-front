@@ -356,12 +356,16 @@ const hasFooter = !!(prevPage || nextPage || editUrl);
 let collectionSideMenu: any = collection === 'api' ? undefined : settings?.navigation?.sideMenu;
 
 if (collection === 'product-updates') {
-  const puDocs = documents.filter((d: Document) =>
-    d.collection === 'product-updates' && (d.locale === currentLocale || !d.locale) &&
-    d.type !== 'archive' && d.visible !== false
-  ).sort((a: Document, b: Document) => {
-    const dateA = new Date((a as any).date || (a as any).pub_date || 0).getTime();
-    const dateB = new Date((b as any).date || (b as any).pub_date || 0).getTime();
+  // Use Astro content store (has version/tags fields) instead of CMS API
+  const allStoreDocs = await getCollection('docs');
+  const puStoreDocs = allStoreDocs.filter(d =>
+    d.data.collection === 'product-updates' &&
+    (d.data.locale === currentLocale || !d.data.locale) &&
+    d.data.type !== 'archive' &&
+    d.data.visible !== false
+  ).sort((a, b) => {
+    const dateA = a.data.date?.getTime() || 0;
+    const dateB = b.data.date?.getTime() || 0;
     return dateB - dateA;
   });
 
@@ -372,13 +376,18 @@ if (collection === 'product-updates') {
       type: 'group',
       label: 'Product Updates',
       icon: 'rocket',
-      children: puDocs.map((d: Document, i: number) => ({
-        id: `pu-${i}`,
-        type: 'anchor',
-        label: (d as any).version ? `v${(d as any).version}` : d.title,
-        href: `/${currentLocale}/product-updates/#v${(d as any).version || ''}`,
-        icon: 'document',
-      })),
+      children: puStoreDocs.map((d, i) => {
+        const dateLabel = d.data.date ? d.data.date.toLocaleDateString('en-US', { year: 'numeric', month: 'short' }) : '';
+        const versionLabel = d.data.version ? `v${d.data.version}` : '';
+        const label = versionLabel && dateLabel ? `${versionLabel} — ${dateLabel}` : versionLabel || d.data.title;
+        return {
+          id: `pu-${i}`,
+          type: 'anchor' as const,
+          label,
+          href: `/${currentLocale}/product-updates/#v${d.data.version || i}`,
+          icon: 'document',
+        };
+      }),
     }],
   };
 }
